@@ -27,7 +27,9 @@
 #>
 
 Param(
-  [string]$SQLInstance='localhost'
+  [string]$SQLInstance='localhost',
+  [string]$myuser,
+  [string]$mypass
 )
 
 Set-StrictMode -Version latest;
