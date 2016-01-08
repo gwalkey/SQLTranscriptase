@@ -1,16 +1,16 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets SQL Server Security Information from the target server
 	
 .DESCRIPTION
-   Writes out the results of 5 SQL Queries to a sub folder of the Server Name (C0SQL1)
+   Writes out the results of 5 SQL Queries to a sub folder of the Server Name 
    One HTML file for each Query
    
 .EXAMPLE
-    SQLSecurityAudit.ps1 localhost
+    12_Security_Audit.ps1 localhost
 	
 .EXAMPLE
-    SQLSecurityAudit.ps1 server01 sa password
+    12_Security_Audit.ps1 server01 sa password
 
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
@@ -19,8 +19,9 @@
 	HTML Files
 	
 .NOTES
-
+	.NET DataAdapter faster and more sustainable than Invoke-SqlCmd
 .LINK
+	https://github.com/gwalkey/SQLTranscriptase
 	
 #>
 
@@ -64,7 +65,7 @@ try
 
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
+        Write-Output "Trying SQL Auth"
 		# .NET Method
 		# Open connection and Execute sql against server
 		$DataSet = New-Object System.Data.DataSet
@@ -84,13 +85,11 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
     {
-        Write-Output "Testing Windows Auth"
+        Write-Output "Trying Windows Auth"
 		# .NET Method
 		# Open connection and Execute sql against server using Windows Auth
 		$DataSet = New-Object System.Data.DataSet
@@ -110,8 +109,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -126,7 +123,7 @@ try
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline"
     Set-Location $BaseFolder
 	exit
 }
@@ -147,6 +144,41 @@ else
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
 }
+
+# Create some CSS for help in column formatting
+$myCSS = 
+"
+table
+    {
+        Margin: 0px 0px 0px 4px;
+        Border: 1px solid rgb(190, 190, 190);
+        Font-Family: Tahoma;
+        Font-Size: 9pt;
+        Background-Color: rgb(252, 252, 252);
+    }
+tr:hover td
+    {
+        Background-Color: rgb(150, 150, 220);
+        Color: rgb(255, 255, 255);
+    }
+tr:nth-child(even)
+    {
+        Background-Color: rgb(242, 242, 242);
+    }
+th
+    {
+        Text-Align: Left;
+        Color: rgb(150, 150, 220);
+        Padding: 1px 4px 1px 4px;
+    }
+td
+    {
+        Vertical-Align: Top;
+        Padding: 1px 4px 1px 4px;
+    }
+"
+
+$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
 # Create Output Folder
 $fullfolderPath = "$BaseFolder\$sqlinstance\12 - Security Audit"
@@ -206,50 +238,12 @@ drop table #syslogins
 "
 
 
-# Create some CSS for help in column formatting
-$myCSS = 
-"
-table
-    {
-        Margin: 0px 0px 0px 4px;
-        Border: 1px solid rgb(190, 190, 190);
-        Font-Family: Tahoma;
-        Font-Size: 9pt;
-        Background-Color: rgb(252, 252, 252);
-    }
-tr:hover td
-    {
-        Background-Color: rgb(150, 150, 220);
-        Color: rgb(255, 255, 255);
-    }
-tr:nth-child(even)
-    {
-        Background-Color: rgb(242, 242, 242);
-    }
-th
-    {
-        Text-Align: Left;
-        Color: rgb(150, 150, 220);
-        Padding: 1px 4px 1px 4px;
-    }
-td
-    {
-        Vertical-Align: Top;
-        Padding: 1px 4px 1px 4px;
-    }
-"
-
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
-
-
-Write-Output "Server Logins..."
 # Run Query 1
+Write-Output "Server Logins..."
 if ($serverauth -ne "win")
 {
-	#Write-Output "Using Sql Auth"
-
     # .NET Method
-	# Open connection and Execute sql against server
+	# Open connection and Execute sql against server using SQL Auth
 	$DataSet = New-Object System.Data.DataSet
 	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
 	$Connection = New-Object System.Data.SqlClient.SqlConnection
@@ -271,8 +265,6 @@ if ($serverauth -ne "win")
 }
 else
 {
-	#Write-Output "Using Windows Auth"	
-
 	# .NET Method
 	# Open connection and Execute sql against server using Windows Auth
 	$DataSet = New-Object System.Data.DataSet
@@ -301,15 +293,106 @@ $results | select Login, DefaultDB, language, IsDenied, IsWinAuthentication, IsW
 ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Logins</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\1_Server_Logins.html"
 
 
+# ----------------------------------------------------
+# Server Login to Database User Global Mapping Listing
+# ----------------------------------------------------
+Write-Output "Server Login to Database User Global Mapping Listing..."
+
+$mySQL2 = "
+declare @mySQL varchar(1000)
+
+create table #MappingTable
+([Login_Name] NVARCHAR(255), [Database_Name] NVARCHAR(255), [Database_User] nvarchar(255), [Default_Schema] nvarchar(255))
+
+
+set @mySQL = '	
+
+use ?
+
+insert into #MappingTable
+        SELECT 
+	        sp.name AS ''Login_Name'', 
+			db_name() AS ''Database_Name'',
+	        dp.name AS ''Database_User'',
+			coalesce(dp.default_schema_name,'' '') as ''Default_Schema''
+        FROM 
+        	sys.database_principals dp 
+        INNER JOIN sys.server_principals sp 
+            ON dp.sid = sp.sid 
+        ORDER BY 
+        	sp.name, 
+    	    dp.name;
+
+'
+
+exec sp_MSforeachdb @mySQL
+
+select * from #MappingTable order by 1,2,3
+drop table #MappingTable
+
+
+"
+
+# Run Query 2
+if ($serverauth -ne "win")
+{
+    # .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQL2
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+	# Close connection to sql server
+	$Connection.Close()
+	$results2 = $DataSet.Tables[0].Rows
+}
+else
+{
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQL2
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+	# Close connection to sql server
+	$Connection.Close()
+	$results2 = $DataSet.Tables[0].Rows
+}
+
+
+# Write Out Rows
+$RunTime = Get-date
+$results2 | select Login_Name, Database_Name, Database_User, Default_Schema|`
+ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Login to Database User Mapping</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\2_Server_Logins_to_Database_User_Mappings.html"
+
+
 set-location $BaseFolder
 
 # -----------------------
 # iterate over each DB
 # -----------------------
-Write-Output "Database Objects..."
+Write-Output "Processing Database Objects..."
 foreach($sqlDatabase in $srv.databases) 
 {
-    # Skip Certain System Databases
+    # Skip Certain System Databases - change to your liking
     if ($sqlDatabase.Name -in 'Model','TempDB','SSISDB','distribution','ReportServer','ReportServerTempDB') {continue}
 
     # Create Output Folders - One Per DataBase
@@ -323,7 +406,7 @@ foreach($sqlDatabase in $srv.databases)
         mkdir $output_path | Out-Null	
     }
 
-    # Skip Offline Databases (SMO still enumerates them, but cant retrieve the objects)
+    # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
     {
         Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
@@ -332,7 +415,9 @@ foreach($sqlDatabase in $srv.databases)
 
     $sqlDatabase.Name
     
-    # Run Query 2    
+	# ==============
+    # Run Query 2   
+	# ==============	
     # 2) Login_to_User_Mappings
 
     $sql2 = "
@@ -349,7 +434,6 @@ foreach($sqlDatabase in $srv.databases)
     	sp.name, 
     	dp.name;
     "
-    #Write-Output $sql2
 
     # Run SQL
     if ($serverauth -eq "win")
@@ -372,8 +456,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results2 = $DataSet.Tables[0].Rows
-
-    	#$results2 = Invoke-SqlCmd -query $sql2 -Server $SQLInstance
     }
     else
     {
@@ -396,8 +478,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results2 = $DataSet.Tables[0].Rows
-
-        #$results2 = Invoke-SqlCmd -query $sql2 -Server $SQLInstance –Username $myuser –Password $mypass    	
     }
 
     # Write out rows
@@ -449,8 +529,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results3 = $DataSet.Tables[0].Rows
-
-    	#$results3 = Invoke-SqlCmd -query $sql3 -Server $SQLInstance –Username $myuser –Password $mypass 
     }
     else
     {
@@ -473,8 +551,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results3 = $DataSet.Tables[0].Rows
-
-    	#$results3 = Invoke-SqlCmd -query $sql3 -Server $SQLInstance      
     }
 
     # Write out rows    
@@ -485,7 +561,7 @@ foreach($sqlDatabase in $srv.databases)
     # =============
     # Run Query 4
     # =============
-    # 4) Databse-Level Permissions
+    # 4) Database-Level Permissions
     $sql4 = "
     Use ["+ $sqlDatabase.Name + "];"+
     "
@@ -526,8 +602,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results4 = $DataSet.Tables[0].Rows
-
-    	#$results4 = Invoke-SqlCmd -query $sql4 -Server $SQLInstance
     }
     else
     {
@@ -550,8 +624,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results4 = $DataSet.Tables[0].Rows
-
-        #$results4 = Invoke-SqlCmd -query $sql4 -Server $SQLInstance –Username $myuser –Password $mypass    	
     }
 
     # Write out rows    
@@ -559,7 +631,9 @@ foreach($sqlDatabase in $srv.databases)
 
     set-location $BaseFolder
 
+	# ===============
     # Run Query 5
+	# ===============
     # 5) Individual Database-Level Object Permissions
     $sql5 = "
     Use ["+ $sqlDatabase.Name + "];"+
@@ -593,7 +667,7 @@ foreach($sqlDatabase in $srv.databases)
 
     "
     
- # Run SQL
+	# Run SQL
     if ($serverauth -eq "win")
     {
     	# .NET Method
@@ -614,8 +688,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results5 = $DataSet.Tables[0].Rows
-
-    	#$results5 = Invoke-SqlCmd -query $sql5 -Server $SQLInstance
     }
     else
     {
@@ -638,9 +710,6 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $results5 = $DataSet.Tables[0].Rows
-
-        #$results5 = Invoke-SqlCmd -query $sql5 -Server $SQLInstance –Username $myuser –Password $mypass
-    	
     }
 
     # Write out rows    
