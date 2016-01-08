@@ -20,11 +20,29 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 14151 - Fulltext Catalog Not Setup on Replicated Table'
+,@message_id=14151
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
  @name=N'Error Number 14157 - Replication Subscription Dropped'
 ,@message_id=14157
 ,@severity=0
 ,@enabled=1
 ,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 17053 - LogWriter OS Error - Device not ready'
+,@message_id=17053
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -38,7 +56,16 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
- @name=N'Error Number 17204 - Could not Open file'
+ @name=N'Error Number 17187 - Login Failed - Server Starting up'
+,@message_id=17187
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 17204 - Could not open file'
 ,@message_id=17204
 ,@severity=0
 ,@enabled=1
@@ -47,7 +74,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
- @name=N'Error Number 17207 - The OS cannot Open the file'
+ @name=N'Error Number 17207 - OS could not open file'
 ,@message_id=17207
 ,@severity=0
 ,@enabled=1
@@ -110,6 +137,15 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 18056 - Login Failed - Server Shutting Down'
+,@message_id=18056
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
  @name=N'Error Number 18204 - Backup Failed'
 ,@message_id=18204
 ,@severity=0
@@ -133,6 +169,24 @@ EXEC msdb.dbo.sp_add_alert
 ,@severity=0
 ,@enabled=1
 ,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 3041 - Backup Failed'
+,@message_id=3041
+,@severity=0
+,@enabled=1
+,@delay_between_responses=15
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 3203 - CRC Error on File Read'
+,@message_id=3203
+,@severity=0
+,@enabled=1
+,@delay_between_responses=15
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -218,6 +272,15 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 5105 - File Activation Error'
+,@message_id=5105
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
  @name=N'Error Number 5120 - Unable to open the physical file'
 ,@message_id=5120
 ,@severity=0
@@ -250,6 +313,15 @@ EXEC msdb.dbo.sp_add_alert
 ,@severity=0
 ,@enabled=1
 ,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 547 - DRI Constraint Violation'
+,@message_id=547
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -330,7 +402,16 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=833
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 845 - Buffer Latch Timeout'
+,@message_id=845
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -358,6 +439,42 @@ EXEC msdb.dbo.sp_add_alert
 ,@severity=0
 ,@enabled=1
 ,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 9002 - TranLog File is Full'
+,@message_id=9002
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 9645 - Service Broker Manager Offline'
+,@message_id=9645
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 9954 - Failed to communicate with FullText Service'
+,@message_id=9954
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Lock Wait Time (ms)'
+,@message_id=0
+,@severity=0
+,@enabled=1
+,@delay_between_responses=0
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -466,6 +583,15 @@ EXEC msdb.dbo.sp_add_alert
 ,@severity=25
 ,@enabled=1
 ,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'SQL Perf - Full Table Scans Per Second'
+,@message_id=0
+,@severity=0
+,@enabled=0
+,@delay_between_responses=0
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
