@@ -132,6 +132,7 @@ catch
 
 # Set Local Vars
 $server = $SQLInstance
+$fullfolderPath = "$BaseFolder\$sqlinstance\12 - Security Audit"
 
 if ($serverauth -eq "win")
 {
@@ -143,6 +144,14 @@ else
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
+}
+
+
+# Create Output Folder
+$fullfolderPath = "$BaseFolder\$sqlinstance\12 - Security Audit"
+if(!(test-path -path $fullfolderPath))
+{
+	mkdir $fullfolderPath | Out-Null
 }
 
 # Create some CSS for help in column formatting
@@ -179,13 +188,6 @@ td
 "
 
 $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
-
-# Create Output Folder
-$fullfolderPath = "$BaseFolder\$sqlinstance\12 - Security Audit"
-if(!(test-path -path $fullfolderPath))
-{
-	mkdir $fullfolderPath | Out-Null
-}
 
 
 # Export Security Information:
