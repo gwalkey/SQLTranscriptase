@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the core Database Objects on the target server
 
@@ -332,6 +332,25 @@ if(!(test-path -path $FullFolderPath))
 $myCSS | out-file "$FullFolderPath\HTMLReport.css" -Encoding ascii
 $sqlresultsX | select Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -PreContent "<h1>$SqlInstance</H1><H2>Database Summary</h2>" -PostContent "<h3>Ran on : $RunTime</h3>" -CSSUri "HtmlReport.css"| Set-Content "$FullFolderPath\Database_Summary.html"
 
+# Create Database Object Reconstruction Order Hints File
+"Database Object Reconstruction Order" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"`n " | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"01) Database with Filegroups" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"02) .NET Assemblies" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"03) Linked Servers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
+"04) Logins" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
+"05) Sequences" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"06) Synonyms" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"07) Schemas" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"08) UDFs (Table-Valued and Scalar Functions)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"09) User-Defined Table Types" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"10) Tables (with DRI Dependencies)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"11) Views" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"12) Stored Procedures" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"13) Full-Text Catalogs" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"14) Table Triggers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"15) Database Triggers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+
 # Add your favorite options from 
 # https://msdn.microsoft.com/en-us/library/microsoft.sqlserver.management.smo.scriptingoptions.aspx
 # https://www.simple-talk.com/sql/database-administration/automated-script-generation-with-powershell-and-smo/
@@ -473,25 +492,7 @@ foreach($sqlDatabase in $srv.databases)
     $MainDB = $db  | Where-object  { -not $_.IsSystemObject  }
     CopyObjectsToFiles $MainDB $DB_Path
 
-    # Create Database Object Reconstruction Order Hints File
-    "Database Object Reconstruction Order" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "`n " | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "01) Database with Filegroups" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "02) .NET Assemblies" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "03) Linked Servers" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append    
-    "04) Logins" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append    
-    "05) Sequences" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "06) Synonyms" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "07) Schemas" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "08) UDFs (Table-Valued and Scalar Functions)" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "09) User-Defined Table Types" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "10) Tables" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "11) Views" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "12) Stored Procedures" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "13) Full-Text Catalogs" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "14) Table Triggers" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    "15) Database Triggers" | out-file "$output_path\Database_Reconstruction_Order.txt" -Encoding ascii -Append
-    
+   
 
     # Create CSS file
     $myCSS | out-file "$DBSettingsPath\HTMLReport.css" -Encoding ascii
@@ -550,7 +551,6 @@ foreach($sqlDatabase in $srv.databases)
     Write-Output "$fixedDBName - FullTextCatalogs"
     $catalog = $db.FullTextCatalogs
     CopyObjectsToFiles $catalog $textCatalog_path
-
 
     # DB Triggers
     Write-Output "$fixedDBName - Database Triggers"
@@ -661,12 +661,159 @@ foreach($sqlDatabase in $srv.databases)
     }
 
 
+    # Table Creation in Dependency Order to maintain DRI
+    Write-Output "$fixedDBName - Writing Table Creaton Order in order to maintain DRI"
 
+    # Create Database Summary Listing
+    $mySQLquery4 = 
+    "
+    use $fixedDBName;
+
+    --- Reference/Credit:
+    --- http://stackoverflow.com/questions/352176/sqlserver-how-to-sort-table-names-ordered-by-their-foreign-key-dependency
+    ---
+    declare @level int  -- Current depth
+           ,@count int      
+
+    -- Step 1: Start with tables that have no FK dependencies
+    --  
+    if object_id ('tempdb..#Tables') is not null
+        drop table #Tablesc
+
+    select s.name + '.' + t.name  as TableName
+          ,t.object_id            as TableID
+          ,0                      as Ordinal
+      into #Tables
+      from sys.tables t
+      join sys.schemas s
+        on t.schema_id = s.schema_id
+     where not exists
+           (select 1
+              from sys.foreign_keys f
+             where f.parent_object_id = t.object_id)
+
+    set @count = @@rowcount         
+    set @level = 0
+
+
+    -- Step 2: For a given depth this finds tables joined to 
+    -- tables at this given depth.  A table can live at multiple 
+    -- depths if it has more than one join path into it, so we 
+    -- filter these out in step 3 at the end.
+    --
+    while @count > 0 begin
+
+        insert #Tables (
+               TableName
+              ,TableID
+              ,Ordinal
+        ) 
+        select s.name + '.' + t.name  as TableName
+              ,t.object_id            as TableID
+              ,@level + 1             as Ordinal
+          from sys.tables t
+          join sys.schemas s
+            on s.schema_id = t.schema_id
+         where exists
+               (select 1
+                  from sys.foreign_keys f
+                  join #Tables tt
+                    on f.referenced_object_id = tt.TableID
+                   and tt.Ordinal = @level
+                   and f.parent_object_id = t.object_id
+                   and f.parent_object_id != f.referenced_object_id)
+                       -- The last line ignores self-joins.  You'll
+                       -- need to deal with these separately
+
+       set @count = @@rowcount
+       set @level = @level + 1
+    end
+
+    -- Step 3: This filters out the maximum depth an object occurs at
+    -- and displays the deepest first.
+    --
+    select t.Ordinal
+          --,t.TableID
+          ,t.TableName
+      from #Tables t
+      join (select TableName     as TableName
+                  ,Max (Ordinal) as Ordinal
+              from #Tables
+             group by TableName) tt
+        on t.TableName = tt.TableName
+       and t.Ordinal = tt.Ordinal
+     order by t.Ordinal desc
+
+    "
+    #Run SQL
+    if ($serverauth -eq "win")
+    {
+        # .Net Method
+	    # Open connection and Execute sql against server using Windows Auth
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $mySQLquery4
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+    
+	    # Insert results into Dataset table
+	    $SqlAdapter.Fill($DataSet) |out-null
+
+	    # Close connection to sql server
+	    $Connection.Close()
+	    $sqlresults4 = $DataSet.Tables[0].Rows
+
+        # SQLCMD.EXE Method
+        #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
+    }
+    else
+    {
+        # .Net Method
+	    # Open connection and Execute sql against server
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $mySQLquery4
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+    
+	    # Insert results into Dataset table
+	    $SqlAdapter.Fill($DataSet) |out-null
+
+	    # Close connection to sql server
+	    $Connection.Close()
+	    $sqlresults4 = $DataSet.Tables[0].Rows
+
+        # SQLCMD.EXE Method
+        #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+    }
+
+    $RunTime = Get-date
+    $FullFolderPath = "$BaseFolder\$SQLInstance\20 - DataBase Objects\"
+    if(!(test-path -path $FullFolderPath))
+    {
+        mkdir $FullFolderPath | Out-Null
+    }
+           
+    
+    "Create Your Tables in this order to maintain Declarative Referential Integrity`r`n" | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii
+    $sqlresults4 | select Ordinal, TableName | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii -Append
+
+
+    # -------------------------------------------------------------------------
     # Force GC
     # March 10, 2015 - can we manually kick off a GC pass?
-    # Testing with Perfmon
+    # Tested with Perfmon - GC has a delay in releasing memory as the allocations bubble up the generations, AKA, its slow
     # Seems only ending the script/session releases memory
-    # Release Memory - Test Setting a variable to $null vs Remove-Variable
+    # Release Memory Benchmarking - Test setting a variable to $null vs using Remove-Variable
+    # -------------------------------------------------------------------------
     
     $tbl = $null
     $storedProcs = $null
@@ -709,6 +856,7 @@ foreach($sqlDatabase in $srv.databases)
 
     # Process Next Database
 }
+
 
 
 
