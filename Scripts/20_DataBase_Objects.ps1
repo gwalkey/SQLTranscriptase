@@ -662,28 +662,31 @@ foreach($sqlDatabase in $srv.databases)
 
 
     # Table Creation in Dependency Order to maintain DRI
-    Write-Output "$fixedDBName - Writing Table Creaton Order in order to maintain DRI"
+    Write-Output "$fixedDBName - DRI Create Table Order"
 
     # Create Database Summary Listing
     $mySQLquery4 = 
     "
     use $fixedDBName;
-
+    
     --- Reference/Credit:
     --- http://stackoverflow.com/questions/352176/sqlserver-how-to-sort-table-names-ordered-by-their-foreign-key-dependency
     ---
     declare @level int  -- Current depth
-           ,@count int      
+    declare @count int   
+	   
+    -- Table Variables
+    declare @Tables TABLE (
+	    [TableName] [nvarchar](257) NOT NULL,
+	    [TableID] [int] NOT NULL,
+	    [Ordinal] [int] NOT NULL
+    )
 
     -- Step 1: Start with tables that have no FK dependencies
-    --  
-    if object_id ('tempdb..#Tables') is not null
-        drop table #Tablesc
-
+    insert into @Tables
     select s.name + '.' + t.name  as TableName
           ,t.object_id            as TableID
           ,0                      as Ordinal
-      into #Tables
       from sys.tables t
       join sys.schemas s
         on t.schema_id = s.schema_id
@@ -691,6 +694,7 @@ foreach($sqlDatabase in $srv.databases)
            (select 1
               from sys.foreign_keys f
              where f.parent_object_id = t.object_id)
+
 
     set @count = @@rowcount         
     set @level = 0
@@ -703,7 +707,7 @@ foreach($sqlDatabase in $srv.databases)
     --
     while @count > 0 begin
 
-        insert #Tables (
+        insert @Tables (
                TableName
               ,TableID
               ,Ordinal
@@ -717,7 +721,7 @@ foreach($sqlDatabase in $srv.databases)
          where exists
                (select 1
                   from sys.foreign_keys f
-                  join #Tables tt
+                  join @Tables tt
                     on f.referenced_object_id = tt.TableID
                    and tt.Ordinal = @level
                    and f.parent_object_id = t.object_id
@@ -735,16 +739,16 @@ foreach($sqlDatabase in $srv.databases)
     select t.Ordinal
           --,t.TableID
           ,t.TableName
-      from #Tables t
+      from @Tables t
       join (select TableName     as TableName
                   ,Max (Ordinal) as Ordinal
-              from #Tables
+              from @Tables
              group by TableName) tt
         on t.TableName = tt.TableName
        and t.Ordinal = tt.Ordinal
      order by t.Ordinal desc
 
-    "
+ "
     #Run SQL
     if ($serverauth -eq "win")
     {
@@ -759,6 +763,7 @@ foreach($sqlDatabase in $srv.databases)
 	    $SqlCmd.Connection = $Connection
 	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	    $SqlAdapter.SelectCommand = $SqlCmd
+            $SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	    # Insert results into Dataset table
 	    $SqlAdapter.Fill($DataSet) |out-null
@@ -778,11 +783,12 @@ foreach($sqlDatabase in $srv.databases)
 	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
 	    $Connection = New-Object System.Data.SqlClient.SqlConnection
 	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand        
 	    $SqlCmd.CommandText = $mySQLquery4
-	    $SqlCmd.Connection = $Connection
+	    $SqlCmd.Connection = $Connection   
 	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	    $SqlAdapter.SelectCommand = $SqlCmd
+            $SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	    # Insert results into Dataset table
 	    $SqlAdapter.Fill($DataSet) |out-null
