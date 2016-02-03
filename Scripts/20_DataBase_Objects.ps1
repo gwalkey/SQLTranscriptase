@@ -3,21 +3,21 @@
     Gets the core Database Objects on the target server
 
 .DESCRIPTION
-	Writes the Objects out into subfolders in the "20 - DataBase Objects" folder
-	Scripted Objects include:
+    Writes the Objects out into subfolders in the "20 - DataBase Objects" folder
+    Scripted Objects include:
     Database definition with Files and Filegroups
-	DataBase Triggers
-	Filegroups
-	Full Text Catalogs
-	Schemas
+    DataBase Triggers
+    Filegroups
+    Full Text Catalogs
+    Schemas
     Sequences
-	Stored Procedures
-	Synonyms
-	Tables
-	Table Triggers
-	User Defined Functions
-	User Defined Table Types
-	Views	
+    Stored Procedures
+    Synonyms
+    Tables
+    Table Triggers
+    User Defined Functions
+    User Defined Table Types
+    Views	
 
 
 .EXAMPLE
@@ -39,7 +39,7 @@
     Use the -myTable parameter to just script out one table (needs the Database parameter too)
 
 .LINK
-
+    https://github.com/gwalkey
 	
 #>
 
@@ -403,7 +403,7 @@ $scripter.Options.Triggers              = $true
 
 
 # WithDependencies create one huge file for all tables in the order needed to maintain RefIntegrity
-$scripter.Options.WithDependencies		= $false # Leave OFF - creates issues
+$scripter.Options.WithDependencies		= $false # Leave OFF - creates issues - Jan 2016 we script out the DRO Tabel Order in a separate file now
 $scripter.Options.XmlIndexes            = $true
 
 # Set scripter options to ensure only schema is scripted
@@ -443,69 +443,98 @@ foreach($sqlDatabase in $srv.databases)
     $output_path = "$BaseFolder\$SQLInstance\20 - DataBase Objects\$fixedDBname"
 
     # paths
-    $DB_Path            = "$output_path\"
-    $table_path 		= "$output_path\Tables\"
-    $TableTriggers_path	= "$output_path\TableTriggers\"
-    $views_path 		= "$output_path\Views\"
-    $storedProcs_path 	= "$output_path\StoredProcedures\"
-    $udfs_path 			= "$output_path\UserDefinedFunctions\"
-    $textCatalog_path 	= "$output_path\FullTextCatalogs\"
-    $udtts_path 		= "$output_path\UserDefinedTableTypes\"
-    $DBTriggers_path 	= "$output_path\DBTriggers\"
-    $Schemas_path       = "$output_path\Schemas\"
-    $Filegroups_path    = "$output_path\Filegroups\"
-    $Sequences_path     = "$output_path\Sequences\"
-    $Synonyms_path      = "$output_path\Synonyms\"
+    $DB_Path              = "$output_path\"
+    $table_path 		  = "$output_path\Tables\"
+    $TableTriggers_path	  = "$output_path\TableTriggers\"
+    $views_path 		  = "$output_path\Views\"
+    $storedProcs_path 	  = "$output_path\StoredProcedures\"
+    $udfs_path 			  = "$output_path\UserDefinedFunctions\"
+    $textCatalog_path 	  = "$output_path\FullTextCatalogs\"
+    $udtts_path 		  = "$output_path\UserDefinedTableTypes\"
+    $DBTriggers_path 	  = "$output_path\DBTriggers\"
+    $Schemas_path         = "$output_path\Schemas\"
+    $Filegroups_path      = "$output_path\Filegroups\"
+    $Sequences_path       = "$output_path\Sequences\"
+    $Synonyms_path        = "$output_path\Synonyms\"
+    $DBScoped_Creds_path  = "$output_path\DBScopedCredentials\"
+    $QueryStore_path      = "$output_path\QueryStore\"
+    $DBEDS_path           = "$output_path\ExternalDataSources\"
+    $DBExtFF_path         = "$output_path\ExternalFileFormats\"
+    $DBSecPol_path        = "$output_path\SecurityPolicies\"
+    $XMLSC_path           = "$output_path\XMLSchemaCollections\"
 
+    # --------------------------------
+    # Start Exporting Database Objects
+    # --------------------------------
 
-    #Get Objects via SMO into PS Objects
-    # Mar 10, 2015 - OK this is where .NET gobbles memory, so switch to this:
-    # 1) Load objects from server
-    # 2) Write objects to disk file
-    # 3) Set variables to null
-    # 4) Let GC (hopefully) do its nefarious job of cleanup 
-    # 5) Does it work?  Testing a batch file running against 22 SQL servers still uses about 16Gigs 'O Ram, even though the ps1 files are called in a chain,
-    #    giving GC a chance to release memory between powershell.exe sessions, but it doesnt.
-    #    Swell.
+    # Main DB Export Folder
+    if(!(test-path -path $DB_Path))
+    {
+        mkdir $DB_Path | Out-Null	
+    }
 
-    <#
-    Write-Output "Starting Memory: $db"
-    [System.gc]::gettotalmemory("forcefullcollection") /1MB
+    # Export Main Database Itself with Files and FileGroups
+    Write-Output "$fixedDBName - Database"
+    $MainDB = $db  | Where-object  { -not $_.IsSystemObject  }
+    $myoutputfile = $DB_Path + $fixedDBName + ".sql"
+    $MainDB.Script() | out-file -FilePath $myoutputfile -encoding ascii -Force
 
-    ps powershell* | Select *memory* | ft -auto `
-    @{Name='VirtualMemMB';Expression={($_.VirtualMemorySize64)/1MB}}, `
-    @{Name='PrivateMemMB';Expression={($_.PrivateMemorySize64)/1MB}}
-    #>
+    # Database Scoped Credentials
+    Write-Output "$fixedDBName - Database Scoped Credentials"
+    $DBScopedCreds = $db.DatabaseScopedCredentials 
+    CopyObjectsToFiles $DBScopedCreds $DBScoped_Creds_path
+
+    # QueryStore Options
+    Write-Output "$fixedDBName - Query Store Options"
+    $myoutputfile = $QueryStore_path + "Query_Store.sql"
+    $QueryStore = $db.QueryStoreOptions 
+    if ($QueryStore -ne $null)
+    {
+        if(!(test-path -path $QueryStore_path))
+        {
+            mkdir $QueryStore_path | Out-Null	
+        }
+        $QueryStore.Script() | out-file -FilePath $myoutputfile -append -encoding ascii
+    }
 
     
-    # Export Database Properties    
+    # External Data Sources
+    Write-Output "$fixedDBName - External Data Sources"
+    $DB_EDS = $db.ExternalDataSources
+    CopyObjectsToFiles $DB_EDS $DBEDS_path
+
+    # External File Formats
+    Write-Output "$fixedDBName - External File Formats"
+    $DBExtFF = $db.ExternalFileFormats
+    CopyObjectsToFiles $DBExtFF $DBExtFF_path
+
+    # Security Policies
+    Write-Output "$fixedDBName - Database Security Policies"
+    $DBSecPol = $db.SecurityPolicies
+    CopyObjectsToFiles $DBSecPol $DBSecPol_path
+
+    # XMLSchema Collections
+    Write-Output "$fixedDBName - XML Schema Collections"
+    $DBXML_SC = $db.XmlSchemaCollections
+    CopyObjectsToFiles $DBXML_SC $XMLSC_path
+
+        
+    # Create Settings Path
     $DBSettingsPath = $output_path+"\Settings"
 
     if(!(test-path -path $DBSettingsPath))
     {
         mkdir $DBSettingsPath | Out-Null	
     }
-
-
-    # Export Main Database Itself with Files and FileGroups
-    Write-Output "$fixedDBName - Database"
-    $MainDB = $db  | Where-object  { -not $_.IsSystemObject  }
-    CopyObjectsToFiles $MainDB $DB_Path
-
    
-
-    # Create CSS file
+    # Create CSS file for DB Settings HTML file
     $myCSS | out-file "$DBSettingsPath\HTMLReport.css" -Encoding ascii
    
-    # Export DB Settings
+    # Database Settings
     Write-Output "$fixedDBName - Settings"
     $mySettings = $db.Properties
     $mySettings | sort-object Name | select Name, Value | ConvertTo-Html  -CSSUri "$DBSettingsPath\HTMLReport.css"| Set-Content "$DBSettingsPath\HtmlReport.html"
-    
-    # -------------------------
-    # Start Individual Objects
-    # -------------------------
-    
+       
     # Tables
     Write-Output "$fixedDBName - Tables"
 
