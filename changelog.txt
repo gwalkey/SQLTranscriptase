@@ -1,7 +1,8 @@
 Changelog
 
-Feb 3, 2016
+Feb 3, 2016 - Added
 Table Order Creation Hints File - We create our tables in the right order for Declarative Referential Integrity PK/FK Table dependencies
 Database-Scoped Credentials
 Database Query Store Options
 Database Security Policies
+
