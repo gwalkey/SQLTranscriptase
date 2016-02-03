@@ -181,6 +181,7 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
+	$SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	# Insert results into Dataset table
 	$SqlAdapter.Fill($DataSet) | out-null
@@ -205,6 +206,7 @@ else
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
+	$SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	# Insert results into Dataset table
 	$SqlAdapter.Fill($DataSet) | out-null
