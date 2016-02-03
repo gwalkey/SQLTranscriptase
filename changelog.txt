@@ -5,4 +5,9 @@ Table Order Creation Hints File - We create our tables in the right order for De
 Database-Scoped Credentials
 Database Query Store Options
 Database Security Policies
+Database XML Schema Collections
+External Data Sources
+External Tables
+External File Formats
+
 
