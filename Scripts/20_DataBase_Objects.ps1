@@ -443,25 +443,28 @@ foreach($sqlDatabase in $srv.databases)
     $output_path = "$BaseFolder\$SQLInstance\20 - DataBase Objects\$fixedDBname"
 
     # paths
-    $DB_Path              = "$output_path\"
-    $table_path 		  = "$output_path\Tables\"
-    $TableTriggers_path	  = "$output_path\TableTriggers\"
-    $views_path 		  = "$output_path\Views\"
-    $storedProcs_path 	  = "$output_path\StoredProcedures\"
-    $udfs_path 			  = "$output_path\UserDefinedFunctions\"
-    $textCatalog_path 	  = "$output_path\FullTextCatalogs\"
-    $udtts_path 		  = "$output_path\UserDefinedTableTypes\"
-    $DBTriggers_path 	  = "$output_path\DBTriggers\"
-    $Schemas_path         = "$output_path\Schemas\"
-    $Filegroups_path      = "$output_path\Filegroups\"
-    $Sequences_path       = "$output_path\Sequences\"
-    $Synonyms_path        = "$output_path\Synonyms\"
-    $DBScoped_Creds_path  = "$output_path\DBScopedCredentials\"
-    $QueryStore_path      = "$output_path\QueryStore\"
-    $DBEDS_path           = "$output_path\ExternalDataSources\"
-    $DBExtFF_path         = "$output_path\ExternalFileFormats\"
-    $DBSecPol_path        = "$output_path\SecurityPolicies\"
-    $XMLSC_path           = "$output_path\XMLSchemaCollections\"
+    $DB_Path                     = "$output_path\"
+    $table_path 		         = "$output_path\Tables\"
+    $TableTriggers_path	         = "$output_path\TableTriggers\"
+    $views_path 		         = "$output_path\Views\"
+    $storedProcs_path 	         = "$output_path\StoredProcedures\"
+    $udfs_path 			         = "$output_path\UserDefinedFunctions\"
+    $textCatalog_path 	         = "$output_path\FullTextCatalogs\"
+    $udtts_path 		         = "$output_path\UserDefinedTableTypes\"
+    $DBTriggers_path 	         = "$output_path\DBTriggers\"
+    $Schemas_path                = "$output_path\Schemas\"
+    $Filegroups_path             = "$output_path\Filegroups\"
+    $Sequences_path              = "$output_path\Sequences\"
+    $Synonyms_path               = "$output_path\Synonyms\"
+    $DBScoped_Creds_path         = "$output_path\DBScopedCredentials\"
+    $QueryStore_path             = "$output_path\QueryStore\"
+    $DBEDS_path                  = "$output_path\ExternalDataSources\"
+    $DBExtFF_path                = "$output_path\ExternalFileFormats\"
+    $DBSecPol_path               = "$output_path\SecurityPolicies\"
+    $XMLSC_path                  = "$output_path\XMLSchemaCollections\"
+    $DBColumnEncryptionKey_path  = "$output_path\ColumnEncryptionKeys\"
+    $DBColumnMasterKey_path      = "$output_path\ColumnMasterKeys\"
+     
 
     # --------------------------------
     # Start Exporting Database Objects
@@ -517,6 +520,16 @@ foreach($sqlDatabase in $srv.databases)
     Write-Output "$fixedDBName - XML Schema Collections"
     $DBXML_SC = $db.XmlSchemaCollections
     CopyObjectsToFiles $DBXML_SC $XMLSC_path
+
+    # Always Encrypted Column Encryption Keys
+    Write-Output "$fixedDBName - Column Encryption Keys"
+    $DBAE_CEK = $db.ColumnEncryptionKeys
+    CopyObjectsToFiles $DBAE_CEK $DBColumnEncryptionKey_path
+
+    # Always Encrypted Column Master Keys
+    Write-Output "$fixedDBName - Column Master Keys"
+    $DBAE_CMK = $db.ColumnMasterKeys
+    CopyObjectsToFiles $DBAE_CMK $DBColumnMasterKey_path
 
         
     # Create Settings Path
