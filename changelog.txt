@@ -1,0 +1,5 @@
+Changelog
+
+Feb 3, 2016
+Database-Scoped Credentials
+Database Query Store Options
