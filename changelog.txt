@@ -18,3 +18,4 @@ Always Encrypted Objects
 
 *Fixed*
 Database itself - fixed for 2016 (Scripter Object doesnt work, but the DB object's script() method does)
+
