@@ -1,18 +1,20 @@
 Changelog
 
 Feb 3, 2016
-Added
-Table Order Creation Hints File - We create our tables in the right order for Declarative Referential Integrity PK/FK Table dependencies
+*Added*
+Table Order Creation Hints File -
+ Tables are listed in the right order for Declarative Referential Integrity PK/FK Table dependencies
+New 2016 Objects:
 Database-Scoped Credentials
-Database Query Store Options
+Database Query Store Settings
 Database Security Policies
 Database XML Schema Collections
 External Data Sources
 External Tables
 External File Formats
-Always Encrypted Objects:
+Always Encrypted Objects
   Column Master Keys
   Column Encryption Keys
 
-Fixed
+*Fixed*
 Database itself - fixed for 2016 (Scripter Object doesnt work, but the DB object's script() method does)
