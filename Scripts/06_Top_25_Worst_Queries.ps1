@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Gets the Top 25 Worst performing Queries on the target instance
+   Gets the Top 25 Worst performing Queries on the target instance
 	
 .DESCRIPTION
    Gets the Top 25 Worst performing Queries on the target instance
