@@ -10,6 +10,9 @@ Database XML Schema Collections
 External Data Sources
 External Tables
 External File Formats
+Always Encrypted Objects:
+  Column Master Keys
+  Column Encryption Keys
 
 Fixed
-Database itself - fixed for 2016 (Scripter Object doesnt work, but the DB script() method does)
+Database itself - fixed for 2016 (Scripter Object doesnt work, but the DB object's script() method does)
