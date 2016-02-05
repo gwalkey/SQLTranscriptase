@@ -4,7 +4,7 @@ SQL Server Documentation in Powershell
 Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
-==Upcoming Presentations:==
+Upcoming Presentations:
 
 Chicago, IL - 2016<br>
 http://www.sqlsaturday.com/484/eventhome.aspx
