@@ -6,7 +6,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=10311
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -42,7 +42,16 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=17053
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 17120 - Could not spawn a signal thread'
+,@message_id=17120
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -60,7 +69,16 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=17187
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 17189 - Failed to spawn a new thread'
+,@message_id=17189
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -69,7 +87,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=17204
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -78,7 +96,16 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=17207
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 17806 - SSPI Handshake Failed during connection attempt'
+,@message_id=17806
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -141,7 +168,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=18056
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -150,7 +177,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=18204
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -164,11 +191,20 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 18452 - Login from an untrusted Domain cannot be used with Windows Auth'
+,@message_id=18452
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
  @name=N'Error Number 18456 - Login Failed'
 ,@message_id=18456
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -177,7 +213,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=3041
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=15
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -186,7 +222,16 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=3203
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=15
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 3314 - Log Read Errors Encountered'
+,@message_id=3314
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -220,6 +265,15 @@ EXEC msdb.dbo.sp_add_alert
 EXEC msdb.dbo.sp_add_alert 
  @name=N'Error Number 3422 - DB shutdown due to error in routine'
 ,@message_id=3422
+,@severity=0
+,@enabled=1
+,@delay_between_responses=60
+,@include_event_description_in=1
+,@job_id=N'00000000-0000-0000-0000-000000000000'
+
+EXEC msdb.dbo.sp_add_alert 
+ @name=N'Error Number 3449 - Server Shutdown Initiated to recover System Database'
+,@message_id=3449
 ,@severity=0
 ,@enabled=1
 ,@delay_between_responses=60
@@ -276,7 +330,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=5105
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -285,7 +339,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=5120
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -321,7 +375,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=547
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -398,7 +452,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
- @name=N'Error Number 833 - Slow IO'
+ @name=N'Error Number 833 - Slow IO Detected'
 ,@message_id=833
 ,@severity=0
 ,@enabled=1
@@ -416,7 +470,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
- @name=N'Error Number 8539 - DTC Tranaction forced commit'
+ @name=N'Error Number 8539 - DTC Transaction forced commit'
 ,@message_id=8539
 ,@severity=0
 ,@enabled=1
@@ -425,7 +479,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
 EXEC msdb.dbo.sp_add_alert 
- @name=N'Error Number 8540 - DTC Tranaction forced rollback'
+ @name=N'Error Number 8540 - DTC Transaction forced rollback'
 ,@message_id=8540
 ,@severity=0
 ,@enabled=1
@@ -447,7 +501,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=9002
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -456,7 +510,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=9645
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -465,7 +519,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=9954
 ,@severity=0
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -473,7 +527,7 @@ EXEC msdb.dbo.sp_add_alert
  @name=N'Lock Wait Time (ms)'
 ,@message_id=0
 ,@severity=0
-,@enabled=1
+,@enabled=0
 ,@delay_between_responses=0
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
@@ -483,7 +537,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=0
 ,@severity=14
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -492,7 +546,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@message_id=0
 ,@severity=15
 ,@enabled=1
-,@delay_between_responses=0
+,@delay_between_responses=60
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
@@ -586,12 +640,4 @@ EXEC msdb.dbo.sp_add_alert
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
-EXEC msdb.dbo.sp_add_alert 
- @name=N'SQL Perf - Full Table Scans Per Second'
-,@message_id=0
-,@severity=0
-,@enabled=0
-,@delay_between_responses=0
-,@include_event_description_in=1
-,@job_id=N'00000000-0000-0000-0000-000000000000'
 
