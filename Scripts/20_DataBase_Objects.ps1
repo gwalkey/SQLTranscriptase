@@ -791,6 +791,11 @@ foreach($sqlDatabase in $srv.databases)
      order by t.Ordinal desc
 
  "
+ 
+    # DataAdapter returns null for strange DB Names (Sharepoint etc)
+    $old_ErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+
     #Run SQL
     if ($serverauth -eq "win")
     {
@@ -843,6 +848,9 @@ foreach($sqlDatabase in $srv.databases)
         #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
     }
 
+    # Reset default PS error handler
+    $ErrorActionPreference = $old_ErrorActionPreference
+    
     $RunTime = Get-date
     $FullFolderPath = "$BaseFolder\$SQLInstance\20 - DataBase Objects\"
     if(!(test-path -path $FullFolderPath))
