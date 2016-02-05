@@ -1,13 +1,16 @@
 # SQLTranscriptase 
 SQL Server Documentation in Powershell
 
-Now Open Source and Vendor-Free!
-
-
-Please bring your ideas and suggestions by visting the Issues tab
-
 Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
+
+Upcoming Presentations:
+
+Chicago, IL - 2016<br>
+http://www.sqlsaturday.com/484/eventhome.aspx
+
+Richmond, Va  - 2016<br>
+http://www.sqlsaturday.com/486/EventHome.aspx
 
 Previous Presentations:
 
