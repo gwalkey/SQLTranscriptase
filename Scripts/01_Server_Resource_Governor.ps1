@@ -22,7 +22,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -85,8 +85,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -111,8 +109,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -184,9 +180,7 @@ $scripter.Options.ScriptData 	        = $false;
 # https://msdn.microsoft.com/en-us/library/microsoft.sqlserver.management.smo.scriptingoptions.aspx
 $scripter.Options.AllowSystemObjects 	= $false
 $scripter.Options.AnsiFile 				= $true
-
 $scripter.Options.ClusteredIndexes 		= $true
-
 $scripter.Options.DriAllKeys            = $true
 $scripter.Options.DriForeignKeys        = $true
 $scripter.Options.DriChecks             = $true
@@ -197,35 +191,22 @@ $scripter.Options.DriAllConstraints 	= $true
 $scripter.Options.DriIndexes 			= $true
 $scripter.Options.DriClustered 			= $true
 $scripter.Options.DriNonClustered 		= $true
-
 $scripter.Options.EnforceScriptingOptions 	= $true
 $scripter.Options.ExtendedProperties    = $true
-
 $scripter.Options.FullTextCatalogs      = $true
 $scripter.Options.FullTextIndexes 		= $true
 $scripter.Options.FullTextStopLists     = $true
 $scripter.Options.IncludeFullTextCatalogRootPath= $true
-
-
 $scripter.Options.IncludeHeaders        = $false
 $scripter.Options.IncludeDatabaseRoleMemberships= $true
 $scripter.Options.Indexes 				= $true
-
 $scripter.Options.NoCommandTerminator 	= $false;
 $scripter.Options.NonClusteredIndexes 	= $true
-
 $scripter.Options.NoTablePartitioningSchemes = $false
-
 $scripter.Options.Permissions 			= $true
-
 $scripter.Options.SchemaQualify 		= $true
 $scripter.Options.SchemaQualifyForeignKeysReferences = $true
-
 $scripter.Options.ToFileOnly 			= $true
-
-
-# With Dependencies create one huge file for all tables in the order needed to maintain RefIntegrity
-$scripter.Options.WithDependencies		= $false
 $scripter.Options.XmlIndexes            = $true
 
 # Output Folder
@@ -274,4 +255,5 @@ catch
     echo null > "$fullfolderpath\01 - Server Resource Governor - not setup or enabled.txt"
 }
 
+# Return To Base
 set-location $BaseFolder

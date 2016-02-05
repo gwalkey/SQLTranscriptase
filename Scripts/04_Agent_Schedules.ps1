@@ -21,7 +21,7 @@
 
 	
 .LINK
-    
+    https://github.com/gwalkey	
 	
 #>
 
@@ -108,8 +108,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -134,8 +132,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -211,9 +207,6 @@ if ($serverauth -eq "win")
 	# Close connection to sql server
 	$Connection.Close()
 	$outdata = $DataSet.Tables[0].Rows
-
-
-    #$outdata = Invoke-SqlCmd -query $sql -Server $SQLInstance
 }
 else
 {
@@ -238,7 +231,6 @@ else
 	$Connection.Close()
 	$outdata = $DataSet.Tables[0].Rows
     
-    #$outdata = Invoke-SqlCmd -query $sql  -Server $SQLInstance –Username $myuser –Password $mypass    
 }
 
 if ($outdata -eq $null )
@@ -263,8 +255,7 @@ Write-Output ("{0} Agent Schedules Exported"  -f $outdata.count)
 # ---------------------------
 
 <#
-System Tables:
-
+SQL System Tables Referenced:
 sysjobs
 https://msdn.microsoft.com/en-us/library/ms189817.aspx
 
@@ -349,9 +340,6 @@ enabled
 
 $sql2 = 
 "
-
-
-
 declare @AgentSked TABLE(
 [Sked] nvarchar(128) NOT NULL,
 [Sked_Enabled] int not null,
@@ -854,7 +842,6 @@ select * from @AgentSked
 where job_enabled = 1
 order by StartHour, Sked, job
 
-
 "
 
 # Get the Agent Job Sked from SQL
@@ -879,7 +866,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$LiveSkeds = $DataSet.Tables[0].Rows
 
-    #$LiveSkeds =  Invoke-Sqlcmd -MaxCharLength 100000000 -ServerInstance $SQLInstance -Query $sql2
 }
 else
 {
@@ -902,10 +888,7 @@ else
 	$Connection.Close()
 	$LiveSkeds = $DataSet.Tables[0].Rows
 
-
-    #$LiveSkeds =  Invoke-Sqlcmd -MaxCharLength 100000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query $sql2
 }
-
 
 
 # Create some CSS for help in column formatting during HTML exports

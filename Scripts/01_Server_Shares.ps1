@@ -19,7 +19,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -47,7 +47,7 @@ if ($SQLInstance.Length -eq 0)
 # Working
 Write-Output "Server $SQLInstance"
 
-# Some Self-explanatory text
+# Shares go here
 $ShareArray = @()
 
 # WMI connects to the Windows Server Name, not the SQL Server Named Instance
@@ -60,7 +60,7 @@ if(!(test-path -path $fullfolderPath))
     mkdir $fullfolderPath | Out-Null
 }
 
-
+# Turn off default PS error handling - let them filter down from the WMI Call
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
@@ -68,7 +68,7 @@ try
 {
 
     $ShareArray = Get-WmiObject -Computer $WinServer -class Win32_Share | select Name, Path, Description | Where-Object -filterscript {$_.Name -ne "ADMIN$" -and $_.Name -ne "IPC$"} | sort-object name
-    #$ShareArray | Out-GridView
+    # $ShareArray | Out-GridView
     if ($?)
     {
         Write-Output "Good WMI Connection"
@@ -94,7 +94,7 @@ catch
 }
 
 
-# Reset default PS error handler - for WMI error trapping
+# Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference 
 
 
@@ -234,6 +234,7 @@ foreach($Share in $ShareArray)
     }
 }
 
+# Return To Base
 set-location "$BaseFolder"
 
 

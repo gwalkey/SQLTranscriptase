@@ -1,9 +1,9 @@
 ﻿<#
 .SYNOPSIS
-    Gets the Windows Disk Volumes on the target server
+    Gets the Windows Volumes on the target server
 	
 .DESCRIPTION
-   Writes the Disk Volumes out to the "01 - Server Storage" folder
+   Writes the windows Volumes out to the "01 - Server Storage" folder
    One file for all volumes
    This is to know what drive and mount-points the server has
    
@@ -23,7 +23,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -143,6 +143,7 @@ td
     }
 "
 
+# Export CSS File for Formatting
 $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
 # Export It
@@ -150,5 +151,5 @@ $RunTime = Get-date
 $mySettings = $VolumeArray
 $mySettings | select Name, Label, FileSystem, DriveType, $VolumeTotalGB, $VolumeUsedGB, $VolumeFreeGB, BootVolume, DriveLetter, BlockSize  | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Storage Volumes</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\HtmlReport.html"
 
-
+# Return To Base
 set-location $BaseFolder

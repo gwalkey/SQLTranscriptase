@@ -24,7 +24,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -87,8 +87,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -113,8 +111,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -233,7 +229,6 @@ if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*")
 	    $Connection.Close()
 	    $sqlresults = $DataSet.Tables[0].Rows
 
-        #$sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
     }
     else
     {
@@ -256,7 +251,6 @@ if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*")
 	    $Connection.Close()
         $sqlresults = $DataSet.Tables[0].Rows
 
-        #$sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
     }
 
     # Export BPE
@@ -288,6 +282,7 @@ else
     Write-Output "Buffer Pool Extensions not available on the version of SQL"
 }
 
+# Return To Base
 set-location $BaseFolder
 
 

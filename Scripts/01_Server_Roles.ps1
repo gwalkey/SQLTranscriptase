@@ -22,7 +22,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -88,8 +88,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -114,8 +112,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -248,7 +244,6 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	$Connection.Close()
     $results = $DataSet.Tables[0].Rows
 
-	#$results = Invoke-SqlCmd -query $sql -Server $SQLInstance –Username $myuser –Password $mypass 
 }
 else
 {
@@ -273,12 +268,11 @@ else
 	$Connection.Close()
 	$results = $DataSet.Tables[0].Rows
 
-
-	#$results = Invoke-SqlCmd -query $sql  -Server $SQLInstance      
 }
 
 # Write out rows
 $RunTime = Get-date
 $results | select security_type, security_entity, principal_type, principal_name, state_desc | ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Server Roles</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\HtmlReport.html"
 
+# Return To Base
 set-location $BaseFolder

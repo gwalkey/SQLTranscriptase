@@ -28,13 +28,6 @@
 	
 .NOTES
 
-    https://msdn.microsoft.com/en-us/library/microsoft.analysisservices(v=sql.120).aspx
-	
-
-
-	George Walkey
-	Richmond, VA USA
-
 .LINK
 	https://github.com/gwalkey
 
@@ -493,5 +486,6 @@ catch
 
 Write-Output ("Exported: {0} SSAS Databases" -f $svr.Databases.Count)
 
+# Return To Base
 set-location $BaseFolder
 

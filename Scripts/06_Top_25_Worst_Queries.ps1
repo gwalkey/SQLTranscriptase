@@ -1,31 +1,29 @@
 ﻿<#
 .SYNOPSIS
-    Gets the Server Triggers on the target server
+    Gets the Top 25 Worst performing Queries on the target instance
 	
 .DESCRIPTION
-   Writes the Server Triggers out to the "01 - Server Triggers" folder
-   One file for all Triggers   
-   
+   Gets the Top 25 Worst performing Queries on the target instance
+      
 .EXAMPLE
-    01_Server_Triggers.ps1 localhost
+    06_Top_25_Worst_Queries.ps1 localhost
 	
 .EXAMPLE
-    01_Server_Triggers.ps1 server01 sa password
+    06_Top_25_Worst_Queries.ps1 server01 sa password
 
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
 
 .Outputs
-	
+	Query Execution Data as HTML File
 	
 .NOTES
 
 	
 .LINK
-	https://github.com/gwalkey	
+	https://github.com/gwalkey
 	
 #>
-
 
 Param(
   [string]$SQLInstance='localhost',
@@ -38,8 +36,10 @@ Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 
 
+Set-Location $BaseFolder
+
 #  Script Name
-Write-Host  -f Yellow -b Black "01 - Server Triggers"
+Write-Host  -f Yellow -b Black "06 - Top 25 Worst Queries"
 
 # Load SMO Assemblies
 Import-Module ".\LoadSQLSmo.psm1"
@@ -49,14 +49,10 @@ LoadSQLSMO
 # Usage Check
 if ($SQLInstance.Length -eq 0) 
 {
-    Write-host -f yellow "Usage: ./01_Server_Triggers.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-location $BaseFolder
+    Write-host -f yellow -b black "Usage: ./06_Top_25_Worst_Queries.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
+    Set-Location $BaseFolder
     exit
 }
-
-
-# Working
-Write-Output "Server $SQLInstance"
 
 
 # Server connection check
@@ -131,26 +127,49 @@ catch
 }
 
 
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
+# Working
+Write-Output "Server $SQLInstance"
 
+# Create Output Folders
+$fullfolderPath = "$BaseFolder\$sqlinstance\06 - Top 25 Worst Queries"
+if(!(test-path -path $fullfolderPath))
+{
+	mkdir $fullfolderPath | Out-Null
+}
+
+
+# Get Em
 $sql = 
 "
-SELECT
-ssmod.definition AS [Definition],
-'ENABLE TRIGGER ' + name +' ON ALL SERVER' as enablecmd
-FROM
-master.sys.server_triggers AS tr
-LEFT OUTER JOIN master.sys.server_assembly_modules AS mod ON mod.object_id = tr.object_id
-LEFT OUTER JOIN sys.server_sql_modules AS ssmod ON ssmod.object_id = tr.object_id
-WHERE (tr.parent_class = 100)
+use master;
+
+SELECT top 25
+db_name(qt.dbid) as 'DataBase',
+SUBSTRING(qt.TEXT, (qs.statement_start_offset/2)+1,((CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(qt.TEXT) ELSE qs.statement_end_offset END - qs.statement_start_offset)/2)+1) AS 'Query',
+qs.execution_count,
+qs.total_worker_time,
+qs.total_logical_reads, 
+qs.total_logical_writes, 
+qs.total_elapsed_time/1000000 total_elapsed_time_in_Sec,
+qs.last_logical_reads,
+qs.last_logical_writes,
+qs.last_worker_time,
+qs.last_elapsed_time/1000000 last_elapsed_time_in_Sec,
+qs.last_execution_time
+FROM sys.dm_exec_query_stats qs
+CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
+CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) qp
+where qt.text not like '%INSERT%' and qt.text not like '%WAITFOR%'
+and db_name(qt.dbid) is not null
+ORDER BY 
+11 desc, 6 desc
 
 "
 
-if ($serverauth -eq "sql") 
+# Run SQL
+if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
 {
-	Write-Output "Using SQL Auth"
-
+	Write-Output "Using Sql Auth"
 	# .NET Method
 	# Open connection and Execute sql against server
 	$DataSet = New-Object System.Data.DataSet
@@ -162,20 +181,21 @@ if ($serverauth -eq "sql")
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
+    $SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	# Insert results into Dataset table
 	$SqlAdapter.Fill($DataSet) | out-null
 
 	# Close connection to sql server
 	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+    $results = $DataSet.Tables[0].Rows
 
 }
 else
 {
-	Write-Output "Using Windows Auth"
-
-	# .NET Method
+	Write-Output "Using Windows Auth"	
+		
+    # .NET Method
 	# Open connection and Execute sql against server using Windows Auth
 	$DataSet = New-Object System.Data.DataSet
 	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
@@ -186,44 +206,62 @@ else
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
+    $SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	# Insert results into Dataset table
 	$SqlAdapter.Fill($DataSet) | out-null
 
 	# Close connection to sql server
 	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+	$results = $DataSet.Tables[0].Rows
 
 }
 
-	
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference 
 
-# If No Results, write status file
-if ($results2 -eq $null)
-{
-    Write-Output "No Server Triggers Found on $SQLInstance"        
-    echo null > "$BaseFolder\$SQLInstance\01 - No Server Triggers Found.txt"
-    Set-Location $BaseFolder
-    exit
-}
+# Create some CSS for help in column formatting
+$myCSS = 
+"
+table
+    {
+        Margin: 0px 0px 0px 4px;
+        Border: 1px solid rgb(190, 190, 190);
+        Font-Family: Tahoma;
+        Font-Size: 9pt;
+        Background-Color: rgb(252, 252, 252);
+    }
+tr:hover td
+    {
+        Background-Color: rgb(150, 150, 220);
+        Color: rgb(255, 255, 255);
+    }
+tr:nth-child(even)
+    {
+        Background-Color: rgb(242, 242, 242);
+    }
+th
+    {
+        Text-Align: Left;
+        Color: rgb(150, 150, 220);
+        Padding: 1px 4px 1px 4px;
+    }
+td
+    {
+        Vertical-Align: Top;
+        Padding: 1px 4px 1px 4px;
+    }
+"
 
 
-# Create Output Folder
-$fullfolderPath = "$BaseFolder\$sqlinstance\01 - Server Triggers"
-if(!(test-path -path $fullfolderPath))
-{
-    mkdir $fullfolderPath | Out-Null
-}
+$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
-    
-# Script Out
-Foreach ($row in $results2)
-{
-    $row.Definition+"`r`nGO`r`n`r`n",$row.enableCMD+"`r`nGO`r`n" | out-file "$fullfolderPath\Server_Triggers.sql" -Encoding ascii -Append
-	Add-Content -Value "`r`n" -Path "$fullfolderPath\Server_Triggers.sql" -Encoding Ascii
-}
+# Export it
+$RunTime = Get-date
+$results | select Database, Query, execution_count, total_worker_time, total_logical_reads, `
+                  total_logical_writes, total_elapsed_time_in_sec, last_logical_reads, last_logical_writes, `
+                  last_worker_time, last_elapsed_time_in_sec, last_execution_time | `
+                  ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Server Settings</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\Top25_Worst_Queries.html"
+
+
 
 # Return To Base
 set-location $BaseFolder

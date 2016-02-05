@@ -22,7 +22,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey	
 	
 #>
 
@@ -42,7 +42,6 @@ Write-Host  -f Yellow -b Black "04 - Agent Jobs"
 # Load SMO Assemblies
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
-
 
 
 # Usage Check
@@ -85,8 +84,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -111,8 +108,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -216,5 +211,5 @@ else
     exit
 }
 
-
+# Return To Base
 Set-Location $BaseFolder

@@ -1,18 +1,18 @@
-<#
+﻿<#
 .SYNOPSIS
-    Runs Security-based ps1 scripts for the target server
+    Gets the Always On Availability Groups and FCI Configuration from the target server
 	
 .DESCRIPTION
-    Runs Security-based ps1 scripts for the target server    
+   Writes the AlwaysOn Configuration out to the "19 - AlwaysOn" folder
+      
+.EXAMPLE
+    19_AlwaysOn.ps1 localhost
 	
 .EXAMPLE
-    00_RunAllScriptsSecurityOnly.ps1 localhost
-	
-.EXAMPLE
-    00_RunAllScriptsSecurityOnly.ps1 server01 sa password
+    19_AlwaysOn.ps1 server01 sa password
 
 .Inputs
-    ServerName, [SQLUser], [SQLPassword]
+    ServerName\instance, [SQLUser], [SQLPassword]
 
 .Outputs
 
@@ -21,7 +21,7 @@
     
 	
 .LINK
-    http://github.com/gwalkey
+	https://github.com/gwalkey
 	
 #>
 
@@ -31,10 +31,22 @@ Param(
   [string]$mypass
 )
 
-
-cls
+Set-StrictMode -Version latest;
 
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+
+Write-Host  -f Yellow -b Black "19 - AlwaysOn"
+
+# Usage Check
+if ($SQLInstance.Length -eq 0) 
+{
+    Write-host -f yellow "Usage: ./19_AlwaysOn.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
+    Set-Location $BaseFolder
+    exit
+}
+
+# Working
+Write-Output "Server $SQLInstance"
 
 # Load SMO Assemblies
 Import-Module ".\LoadSQLSmo.psm1"
@@ -111,17 +123,38 @@ catch
 	exit
 }
 
-
-set-location "$BaseFolder"
-
-& .\01_Server_Logins.ps1 $SQLInstance $myuser $mypass
-& .\01_Server_Credentials.ps1 $SQLInstance $myuser $mypass
-& .\01_Server_Roles.ps1 $SQLInstance $myuser $mypass
-& .\02_Linked_Servers.ps1 $SQLInstance $myuser $mypass
-& .\07_Service_Creds.ps1 $SQLInstance $myuser $mypass
-& .\12_Security_Audit.ps1 $SQLInstance $myuser $mypass
-& .\13_PKI.ps1 $SQLInstance $myuser $mypass
+# Set Local Vars
+$server = $SQLInstance
 
 
-set-location "$BaseFolder"
-exit
+if ($serverauth -eq "win")
+{
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+}
+else
+{
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv.ConnectionContext.LoginSecure=$false
+    $srv.ConnectionContext.set_Login($myuser)
+    $srv.ConnectionContext.set_Password($mypass)
+}
+
+
+# Output Folder
+Write-Output "$SQLInstance - AlwaysOn"
+$AlwaysOn_path  = "$BaseFolder\$SQLInstance\19 - AlwaysOn\"
+if(!(test-path -path $AlwaysOn_path))
+{
+    mkdir $AlwaysOn_path | Out-Null	
+}
+
+
+# Check for Existence of Replication Databases
+
+# Once you find em, Script Em
+
+# Return to Base
+set-location $BaseFolder
+
+
+

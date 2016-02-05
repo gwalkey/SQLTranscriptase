@@ -22,7 +22,7 @@
     https://msdn.microsoft.com/en-us/library/microsoft.sqlserver.management.facets.aspx
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -119,8 +119,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -145,8 +143,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -257,6 +253,7 @@ foreach($policy in $MyP)
     $myfixedName = $myfixedName.replace('/','_')
     $myfixedName = $myfixedName.replace('%','_')
     $Outfilename = $POutput_path+"$myfixedName.xml"
+	# Log to Console
     "Policy: $myfixedName"
     $xmlWriter = [System.Xml.XmlWriter]::Create($Outfilename)
     $policy.Serialize($xmlWriter)
@@ -276,11 +273,12 @@ foreach($Condition in $myC)
     $myfixedName = $myfixedName.replace('/','_')
     $myfixedName = $myfixedName.replace('%','_')
     $Outfilename = $COutput_path+"$myfixedName.xml"
+	# Log to Console
     "Condition: $myfixedName"
     $xmlWriter = [System.Xml.XmlWriter]::Create($Outfilename)
     $Condition.Serialize($xmlWriter)
     $xmlWriter.Close()
 }
 
-# Return Home
+# Return to Base
 set-location $BaseFolder

@@ -21,6 +21,7 @@
 
 	
 .LINK
+	https://github.com/gwalkey
 	
 #>
 
@@ -91,8 +92,6 @@ try
 		$results = $DataSet.Tables[0].Rows[0]
         $myver = $results.Column1
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -118,8 +117,6 @@ try
 		$results = $DataSet.Tables[0].Rows[0]
         $myver = $results.Column1
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -180,8 +177,6 @@ if ($serverauth -eq "sql")
 	$Connection.Close()
 	$EvtSessions = $DataSet.Tables[0].Rows
 
-	#$EvtSessions = Invoke-SqlCmd -query $sqlES -Server $SQLInstance –Username $myuser –Password $mypass 
-
     if ($EvtSessions -eq $null)
     {
         Write-Output "No Extended Event Sessions found on $SQLInstance"        
@@ -221,8 +216,6 @@ else
 	$Connection.Close()
 	$EvtSessions = $DataSet.Tables[0].Rows
 
-	#$EvtSessions = Invoke-SqlCmd -query $sqlES  -Server $SQLInstance
-
     if ($EvtSessions -eq $null)
     {
         Write-Output "No Extended Event Sessions found on $SQLInstance"        
@@ -245,7 +238,7 @@ if(!(test-path -path $fullfolderPath))
 
 
 # *Must Credit*
-# Jonathan Kehayias for the following code, including the correct DLLs, order of things and the ConnectionStringBuilder
+# Jonathan Kehayias for the following code, including the correct DLLs, order of things and the use of 'System.Data.SqlClient.SqlConnectionStringBuilder'
 # https://www.sqlskills.com/blogs/jonathan/
 # http://sqlperformance.com/author/jonathansqlskills-com
 # 
@@ -291,4 +284,6 @@ foreach($XESession in $XEStore.Sessions)
 
 Write-Output ("{0} Extended Event Sessions Exported" -f $XEStore.Sessions.Count)
 
+# Return To Base
 set-location $BaseFolder
+

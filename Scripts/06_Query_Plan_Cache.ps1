@@ -1,31 +1,33 @@
 ﻿<#
 .SYNOPSIS
-    Gets the Server Triggers on the target server
+    Gets the contents of the Query Plan Cache on the target server
 	
 .DESCRIPTION
-   Writes the Server Triggers out to the "01 - Server Triggers" folder
-   One file for all Triggers   
-   
+   Writes the Contents of the Quey Plan Cache to the "06 - Query Plan Cache" folder
+   AdHoc
+   Prepared
+   Stored Procedure
+   Trigger
+      
 .EXAMPLE
-    01_Server_Triggers.ps1 localhost
+    06_Query_Plan_Cache.ps1 localhost
 	
 .EXAMPLE
-    01_Server_Triggers.ps1 server01 sa password
+    06_Query_Plan_Cache.ps1 server01 sa password
 
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
 
 .Outputs
-	
+	Query Plan XML data as .sqlplan files
 	
 .NOTES
 
 	
 .LINK
-	https://github.com/gwalkey	
+	https://github.com/gwalkey
 	
 #>
-
 
 Param(
   [string]$SQLInstance='localhost',
@@ -38,8 +40,10 @@ Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 
 
+Set-Location $BaseFolder
+
 #  Script Name
-Write-Host  -f Yellow -b Black "01 - Server Triggers"
+Write-Host  -f Yellow -b Black "06 - Query Plan Cache"
 
 # Load SMO Assemblies
 Import-Module ".\LoadSQLSmo.psm1"
@@ -49,14 +53,10 @@ LoadSQLSMO
 # Usage Check
 if ($SQLInstance.Length -eq 0) 
 {
-    Write-host -f yellow "Usage: ./01_Server_Triggers.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-location $BaseFolder
+    Write-host -f yellow -b black "Usage: ./06_Query_Plan_Cache.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
+    Set-Location $BaseFolder
     exit
 }
-
-
-# Working
-Write-Output "Server $SQLInstance"
 
 
 # Server connection check
@@ -131,26 +131,57 @@ catch
 }
 
 
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
+# Working
+Write-Output "Server $SQLInstance"
 
+# Create Output Folders
+$fullfolderPath = "$BaseFolder\$sqlinstance\06 - Query Plan Cache"
+if(!(test-path -path $fullfolderPath))
+{
+	mkdir $fullfolderPath | Out-Null
+}
+
+$AdhocfolderPath = "$BaseFolder\$sqlinstance\06 - Query Plan Cache\Adhoc\"
+if(!(test-path -path $AdhocfolderPath))
+{
+	mkdir $AdhocfolderPath | Out-Null
+}
+$PrepfolderPath = "$BaseFolder\$sqlinstance\06 - Query Plan Cache\Prepared\"
+if(!(test-path -path $PrepfolderPath))
+{
+	mkdir $PrepfolderPath | Out-Null
+}
+$ProcfolderPath = "$BaseFolder\$sqlinstance\06 - Query Plan Cache\StoredProcedures\"
+if(!(test-path -path $ProcfolderPath))
+{
+	mkdir $ProcfolderPath | Out-Null
+}
+$trgfolderPath = "$BaseFolder\$sqlinstance\06 - Query Plan Cache\Trigger\"
+if(!(test-path -path $trgfolderPath))
+{
+	mkdir $trgfolderPath | Out-Null
+}
+
+# Get Query Plan Cache contents - could be LARGE
 $sql = 
 "
-SELECT
-ssmod.definition AS [Definition],
-'ENABLE TRIGGER ' + name +' ON ALL SERVER' as enablecmd
-FROM
-master.sys.server_triggers AS tr
-LEFT OUTER JOIN master.sys.server_assembly_modules AS mod ON mod.object_id = tr.object_id
-LEFT OUTER JOIN sys.server_sql_modules AS ssmod ON ssmod.object_id = tr.object_id
-WHERE (tr.parent_class = 100)
+select 
+	cp.objtype as 'objtype', 
+	coalesce(OBJECT_NAME(st.objectid,st.dbid),'Null') as 'objectName',
+	qp.query_plan,
+	CONVERT(varchar(max),cp.plan_handle,2) as 'plan_handle'
+from sys.dm_exec_cached_plans cp
+cross apply sys.dm_exec_sql_text(cp.plan_handle) st
+cross apply sys.dm_exec_query_plan(cp.plan_handle) qp
+order by 1,2
+
 
 "
 
-if ($serverauth -eq "sql") 
+# Run SQL
+if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
 {
-	Write-Output "Using SQL Auth"
-
+	Write-Output "Using Sql Auth"
 	# .NET Method
 	# Open connection and Execute sql against server
 	$DataSet = New-Object System.Data.DataSet
@@ -168,14 +199,14 @@ if ($serverauth -eq "sql")
 
 	# Close connection to sql server
 	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+    $results = $DataSet.Tables[0].Rows
 
 }
 else
 {
-	Write-Output "Using Windows Auth"
-
-	# .NET Method
+	Write-Output "Using Windows Auth"	
+		
+    # .NET Method
 	# Open connection and Execute sql against server using Windows Auth
 	$DataSet = New-Object System.Data.DataSet
 	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
@@ -192,38 +223,48 @@ else
 
 	# Close connection to sql server
 	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+	$results = $DataSet.Tables[0].Rows
 
 }
 
-	
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference 
+# Write out rows
+$RunTime = Get-date
 
-# If No Results, write status file
-if ($results2 -eq $null)
-{
-    Write-Output "No Server Triggers Found on $SQLInstance"        
-    echo null > "$BaseFolder\$SQLInstance\01 - No Server Triggers Found.txt"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Create Output Folder
-$fullfolderPath = "$BaseFolder\$sqlinstance\01 - Server Triggers"
-if(!(test-path -path $fullfolderPath))
-{
-    mkdir $fullfolderPath | Out-Null
-}
-
+# Output to file
+foreach ($query in $results) {
     
-# Script Out
-Foreach ($row in $results2)
-{
-    $row.Definition+"`r`nGO`r`n`r`n",$row.enableCMD+"`r`nGO`r`n" | out-file "$fullfolderPath\Server_Triggers.sql" -Encoding ascii -Append
-	Add-Content -Value "`r`n" -Path "$fullfolderPath\Server_Triggers.sql" -Encoding Ascii
+    $myFixedFileName = $query.plan_handle
+
+	$myObjtype=$query.objtype
+	switch ($myObjtype) {
+		"Adhoc" {
+			$myoutputfile = $AdhocfolderPath+$myFixedFileName+".sqlplan"
+            $myoutputstring = $query.query_plan
+			$myoutputstring | out-file -FilePath $myoutputfile -width 5000000 -encoding ascii
+		}
+		
+		"Prepared" {
+			$myoutputfile = $PrepfolderPath+$myFixedFileName+".sqlplan"
+            $myoutputstring = $query.query_plan
+			$myoutputstring | out-file -FilePath $myoutputfile -width 5000000 -encoding ascii
+		}
+		
+		"Proc" {
+			$myoutputfile = $ProcfolderPath+$myFixedFileName+".sqlplan"
+            $myoutputstring = $query.query_plan
+			$myoutputstring | out-file -FilePath $myoutputfile -width 5000000 -encoding ascii
+		}
+		
+		"Trigger" {
+			$myoutputfile = $trgfolderPath+$myFixedFileName+".sqlplan"
+            $myoutputstring = $query.query_plan
+			$myoutputstring | out-file -FilePath $myoutputfile -width 5000000 -encoding ascii
+		}
+	}
+	
+
 }
+
 
 # Return To Base
 set-location $BaseFolder

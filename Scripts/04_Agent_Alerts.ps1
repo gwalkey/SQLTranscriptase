@@ -22,7 +22,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey	
 	
 #>
 
@@ -55,7 +55,6 @@ if ($SQLInstance.Length -eq 0)
 # Working
 Write-Output "Server $SQLInstance"
 
-
 # Server connection check
 try
 {
@@ -84,8 +83,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -110,8 +107,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -204,8 +199,6 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	$Connection.Close()
 	$results1 = $DataSet.Tables[0].Rows
 
-	#$results1 = Invoke-SqlCmd -query $sql1  -Server $SQLInstance –Username $myuser –Password $mypass 
-
     if ($results1 -eq $null)
     {
         Write-Output "No Agent Alerts Found on $SQLInstance"        
@@ -242,8 +235,6 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	# Close connection to sql server
 	$Connection.Close()
 	$results2 = $DataSet.Tables[0].Rows
-
-	#$results2 = Invoke-SqlCmd -query $sql2  -Server $SQLInstance –Username $myuser –Password $mypass 
 
     if ($results2 -eq $null)
     {
@@ -293,8 +284,6 @@ else
 	$Connection.Close()
 	$results1 = $DataSet.Tables[0].Rows
 
-	#$results1 = Invoke-SqlCmd -query $sql1  -Server $SQLInstance
-
     if ($results1 -eq $null)
     {
         Write-Output "No Agent Alerts Found on $SQLInstance"        
@@ -332,8 +321,6 @@ else
 	$Connection.Close()
 	$results2 = $DataSet.Tables[0].Rows
 
-	#$results2 = Invoke-SqlCmd -query $sql2  -Server $SQLInstance
-
     if ($results2 -eq $null)
     {
         Write-Output "No Agent Alert Notifications Found on $SQLInstance"        
@@ -357,6 +344,7 @@ else
 
 }
 
+# Return To Base
 set-location $BaseFolder
 
 

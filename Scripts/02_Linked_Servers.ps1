@@ -22,7 +22,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey	
 
 #>
 
@@ -112,8 +112,7 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 
     # Script out
     $LinkedServers = $srv.LinkedServers 
-    #CopyObjectsToFiles $LinkedServers $LinkedServers_path
-
+	$srv.LinkedServers | foreach {$_.Script()+ "GO"} | Out-File  $LinkedServers_path
 }
 else
 {
@@ -124,9 +123,7 @@ else
 
     # Script Out
     $LinkedServers = $srv.LinkedServers 
-    #CopyObjectsToFiles $LinkedServers $LinkedServers_path
     $srv.LinkedServers | foreach {$_.Script()+ "GO"} | Out-File  $LinkedServers_path
-
 
 }
 

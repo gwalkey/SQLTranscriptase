@@ -29,7 +29,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -92,8 +92,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -118,8 +116,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -186,8 +182,6 @@ $db = New-Object ("Microsoft.SqlServer.Management.SMO.Database")
 # Set scripter options to ensure only data is scripted
 $scripter.Options.ScriptSchema 	        = $true;
 $scripter.Options.ScriptData 	        = $false;
-
-#Exclude GOs after every line
 $scripter.Options.NoCommandTerminator 	= $false;
 $scripter.Options.ToFileOnly 			= $true
 $scripter.Options.AllowSystemObjects 	= $false
@@ -197,7 +191,6 @@ $scripter.Options.SchemaQualify 		= $true
 $scripter.Options.AnsiFile 				= $true
 $scripter.Options.WithDependencies		= $false
 $scripter.Options.SchemaQualifyForeignKeysReferences = $true
-
 $scripter.Options.Indexes 				= $true
 $scripter.Options.DriIndexes 			= $true
 $scripter.Options.DriClustered 			= $true
@@ -206,10 +199,7 @@ $scripter.Options.NonClusteredIndexes 	= $true
 $scripter.Options.ClusteredIndexes 		= $true
 $scripter.Options.FullTextIndexes 		= $true
 $scripter.Options.IncludeHeaders        = $false
-
 $scripter.Options.EnforceScriptingOptions 	= $true
-
-
 
 # Create output folder
 $output_path = "$BaseFolder\$SQLInstance\14 - Service Broker\"
@@ -373,6 +363,6 @@ if ($anyfound-eq $true)
 
 
 
-# finish
+# Return To Base
 set-location $BaseFolder
 

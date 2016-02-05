@@ -34,12 +34,13 @@
 
 .LINK
 	https://github.com/gwalkey
+	
 #>
 
 Param(
   [string]$SQLInstance='localhost',
-  [string]$myuser,
-  [string]$mypass
+  [string]$myuser='',
+  [string]$mypass=''
 )
 
 Set-StrictMode -Version latest;
@@ -75,13 +76,49 @@ try
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
         Write-Output "Testing SQL Auth"
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+		# .NET Method
+		# Open connection and Execute sql against server
+		$DataSet = New-Object System.Data.DataSet
+		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+		$Connection = New-Object System.Data.SqlClient.SqlConnection
+		$Connection.ConnectionString = $SQLConnectionString
+		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+		$SqlCmd.CommandText = "select serverproperty('productversion')"
+		$SqlCmd.Connection = $Connection
+		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+		$SqlAdapter.SelectCommand = $SqlCmd
+    
+		# Insert results into Dataset table
+		$SqlAdapter.Fill($DataSet) | out-null
+
+		# Close connection to sql server
+		$Connection.Close()
+		$results = $DataSet.Tables[0].Rows[0]
+
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-    	$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
+		# .NET Method
+		# Open connection and Execute sql against server using Windows Auth
+		$DataSet = New-Object System.Data.DataSet
+		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+		$Connection = New-Object System.Data.SqlClient.SqlConnection
+		$Connection.ConnectionString = $SQLConnectionString
+		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+		$SqlCmd.CommandText = "select serverproperty('productversion')"
+		$SqlCmd.Connection = $Connection
+		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+		$SqlAdapter.SelectCommand = $SqlCmd
+    
+		# Insert results into Dataset table
+		$SqlAdapter.Fill($DataSet) | out-null
+
+		# Close connection to sql server
+		$Connection.Close()
+		$results = $DataSet.Tables[0].Rows[0]
+
         $serverauth = "win"
     }
 
@@ -96,12 +133,21 @@ try
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Auth?"
+    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
     Set-Location $BaseFolder
 	exit
 }
 
 
+# Create Output Folder
+$fullfolderPath = "$BaseFolder\$SQLInstance\13 - PKI\"
+if(!(test-path -path $fullfolderPath))
+{
+	mkdir $fullfolderPath | Out-Null
+}
+
+
+#Create Server SMO Object
 if ($serverauth -eq "win")
 {
     $srv = New-Object ('Microsoft.SqlServer.Management.Smo.Server') $SQLInstance
@@ -123,14 +169,6 @@ if ($backupfolder -like "*\\*")
     $unc = 1
 }
 
-
-# Create Output Folder
-$PKI_Path = "$BaseFolder\$SQLInstance\13 - PKI\"
-if(!(test-path -path $PKI_path))
-{
-    mkdir $PKI_path | Out-Null	
-}
-
 Write-Output "Backup folder is $backupfolder"
 
 # -------------------------------------
@@ -141,16 +179,51 @@ Write-Output "Saving Service Master Key..."
 $mySQLquery = "
 backup service master key to file = N'$backupfolder\Service_Master_Key.txt'
 encryption by password = 'SomeNewSecurePassword$!'
-go
 "
 # connect correctly
 if ($serverauth -eq "win")
 {
-    $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
+
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLquery
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+	# Close connection to sql server
+	$Connection.Close()
+	$sqlresults = $DataSet.Tables[0].Rows
 }
 else
 {
-    $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+
+    # .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLquery
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+    # Insert results into Dataset table
+    $SqlAdapter.Fill($DataSet) | out-null
+	
+	# Close connection to sql server
+    $Connection.Close()    
+    $sqlresults = $DataSet.Tables[0].Rows
 }
 
 # Copy files down
@@ -233,7 +306,7 @@ foreach($sqlDatabase in $srv.databases)
     $fixedDBName = $fixedDBName.replace(']','')
 
     # Check for DB Master Key existence
-    $mySQLQuery = "
+    $mySQLQuery2 = "
     Use $sqlDatabase;
     IF (select Count(*) from sys.symmetric_keys where name like '%DatabaseMasterKey%') >0
     begin
@@ -247,11 +320,47 @@ foreach($sqlDatabase in $srv.databases)
     # connect correctly
 	if ($serverauth -eq "win")
 	{
-		$sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
+		# .NET Method
+	    # Open connection and Execute sql against server using Windows Auth
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $mySQLquery2
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+    
+	    # Insert results into Dataset table
+	    $SqlAdapter.Fill($DataSet) | out-null
+
+	    # Close connection to sql server
+	    $Connection.Close()
+	    $sqlresults2 = $DataSet.Tables[0].Rows
+
 	}
 	else
 	{
-		$sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+		# .NET Method
+	    # Open connection and Execute sql against server
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $mySQLquery2
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+    
+	    # Insert results into Dataset table
+	    $SqlAdapter.Fill($DataSet) | out-null
+
+    	# Close connection to sql server
+    	$Connection.Close()
+    	$sqlresults2 = $DataSet.Tables[0].Rows
+        
 	}    
 
     # Skip if no key found
@@ -275,8 +384,6 @@ foreach($sqlDatabase in $srv.databases)
     backup master key to file = N'$myExportedDBMasterKeyName'
 	encryption by password = '3dH85Hhk003#GHkf02597gheij04'
     "
-
-    #Write-Output "SQL Backup Command is: "$mySQLquery
 
     # connect correctly
 	if ($serverauth -eq "win")
@@ -516,6 +623,6 @@ if ($sqlresults22.Column1 -eq 1)
 # If any Certs Found
 } 
 
-
+# Return To Base
 set-location $BaseFolder
 

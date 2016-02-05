@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Gets the SQL Server Logins on the target server
+    Gets the SQL Server Logins on the target server, resolving Windows Groups to Users
 	
 .DESCRIPTION
    Writes the SQL Server Logins out to the "01 - Server Logins" folder
@@ -20,25 +20,26 @@
 	
 .NOTES
 
-    # First, install the Powershell AD Module
-    # 8.1
+    # Install the Powershell AD Module
+	
+	# Windows 10
+	https://www.microsoft.com/en-us/download/details.aspx?id=45520
+	
+    # Windows 8.1
     http://www.microsoft.com/en-us/download/details.aspx?id=39296
 
-    # 8.0
+    # Windows 8.0
     http://www.microsoft.com/en-us/download/details.aspx?id=28972
 
-    # 7
+    # Windows 7
     http://www.microsoft.com/en-us/download/details.aspx?id=7887
 	
 
 .LINK
-
+	https://github.com/gwalkey
 	
 	
 #>
-
-
-
 
 
 Param(
@@ -55,9 +56,6 @@ Set-StrictMode -Version latest;
 # Load SMO Assemblies
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
-
-# Load More Assemblies
-
 
 #  Script Name
 Write-Host  -f Yellow -b Black "01 - Server Logins"
@@ -102,8 +100,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -128,8 +124,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -458,6 +452,6 @@ foreach ($Login in $Logins)
 
 }
  
-
+# Return To Base
 set-location $BaseFolder
 

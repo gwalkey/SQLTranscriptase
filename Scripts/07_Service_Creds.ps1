@@ -22,7 +22,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -83,8 +83,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -109,8 +107,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -231,13 +227,16 @@ td
 	}
 "
 
+# Export CSS File for HTML formatting
 $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
-# Export It
+# Export Creds
 $RunTime = Get-date
 $mySettings = $results1
 $mySettings | select Name, StartName  | ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>NT Service Credentials</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\HtmlReport.html"
 
 Write-Output ("{0} NT Service Creds Exported" -f $results1.count)
 
+# Return To Base
 set-location $BaseFolder
+

@@ -18,8 +18,6 @@
 
 	
 .NOTES
-	George Walkey
-	Richmond, VA USA
 
 .LINK
 	https://github.com/gwalkey
@@ -88,8 +86,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -114,8 +110,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -268,11 +262,11 @@ Write-Output "Writing out Folder Environments..."
 $fquery = "select [name] FROM [SSISDB].[catalog].[Folders]"
 if ($serverauth -eq "win")
 {
-    $fresults = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $fquery 
+    $fresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $fquery 
 }
 else
 {     
-    $fresults = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $fquery -Username $myuser -Password $mypass
+    $fresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $fquery -Username $myuser -Password $mypass
 }
 
 
@@ -315,11 +309,11 @@ foreach ($folder in $fresults)
     # Get Envs
     if ($serverauth -eq "win")
     {
-        $envresults = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $envquery 
+        $envresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envquery 
     }
     else
     {     
-        $envresults = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $envquery -Username $myuser -Password $mypass
+        $envresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envquery -Username $myuser -Password $mypass
     }
     # Write Out
     foreach ($env in $envresults)
@@ -381,11 +375,11 @@ foreach ($folder in $fresults)
     # Get Vars
     if ($serverauth -eq "win")
     {
-        $envVresults = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $envVquery
+        $envVresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envVquery
     }
     else
     {     
-        $envVresults = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $envVquery -Username $myuser -Password $mypass
+        $envVresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envVquery -Username $myuser -Password $mypass
     }
     # Write Out
     foreach ($envV in $envVresults)
@@ -413,12 +407,12 @@ $ErrorActionPreference = 'SilentlyContinue'
 if ($serverauth -eq "win")
 {
     set-location $fullfolderPath
-    $keyresult = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $myquery
+    $keyresult = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $myquery
 }
 else
 {
     set-location $fullfolderPath
-    $keyresult = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $myquery -Username $myuser -Password $mypass 
+    $keyresult = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $myquery -Username $myuser -Password $mypass 
 }
 
 # Reset default PS error handler
@@ -468,5 +462,5 @@ $myrestorecmd | out-file $fullfolderPath\Master_Key_Restore_cmd.sql -Encoding as
 
 Write-Output ("{0} Packages Exported" -f $Folders.count)
 
-
+# Return To Base
 set-location $BaseFolder

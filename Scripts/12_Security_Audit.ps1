@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets SQL Server Security Information from the target server
 	
@@ -19,9 +19,10 @@
 	HTML Files
 	
 .NOTES
-	.NET DataAdapter faster and more sustainable than Invoke-SqlCmd
+	
+	
 .LINK
-	https://github.com/gwalkey/SQLTranscriptase
+	https://github.com/gwalkey
 	
 #>
 
@@ -132,7 +133,6 @@ catch
 
 # Set Local Vars
 $server = $SQLInstance
-$fullfolderPath = "$BaseFolder\$sqlinstance\12 - Security Audit"
 
 if ($serverauth -eq "win")
 {
@@ -263,7 +263,6 @@ if ($serverauth -ne "win")
 	$Connection.Close()
 	$results = $DataSet.Tables[0].Rows
 
-	#$results = Invoke-SqlCmd -query $sql1 -Server $SQLInstance –Username $myuser –Password $mypass 
 }
 else
 {
@@ -286,7 +285,6 @@ else
 	$Connection.Close()
 	$results = $DataSet.Tables[0].Rows
 
-	#$results = Invoke-SqlCmd -query $sql1 -Server $SQLInstance      
 }
 
 # Write out rows
@@ -722,4 +720,5 @@ foreach($sqlDatabase in $srv.databases)
         
 }
 
+# Return To Base
 set-location $BaseFolder

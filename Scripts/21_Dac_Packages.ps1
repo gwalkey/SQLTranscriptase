@@ -26,9 +26,6 @@
 
     Check the Registrations results here:
     select * from msdb.dbo.sysdac_instances
-	
-	George Walkey
-	Richmond, VA USA
 
 .LINK
 	https://github.com/gwalkey
@@ -133,8 +130,6 @@ try
 		$results = $DataSet.Tables[0].Rows[0]
         $sqlver = $results.column1
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -160,8 +155,6 @@ try
 		$results = $DataSet.Tables[0].Rows[0]
         $sqlver = $results.column1
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -366,8 +359,9 @@ foreach($sqlDatabase in $srv.databases)
 # Remember to run the Drift Report batch files in the DriftReports folder
 
 remove-item -Path "$Output_path\DacExtract.cmd" -Force -ErrorAction SilentlyContinue
+remove-item -Path "$Output_path\BacExport.cmd" -Force -ErrorAction SilentlyContinue
 
-# Return Home
+# Return to Base
 set-location $BaseFolder
 
 

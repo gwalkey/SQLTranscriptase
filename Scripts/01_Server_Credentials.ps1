@@ -23,7 +23,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -87,8 +87,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -113,8 +111,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -183,8 +179,6 @@ else
 
 
 # Run Query
-
-
 # connect correctly
 if ($serverauth -eq "win")
 {
@@ -207,7 +201,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$sqlresults = $DataSet.Tables[0].Rows
 
-    # $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
 }
 else
 {
@@ -230,7 +223,6 @@ else
 	$Connection.Close()
 	$sqlresults = $DataSet.Tables[0].Rows
 
-    # $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
 # Output to file
@@ -247,7 +239,7 @@ foreach ($Cred in $sqlresults)
 }
 
 
-# finish
+# Return to Base
 set-location $BaseFolder
 
 

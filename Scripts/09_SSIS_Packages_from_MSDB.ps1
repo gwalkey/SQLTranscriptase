@@ -21,7 +21,7 @@
 	Might have to run this Elevated (As Administrator) on Windows 8+
 	
 .LINK
-
+	https://github.com/gwalkey
 
 #>
 
@@ -86,8 +86,6 @@ try
 		$results = $DataSet.Tables[0].Rows[0]
         $myver = $results.Column1
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -113,8 +111,6 @@ try
 		$results = $DataSet.Tables[0].Rows[0]
         $myver = $results.Column1
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -207,9 +203,7 @@ if ($myver -like "9.0*")
         # Close connection to sql server
 	    $Connection.Close()
 	    $Packages += $DataSet.Tables[0].Rows
-        
-
-        #$Packages += Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query $sql1         
+    
     }
     else
     {
@@ -234,9 +228,7 @@ if ($myver -like "9.0*")
 	    # Close connection to sql server
 	    $Connection.Close()
 	    $Packages += $DataSet.Tables[0].Rows
-        
 
-        #$Packages += Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $sql1
     }
 
     #Save
@@ -316,9 +308,6 @@ else
 	    $Connection.Close()
 	    $Packages += $DataSet.Tables[0].Rows
         
-
-        $Packages +=  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query $sql2
-
     }
     else
     {
@@ -344,13 +333,10 @@ else
 	    $Connection.Close()
 	    $Packages += $DataSet.Tables[0].Rows
         
-
-        #$Packages +=  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $sql2
-        
     }
 
 
-    #Save
+    # Export Packages to DTSX Files
     Foreach ($pkg in $Packages)
     {
     
@@ -370,5 +356,5 @@ else
     Write-Output ("{0} SSIS MSDB Packages Exported" -f $packages.count)
 }
 
+# Return To Base
 set-location $BaseFolder
-

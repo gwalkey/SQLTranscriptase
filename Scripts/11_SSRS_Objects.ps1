@@ -27,7 +27,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey
 	
 #>
 
@@ -90,8 +90,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -116,8 +114,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -296,7 +292,6 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	$Connection.Close()
 	$Packages = $DataSet.Tables[0].Rows
 
-    #$Packages +=  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query $mySQL
 
     # .NET Method
 	# Open connection and Execute sql against server
@@ -317,8 +312,6 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	$Connection.Close()
 	$toplevelfolders = $DataSet.Tables[0].Rows
     
-    #$toplevelfolders = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance  -Username $myuser -Password $mypass  -Query $sqlToplevelfolders
-
 }
 else
 {
@@ -360,8 +353,6 @@ else
 	$Connection.Close()
 	$Packages = $DataSet.Tables[0].Rows
 
-    #$Packages +=  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $mySQL
-
    	# .NET Method
 	# Open connection and Execute sql against server using Windows Auth
 	$DataSet = New-Object System.Data.DataSet
@@ -380,8 +371,6 @@ else
 	# Close connection to sql server
 	$Connection.Close()
 	$toplevelfolders = $DataSet.Tables[0].Rows
-
-    #$toplevelfolders = Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $sqlToplevelfolders
 
 }
 
@@ -769,7 +758,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$Skeds = $DataSet.Tables[0].Rows
 
-    #$Skeds =  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $myRDLSked
 }
 else
 {
@@ -793,7 +781,6 @@ else
 	$Connection.Close()
 	$Skeds = $DataSet.Tables[0].Rows
 
-    #$Skeds =  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query $myRDLSked
 }
 
 
@@ -874,7 +861,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$SubCommands = $DataSet.Tables[0].Rows
 
-    #$SubCommands =  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query $mySubs
 }
 else
 {
@@ -897,7 +883,6 @@ else
 	$Connection.Close()
 	$SubCommands = $DataSet.Tables[0].Rows
 
-    #$SubCommands =  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query $mySubs
 }
 
 # Script Out
@@ -970,8 +955,6 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 	$Connection.Close()
 	$sqlPermissions = $DataSet.Tables[0].Rows
 
-
-    #$sqlPermissions = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $sqlSecurity -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 else
 {
@@ -996,7 +979,6 @@ else
 	$Connection.Close()
 	$sqlPermissions = $DataSet.Tables[0].Rows
 
-    #$sqlPermissions = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $sqlSecurity -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
 
@@ -1008,7 +990,7 @@ $ErrorActionPreference = $old_ErrorActionPreference
 $myCSS | out-file "$fullfolderPathSecurity\HTMLReport.css" -Encoding ascii
 
 
-$sqlPermissions | select Path, Name, UserName, RoleName  | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPathSecurity\HtmlReport.html"
+$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPathSecurity\HtmlReport.html"
 
 
 # Return to Base

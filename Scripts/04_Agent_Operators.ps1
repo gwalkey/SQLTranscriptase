@@ -21,7 +21,7 @@
 
 	
 .LINK
-
+	https://github.com/gwalkey	
 	
 #>
 
@@ -126,8 +126,6 @@ if(!(test-path -path $fullfolderPath))
 	mkdir $fullfolderPath | Out-Null
 }
 	
-# Test for Username/Password needed to connect - else assume WinAuth passthrough
-
 # Server connection check
 try
 {
@@ -156,8 +154,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth="sql"
     }
     else
@@ -182,8 +178,6 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
@@ -232,7 +226,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$results = $DataSet.Tables[0].Rows
 
-	#$results = Invoke-SqlCmd -query $sql -Server $SQLInstance
 }
 else
 {
@@ -256,8 +249,6 @@ else
 	$Connection.Close()
 	$results = $DataSet.Tables[0].Rows
 
-
-    #$results = Invoke-SqlCmd -query $sql -Server $SQLInstance –Username $myuser –Password $mypass
 }
 
 if ($results -eq $null )
@@ -281,9 +272,7 @@ Foreach ($row in $results)
     $countproperty = $countproperty +1;
 }
 
-
 Write-Output ("{0} Operators Exported" -f $countproperty)
 
-
-
+# Return To Base
 set-location $BaseFolder

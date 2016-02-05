@@ -14,17 +14,17 @@
 .EXAMPLE
     17_Managed_Backups.ps1 server01 sa password
 
-.NOTES
-
-
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
 
 .Outputs
 
 
+.NOTES
+	https://msdn.microsoft.com/en-us/library/dn449497(v=sql.120).aspx
+
 .LINK
-    https://msdn.microsoft.com/en-us/library/dn449497(v=sql.120).aspx
+	https://github.com/gwalkey
     
 #>
 
@@ -34,9 +34,6 @@ Param(
   [string]$myuser,
   [string]$mypass
 )
-
-
-
 
 
 Set-StrictMode -Version latest;
@@ -89,9 +86,8 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
-
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+		$myver = $results.Column1
+		
         $serverauth="sql"
     }
     else
@@ -115,9 +111,8 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
-
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
+		$myver = $results.Column1
+		
         $serverauth = "win"
     }
 
@@ -294,7 +289,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$sqlresults = $DataSet.Tables[0].Rows
 
-    # $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
 }
 else
 {
@@ -318,7 +312,6 @@ else
 	$Connection.Close()
 	$sqlresults = $DataSet.Tables[0].Rows
 
-    # $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
 # Script out
@@ -359,6 +352,6 @@ foreach ($MB in $sqlresults)
 Write-Output ("{0} Managed Backup Jobs Exported" -f $countproperty)
 
 
-# finish
+# Return To Base
 set-location $BaseFolder
 
