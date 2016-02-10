@@ -1,9 +1,10 @@
 Changelog
 
 Feb 3, 2016
-*Added*
+=Adds=
 Table Order Creation Hints File -
  Tables are listed in the right order for Declarative Referential Integrity PK/FK Table dependencies
+ 
 New 2016 Objects:
 Database-Scoped Credentials
 Database Query Store Settings
@@ -16,6 +17,6 @@ Always Encrypted Objects
   Column Master Keys
   Column Encryption Keys
 
-*Fixed*
-Database itself - fixed for 2016 (Scripter Object doesnt work, but the DB object's script() method does)
+=Fixed=
+CREATE Database statement - fixed for 2016 (Scripter Object doesnt work, but the SMO object's script() method does - go figure)
 
