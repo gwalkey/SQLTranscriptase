@@ -1,5 +1,10 @@
 Changelog
 
+Feb 6, 2016
+=Added=
+Top 25 Worst performing Queries - as HTML table
+Entire Live Query Plan Cache - ummm that was fun, but useful?
+
 Feb 3, 2016
 =Adds=
 Table Order Creation Hints File -
