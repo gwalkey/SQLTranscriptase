@@ -1,5 +1,6 @@
 # SQLTranscriptase 
-SQL Server Documentation in Powershell
+SQL Server Documentation in Powershell<br>
+Check the Wiki for Installation instructions
 
 Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
