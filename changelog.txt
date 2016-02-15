@@ -1,16 +1,20 @@
 Changelog
 
+Feb 15, 2016
+=Added=
+Network Adapter Configs to 01_Server_Appliance.ps1
+
 Feb 6, 2016
 =Added=
 Top 25 Worst performing Queries - as HTML table
 Entire Live Query Plan Cache - ummm that was fun, but useful?
 
 Feb 3, 2016
-=Adds=
+=Added=
 Table Order Creation Hints File -
  Tables are listed in the right order for Declarative Referential Integrity PK/FK Table dependencies
  
-==New 2016 Objects==
+==Added New 2016 Objects==
 Database-Scoped Credentials
 Database Query Store Settings
 Database Security Policies
