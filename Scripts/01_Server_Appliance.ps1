@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Hardware/Software config of the targeted SQL server
 	
@@ -301,7 +301,6 @@ catch
     Write-output "Error getting Hardware specs via WMI - WMI/firewall issue? "
 }
 
-" " | out-file $fullFileName -Encoding ascii -Append
 
 # Proc, CPUs, Cores
 # Turn off default Error Handler for WMI
@@ -340,7 +339,15 @@ $ErrorActionPreference = $old_ErrorActionPreference
 
 try
 {
-    Write-output ("PowerPlan: {0} " -f $mystring41.ElementName)| out-file $fullFileName -Encoding ascii -Append    
+    if ($mystring41.ElementName -ne "High performance") 
+    {
+        Write-output ("PowerPlan: {0} *not optimal in a VM*" -f $mystring41.ElementName)| out-file $fullFileName -Encoding ascii -Append
+    }
+    else
+    {
+        Write-output ("PowerPlan: {0} " -f $mystring41.ElementName)| out-file $fullFileName -Encoding ascii -Append
+    }
+    
 }
 catch
 {
@@ -355,7 +362,14 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$MyPSVersion = Invoke-Command -ComputerName $SQLInstance -ScriptBlock {$PSVersionTable.PSVersion.Major}
+if ($SQLInstance -eq 'localhost')
+{
+    $MyPSVersion = $PSVersionTable.PSVersion
+}
+else
+{
+    $MyPSVersion = Invoke-Command -ComputerName $SQLInstance -ScriptBlock {$PSVersionTable.PSVersion}
+}
 if ($MyPSVersion -ne $null)
 {    
     $mystring =  "Powershell Version: " +$myPSVersion
@@ -366,7 +380,44 @@ else
 }
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
+$ErrorActionPreference = $old_ErrorActionPreference
 
+
+# Nic Adapter Configs
+$old_ErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'
+
+$myString = "`r`nNetwork Adapters:"
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+if ($SQLInstance -eq 'localhost')
+{
+    $Adapters = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -filter IPEnabled=TRUE -ComputerName .
+}
+else
+{
+    $Adapters = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -filter IPEnabled=TRUE -ComputerName $SQLInstance
+}
+
+foreach ($Adapter in $Adapters)
+{
+    $mystring =  "Name: "+ $Adapter.ServiceName+"`r`n"
+    $index = 0
+    foreach ( $Address in $Adapter.IPAddress)
+    {
+        $mystring+= "Address["+[array]::IndexOf($Adapter.IPAddress,$Address)+ "]: "+$Address+"`r`n"
+    }
+
+    foreach ( $subnet in $Adapter.IPSubnet)
+    {
+        $mystring+= "Subnet["+[array]::IndexOf($Adapter.IPSubnet,$subnet)+ "]: "+$Subnet+"`r`n"
+    }
+    
+    $mystring+= "Gateway: {0}" -f $Adapter.DefaultIPGateway+"`r`n"
+    $mystring+="Description: {0}" -f $Adapter.Description+"`r`n"
+
+}
+$mystring | out-file $fullFileName -Encoding ascii -Append
 $ErrorActionPreference = $old_ErrorActionPreference
 
 # Footer
