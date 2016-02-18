@@ -109,10 +109,8 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
-
-		# SQLCMD.EXE Method
-        #$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
-        $serverauth="sql"
+		
+		$serverauth="sql"
     }
     else
     {
@@ -136,13 +134,12 @@ try
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
-		# SQLCMD.EXE Method
-    	#$results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query "select serverproperty('productversion')" -QueryTimeout 10 -erroraction SilentlyContinue
         $serverauth = "win"
     }
 
     if($results -ne $null)
     {
+		$myver = $results.Column1
         Write-Output ("SQL Version: {0}" -f $results.Column1)
     }
 
@@ -295,8 +292,6 @@ if ($serverauth -eq "win")
 	$Connection.Close()
 	$sqlresultsX = $DataSet.Tables[0].Rows
 
-    # SQLCMD.EXE Method
-    #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
 }
 else
 {
@@ -319,8 +314,6 @@ else
 	$Connection.Close()
 	$sqlresultsX = $DataSet.Tables[0].Rows
 
-    # SQLCMD.EXE Method
-    #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
 $RunTime = Get-date
@@ -482,55 +475,58 @@ foreach($sqlDatabase in $srv.databases)
     $myoutputfile = $DB_Path + $fixedDBName + ".sql"
     $MainDB.Script() | out-file -FilePath $myoutputfile -encoding ascii -Force
 
-    # Database Scoped Credentials
-    Write-Output "$fixedDBName - Database Scoped Credentials"
-    $DBScopedCreds = $db.DatabaseScopedCredentials 
-    CopyObjectsToFiles $DBScopedCreds $DBScoped_Creds_path
+	# 2016+ Only Features
+	if ($myver -like "13.0*")
+	{
+		# Database Scoped Credentials
+		Write-Output "$fixedDBName - Database Scoped Credentials"
+		$DBScopedCreds = $db.DatabaseScopedCredentials 
+		CopyObjectsToFiles $DBScopedCreds $DBScoped_Creds_path
 
-    # QueryStore Options
-    Write-Output "$fixedDBName - Query Store Options"
-    $myoutputfile = $QueryStore_path + "Query_Store.sql"
-    $QueryStore = $db.QueryStoreOptions 
-    if ($QueryStore -ne $null)
-    {
-        if(!(test-path -path $QueryStore_path))
-        {
-            mkdir $QueryStore_path | Out-Null	
-        }
-        $QueryStore.Script() | out-file -FilePath $myoutputfile -append -encoding ascii
-    }
-
+		# QueryStore Options
+		Write-Output "$fixedDBName - Query Store Options"
+		$myoutputfile = $QueryStore_path + "Query_Store.sql"
+		$QueryStore = $db.QueryStoreOptions 
+		if ($QueryStore -ne $null)
+		{
+			if(!(test-path -path $QueryStore_path))
+			{
+				mkdir $QueryStore_path | Out-Null	
+			}
+			$QueryStore.Script() | out-file -FilePath $myoutputfile -append -encoding ascii
+		}
     
-    # External Data Sources
-    Write-Output "$fixedDBName - External Data Sources"
-    $DB_EDS = $db.ExternalDataSources
-    CopyObjectsToFiles $DB_EDS $DBEDS_path
+		# External Data Sources
+		Write-Output "$fixedDBName - External Data Sources"
+		$DB_EDS = $db.ExternalDataSources
+		CopyObjectsToFiles $DB_EDS $DBEDS_path
 
-    # External File Formats
-    Write-Output "$fixedDBName - External File Formats"
-    $DBExtFF = $db.ExternalFileFormats
-    CopyObjectsToFiles $DBExtFF $DBExtFF_path
+		# External File Formats
+		Write-Output "$fixedDBName - External File Formats"
+		$DBExtFF = $db.ExternalFileFormats
+		CopyObjectsToFiles $DBExtFF $DBExtFF_path
 
-    # Security Policies
-    Write-Output "$fixedDBName - Database Security Policies"
-    $DBSecPol = $db.SecurityPolicies
-    CopyObjectsToFiles $DBSecPol $DBSecPol_path
+		# Security Policies
+		Write-Output "$fixedDBName - Database Security Policies"
+		$DBSecPol = $db.SecurityPolicies
+		CopyObjectsToFiles $DBSecPol $DBSecPol_path
 
-    # XMLSchema Collections
-    Write-Output "$fixedDBName - XML Schema Collections"
-    $DBXML_SC = $db.XmlSchemaCollections
-    CopyObjectsToFiles $DBXML_SC $XMLSC_path
+		# XMLSchema Collections
+		Write-Output "$fixedDBName - XML Schema Collections"
+		$DBXML_SC = $db.XmlSchemaCollections
+		CopyObjectsToFiles $DBXML_SC $XMLSC_path
 
-    # Always Encrypted Column Encryption Keys
-    Write-Output "$fixedDBName - Column Encryption Keys"
-    $DBAE_CEK = $db.ColumnEncryptionKeys
-    CopyObjectsToFiles $DBAE_CEK $DBColumnEncryptionKey_path
+		# Always Encrypted Column Encryption Keys
+		Write-Output "$fixedDBName - Column Encryption Keys"
+		$DBAE_CEK = $db.ColumnEncryptionKeys
+		CopyObjectsToFiles $DBAE_CEK $DBColumnEncryptionKey_path
 
-    # Always Encrypted Column Master Keys
-    Write-Output "$fixedDBName - Column Master Keys"
-    $DBAE_CMK = $db.ColumnMasterKeys
-    CopyObjectsToFiles $DBAE_CMK $DBColumnMasterKey_path
+		# Always Encrypted Column Master Keys
+		Write-Output "$fixedDBName - Column Master Keys"
+		$DBAE_CMK = $db.ColumnMasterKeys
+		CopyObjectsToFiles $DBAE_CMK $DBColumnMasterKey_path
 
+	}
         
     # Create Settings Path
     $DBSettingsPath = $output_path+"\Settings"
@@ -570,24 +566,20 @@ foreach($sqlDatabase in $srv.databases)
     $storedProcs = $db.StoredProcedures | Where-object  {-not $_.IsSystemObject  }
     CopyObjectsToFiles $storedProcs $storedProcs_path
 
-
     # Views
     Write-Output "$fixedDBName - Views"
     $views = $db.Views | Where-object { -not $_.IsSystemObject   } 
     CopyObjectsToFiles $views $views_path
-
 
     # UDFs
     Write-Output "$fixedDBName - UDFs"
     $udfs = $db.UserDefinedFunctions | Where-object  { -not $_.IsSystemObject  }
     CopyObjectsToFiles $udfs $udfs_path
 
-
     # Table Types
     Write-Output "$fixedDBName - Table Types"
     $udtts = $db.UserDefinedTableTypes  
     CopyObjectsToFiles $udtts $udtts_path
-
 
     # FullTextCats
     Write-Output "$fixedDBName - FullTextCatalogs"
@@ -599,18 +591,15 @@ foreach($sqlDatabase in $srv.databases)
     $DBTriggers	= $db.Triggers
     CopyObjectsToFiles $DBTriggers $DBTriggers_path
 
-
     # Schemas
     Write-Output "$fixedDBName - Schemas"
     $Schemas = $db.Schemas | Where-object  { -not $_.IsSystemObject  }
     CopyObjectsToFiles $Schemas $Schemas_path
 
-
     # Sequences
     Write-Output "$fixedDBName - Sequences"
     $Sequences = $db.Sequences
     CopyObjectsToFiles $Sequences $Sequences_path
-
 
     # Synonyms
     Write-Output "$fixedDBName - Synonyms"
@@ -668,8 +657,6 @@ foreach($sqlDatabase in $srv.databases)
     	$Connection.Close()
 	    $sqlresults2 = $DataSet.Tables[0].Rows   		
 
-        # SQLCMD.EXE Method
-        # $sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
     }
     else
     {
@@ -692,7 +679,6 @@ foreach($sqlDatabase in $srv.databases)
     	$Connection.Close()
     	$sqlresults2 = $DataSet.Tables[0].Rows        
 
-        # $sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
     }
 
     # Script Out
@@ -791,7 +777,7 @@ foreach($sqlDatabase in $srv.databases)
      order by t.Ordinal desc
 
  "
- 
+
     # DataAdapter returns null for strange DB Names (Sharepoint etc)
     $old_ErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'SilentlyContinue'
@@ -810,7 +796,7 @@ foreach($sqlDatabase in $srv.databases)
 	    $SqlCmd.Connection = $Connection
 	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	    $SqlAdapter.SelectCommand = $SqlCmd
-            $SqlAdapter.SelectCommand.CommandTimeout=300;
+        $SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	    # Insert results into Dataset table
 	    $SqlAdapter.Fill($DataSet) |out-null
@@ -819,8 +805,6 @@ foreach($sqlDatabase in $srv.databases)
 	    $Connection.Close()
 	    $sqlresults4 = $DataSet.Tables[0].Rows
 
-        # SQLCMD.EXE Method
-        #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
     }
     else
     {
@@ -835,7 +819,7 @@ foreach($sqlDatabase in $srv.databases)
 	    $SqlCmd.Connection = $Connection   
 	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	    $SqlAdapter.SelectCommand = $SqlCmd
-            $SqlAdapter.SelectCommand.CommandTimeout=300;
+        $SqlAdapter.SelectCommand.CommandTimeout=300;
     
 	    # Insert results into Dataset table
 	    $SqlAdapter.Fill($DataSet) |out-null
@@ -844,13 +828,11 @@ foreach($sqlDatabase in $srv.databases)
 	    $Connection.Close()
 	    $sqlresults4 = $DataSet.Tables[0].Rows
 
-        # SQLCMD.EXE Method
-        #$sqlresultsX = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
     }
 
     # Reset default PS error handler
     $ErrorActionPreference = $old_ErrorActionPreference
-    
+
     $RunTime = Get-date
     $FullFolderPath = "$BaseFolder\$SQLInstance\20 - DataBase Objects\"
     if(!(test-path -path $FullFolderPath))
@@ -916,6 +898,6 @@ foreach($sqlDatabase in $srv.databases)
 
 
 
-# finish
+# Return To Base
 set-location $BaseFolder
 
