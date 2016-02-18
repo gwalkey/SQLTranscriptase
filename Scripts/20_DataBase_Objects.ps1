@@ -420,7 +420,7 @@ foreach($sqlDatabase in $srv.databases)
 	}
 
     # Skip System Databases
-    if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB') {continue}
+    if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB','distribution') {continue}
 
     # Skip Offline Databases (SMO still enumerates them, but cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
