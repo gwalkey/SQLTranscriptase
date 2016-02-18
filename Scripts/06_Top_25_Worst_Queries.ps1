@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Top 25 Worst performing Queries on the target instance
 	
@@ -150,11 +150,11 @@ qs.execution_count,
 qs.total_worker_time,
 qs.total_logical_reads, 
 qs.total_logical_writes, 
-qs.total_elapsed_time/1000000 total_elapsed_time_in_Sec,
+qs.total_elapsed_time/1000000.0 total_elapsed_time_in_Sec,
 qs.last_logical_reads,
 qs.last_logical_writes,
 qs.last_worker_time,
-qs.last_elapsed_time/1000000 last_elapsed_time_in_Sec,
+qs.last_elapsed_time/1000000.0 last_elapsed_time_in_Sec,
 qs.last_execution_time
 FROM sys.dm_exec_query_stats qs
 CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
@@ -256,12 +256,23 @@ $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
 # Export it
 $RunTime = Get-date
-$results | select Database, Query, execution_count, total_worker_time, total_logical_reads, `
-                  total_logical_writes, total_elapsed_time_in_sec, last_logical_reads, last_logical_writes, `
-                  last_worker_time, last_elapsed_time_in_sec, last_execution_time | `
+
+$results | select Database, 
+                  Query, 
+                  execution_count, 
+                  total_worker_time, 
+                  total_logical_reads, 
+                  total_logical_writes,
+                  @{Name="total_elapsed_time_in_sec"; Expression={"{0:N6}" -f $_.total_elapsed_time_in_sec}},
+                  last_logical_reads,
+                  last_logical_writes,
+                  last_worker_time, 
+                  @{Name="last_elapsed_time_in_sec"; Expression={"{0:N6}" -f $_.last_elapsed_time_in_sec}},                   
+                  last_execution_time | `
                   ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Server Settings</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\Top25_Worst_Queries.html"
 
 
+# $results | ogv
 
 # Return To Base
 set-location $BaseFolder
