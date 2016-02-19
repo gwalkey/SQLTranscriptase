@@ -164,7 +164,7 @@ else
 
 
 # Dump info to output file
-$fullFileName = $fullfolderPath+"\Server_Appliance.txt"
+$fullFileName = $fullfolderPath+"\01_Server_Appliance.txt"
 New-Item $fullFileName -type file -force  |Out-Null
 Add-Content -Value "Server Hardware and Software Capabilities for $SQLInstance `r`n" -Path $fullFileName -Encoding Ascii
 
@@ -255,7 +255,7 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring2 = Get-WmiObject -class Win32_OperatingSystem -ComputerName $server | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+$mystring2 = Get-WmiObject –class Win32_OperatingSystem -ComputerName $server | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -274,7 +274,7 @@ try
 catch
 {
     Write-output "Error getting OS specs via WMI - WMI/firewall issue?"| out-file $fullFileName -Encoding ascii -Append
-    Write-output "Error getting OS specs via WMI - WMI/firewall issue?"
+    Write-Warning "Error getting OS specs via WMI - WMI/firewall issue?"
 }
 
 " " | out-file $fullFileName -Encoding ascii -Append
@@ -298,7 +298,7 @@ try
 catch
 {
     Write-output "Error getting Hardware specs via WMI - WMI/firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-output "Error getting Hardware specs via WMI - WMI/firewall issue? "
+    Write-Warning "Error getting Hardware specs via WMI - WMI/firewall issue? "
 }
 
 
@@ -321,7 +321,7 @@ try
 catch
 {
     Write-output "Error getting CPU specs via WMI - WMI/Firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-output "Error getting CPU specs via WMI - WMI/Firewall issue? "
+    Write-Warning "Error getting CPU specs via WMI - WMI/Firewall issue? "
 }
 
 " " | out-file $fullFileName -Encoding ascii -Append
@@ -351,8 +351,8 @@ try
 }
 catch
 {
-    Write-output "Error getting PowerPlan via WMI - WMI/Firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-output "Error getting PowerPlan via WMI - WMI/Firewall issue? "
+    Write-Output "Error getting PowerPlan via WMI - WMI/Firewall issue? "| out-file $fullFileName -Encoding ascii -Append
+    Write-Warning "Error getting PowerPlan via WMI - WMI/Firewall issue? "
 }
 
 " " | out-file $fullFileName -Encoding ascii -Append
@@ -368,7 +368,14 @@ if ($SQLInstance -eq 'localhost')
 }
 else
 {
-    $MyPSVersion = Invoke-Command -ComputerName $SQLInstance -ScriptBlock {$PSVersionTable.PSVersion}
+    if ($myuser.Length -ge 0 -and $mypass.Length -ge 0)
+    {        
+        $MyPSVersion = $null
+    }
+    else
+    {
+        $MyPSVersion = Invoke-Command -ComputerName $SQLInstance -ScriptBlock {$PSVersionTable.PSVersion}
+    }
 }
 if ($MyPSVersion -ne $null)
 {    
@@ -416,6 +423,9 @@ foreach ($Adapter in $Adapters)
     $mystring+= "Gateway: {0}" -f $Adapter.DefaultIPGateway+"`r`n"
     $mystring+="Description: {0}" -f $Adapter.Description+"`r`n"
 
+    # Resolve
+    #$mystring+="DNS Name: {0}" -f $address | Resolve-DnsName | select server 
+
 }
 $mystring | out-file $fullFileName -Encoding ascii -Append
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -431,7 +441,9 @@ $mystring5| out-file $fullFileName -Encoding ascii -Append
 $mystring5 = "`r`nMore Detailed Diagnostic Queries here:`r`nhttp://www.sqlskills.com/blogs/glenn/sql-server-diagnostic-information-queries-for-september-2015"
 $mystring5| out-file $fullFileName -Encoding ascii -Append
 
-# Dump out loaded DLLs
+
+
+# Loaded DLLs
 $mySQLquery = "select * from sys.dm_os_loaded_modules order by description"
 
 # connect correctly
@@ -487,7 +499,7 @@ $sqlresults2 | select file_version, product_version, debug, patched, prerelease,
 | ConvertTo-Html    -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Loaded DLLs</h2>" -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\02_Loaded_Dlls.html"
 
 
-# Dump Trace Flags
+# Trace Flags
 $mySQLquery2= "dbcc tracestatus()"
 
 # connect correctly
@@ -504,6 +516,76 @@ if ($sqlresults3 -ne  $null)
 {
     $sqlresults3 | select TraceFlag, Status, Global, Session | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Trace Flags</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\03_Trace_Flags.html"
 }
+else
+{
+    Write-Warning("Trace Flags: Could not connect")
+}
+
+
+# Device Drivers
+$WinServer = ($SQLInstance -split {$_ -eq "," -or $_ -eq "\"})[0]
+if ($SQLInstance -eq 'localhost')
+{
+    $ddrivers = driverquery.exe /nh /fo table /s .
+}
+else
+{
+    # Skip driverquery on DMZ Machines - hangs or asks for creds, but cant use them
+    if ($myuser.Length -eq 0 -and $mypass.Length -eq 0)
+    {
+        $ddrivers = driverquery.exe /nh /fo table /s $WinServer
+    }
+    else
+    {
+        $ddrivers = $null
+    }
+}
+
+if ($ddrivers -ne  $null)
+{
+ 
+    $fullFileName = $fullfolderPath+"\04_Device_Drivers.txt"
+    New-Item $fullFileName -type file -force  |Out-Null
+    Add-Content -Value "Device Drivers for $SQLInstance" -Path $fullFileName -Encoding Ascii  
+    #$ddrivers | Set-Content "$fullfolderPath\04_Device_Drivers.txt" 
+    Add-Content -Value $ddrivers -Path $fullFileName -Encoding Ascii
+}
+
+
+
+# Running Processes
+try
+{
+    $rprocesses = get-process -ComputerName $SQLInstance
+
+
+    if ($rprocesses -ne  $null)
+    {
+        $rprocesses | select Name, Handles, VM, WS, PM, NPM | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Running Processes</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\05_Running_Processes.html"
+    }
+}
+catch
+{
+    Write-Warning("Running Processes: Could not connect")
+}
+
+
+
+# Services
+try
+{
+    $Services = get-service -ComputerName $SQLInstance
+
+    if ($Services -ne  $null)
+    {
+        $Services | select Name, DisplayName, Status, StartType | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>NT Services</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\06_NT_Services.html"
+    }
+}
+catch
+{
+    Write-Warning("NT Services: Could not connect")
+}
+
 
 
 # Return to Base
