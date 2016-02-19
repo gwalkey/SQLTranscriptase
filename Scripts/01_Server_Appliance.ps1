@@ -79,7 +79,7 @@ try
 		# .NET Method
 		# Open connection and Execute sql against server
 		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;connect timeout=5;"
 		$Connection = New-Object System.Data.SqlClient.SqlConnection
 		$Connection.ConnectionString = $SQLConnectionString
 		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
@@ -103,7 +103,7 @@ try
 		# .NET Method
 		# Open connection and Execute sql against server using Windows Auth
 		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;connect timeout=5;"
 		$Connection = New-Object System.Data.SqlClient.SqlConnection
 		$Connection.ConnectionString = $SQLConnectionString
 		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
@@ -274,7 +274,7 @@ try
 catch
 {
     Write-output "Error getting OS specs via WMI - WMI/firewall issue?"| out-file $fullFileName -Encoding ascii -Append
-    Write-Warning "Error getting OS specs via WMI - WMI/firewall issue?"
+    Write-Output "Error getting OS specs via WMI - WMI/firewall issue?"
 }
 
 " " | out-file $fullFileName -Encoding ascii -Append
@@ -298,7 +298,7 @@ try
 catch
 {
     Write-output "Error getting Hardware specs via WMI - WMI/firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-Warning "Error getting Hardware specs via WMI - WMI/firewall issue? "
+    Write-Output "Error getting Hardware specs via WMI - WMI/firewall issue? "
 }
 
 
@@ -321,7 +321,7 @@ try
 catch
 {
     Write-output "Error getting CPU specs via WMI - WMI/Firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-Warning "Error getting CPU specs via WMI - WMI/Firewall issue? "
+    Write-Output "Error getting CPU specs via WMI - WMI/Firewall issue? "
 }
 
 " " | out-file $fullFileName -Encoding ascii -Append
@@ -352,7 +352,7 @@ try
 catch
 {
     Write-Output "Error getting PowerPlan via WMI - WMI/Firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-Warning "Error getting PowerPlan via WMI - WMI/Firewall issue? "
+    Write-Output "Error getting PowerPlan via WMI - WMI/Firewall issue? "
 }
 
 " " | out-file $fullFileName -Encoding ascii -Append
@@ -500,25 +500,81 @@ $sqlresults2 | select file_version, product_version, debug, patched, prerelease,
 
 
 # Trace Flags
-$mySQLquery2= "dbcc tracestatus()"
+$mySQLquery2= "dbcc tracestatus();"
 
 # connect correctly
 if ($serverauth -eq "win")
 {
-    $sqlresults3 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery2 -QueryTimeout 10 -erroraction SilentlyContinue
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLquery2
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -ne 0) 
+    {
+	    $sqlresults3 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults3 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
 else
 {
-    $sqlresults3 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery2 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+	# .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLquery2
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $sqlresults3 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults3 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
 
-if ($sqlresults3 -ne  $null)
+if ($sqlresults3 -ne $null)
 {
     $sqlresults3 | select TraceFlag, Status, Global, Session | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Trace Flags</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\03_Trace_Flags.html"
+    #Write-Output ("Trace Flags:")
+    #Write-output $sqlresults3
 }
 else
 {
-    Write-Warning("Trace Flags: Could not connect")
+    
 }
 
 
@@ -566,7 +622,7 @@ try
 }
 catch
 {
-    Write-Warning("Running Processes: Could not connect")
+    Write-Output ("Running Processes: Could not connect")
 }
 
 
@@ -583,10 +639,10 @@ try
 }
 catch
 {
-    Write-Warning("NT Services: Could not connect")
+    Write-Output ("NT Services: Could not connect")
 }
 
-
+Write-Output "`r`n"
 
 # Return to Base
 set-location $BaseFolder
