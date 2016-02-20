@@ -262,7 +262,7 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring2 = Get-WmiObject –class Win32_OperatingSystem -ComputerName $server | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+$mystring2 = Get-WmiObject -class Win32_OperatingSystem -ComputerName $server | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -314,7 +314,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $server | select Name,NumberOfCores,NumberOfLogicalProcessors
+$mystring4 = Get-WmiObject -class Win32_processor -ComputerName $server | select Name,NumberOfCores,NumberOfLogicalProcessors
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -619,7 +619,14 @@ if ($ddrivers -ne  $null)
 # Running Processes
 try
 {
-    $rprocesses = get-process -ComputerName $SQLInstance
+    if ($SQLInstance -eq "localhost")
+    {
+        $rprocesses = get-process
+    }
+    else
+    {
+        $rprocesses = get-process -ComputerName $SQLInstance
+    }
 
 
     if ($rprocesses -ne  $null)
