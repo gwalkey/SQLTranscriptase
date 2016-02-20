@@ -186,7 +186,14 @@ else
     $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
-$myCreateDate = $sqlresults.column1
+if ($sqlresults -ne $null)
+{
+    $myCreateDate = $sqlresults.column1
+}
+else
+{
+    $myCreateDate ='unknown'
+}
 $mystring =  "Server Create Date: " +$MyCreateDate
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
@@ -332,7 +339,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $server | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $server | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
