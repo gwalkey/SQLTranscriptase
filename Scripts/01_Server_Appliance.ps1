@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Hardware/Software config of the targeted SQL server
 	
@@ -186,14 +186,7 @@ else
     $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
-if ($sqlresults -ne $null)
-{
-    $myCreateDate = $sqlresults.column1
-}
-else
-{
-    $myCreateDate ='unknown'
-}
+$myCreateDate = $sqlresults.column1
 $mystring =  "Server Create Date: " +$MyCreateDate
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
@@ -262,7 +255,7 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring2 = Get-WmiObject -class Win32_OperatingSystem -ComputerName $server | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+$mystring2 = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -293,7 +286,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring3 = Get-WmiObject -class Win32_Computersystem -ComputerName $server | select manufacturer
+$mystring3 = Get-WmiObject -class Win32_Computersystem -ComputerName $WinServer | select manufacturer
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -314,7 +307,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring4 = Get-WmiObject -class Win32_processor -ComputerName $server | select Name,NumberOfCores,NumberOfLogicalProcessors
+$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -339,7 +332,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $server | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -410,7 +403,7 @@ if ($SQLInstance -eq 'localhost')
 }
 else
 {
-    $Adapters = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -filter IPEnabled=TRUE -ComputerName $SQLInstance
+    $Adapters = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -filter IPEnabled=TRUE -ComputerName $WinServer
 }
 
 foreach ($Adapter in $Adapters)
@@ -619,14 +612,7 @@ if ($ddrivers -ne  $null)
 # Running Processes
 try
 {
-    if ($SQLInstance -eq "localhost")
-    {
-        $rprocesses = get-process
-    }
-    else
-    {
-        $rprocesses = get-process -ComputerName $SQLInstance
-    }
+    $rprocesses = get-process -ComputerName $WinServer
 
 
     if ($rprocesses -ne  $null)
@@ -644,7 +630,7 @@ catch
 # Services
 try
 {
-    $Services = get-service -ComputerName $SQLInstance
+    $Services = get-service -ComputerName $WinServer
 
     if ($Services -ne  $null)
     {
@@ -656,7 +642,6 @@ catch
     Write-Output ("NT Services: Could not connect")
 }
 
-Write-Output "`r`n"
 
 # Return to Base
 set-location $BaseFolder

@@ -1,4 +1,4 @@
-powershell.exe "dir *.ps1 | unblock-file"
+powershell.exe "dir *.* | unblock-file"
 
 pause
 

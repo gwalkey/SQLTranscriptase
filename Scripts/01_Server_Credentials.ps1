@@ -241,6 +241,3 @@ foreach ($Cred in $sqlresults)
 
 # Return to Base
 set-location $BaseFolder
-
-
-

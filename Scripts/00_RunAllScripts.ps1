@@ -58,7 +58,7 @@ try
 		# .NET Method
 		# Open connection and Execute sql against server
 		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;connect timeout=5;"
 		$Connection = New-Object System.Data.SqlClient.SqlConnection
 		$Connection.ConnectionString = $SQLConnectionString
 		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
@@ -82,7 +82,7 @@ try
 		# .NET Method
 		# Open connection and Execute sql against server using Windows Auth
 		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;connect timeout=5;"
 		$Connection = New-Object System.Data.SqlClient.SqlConnection
 		$Connection.ConnectionString = $SQLConnectionString
 		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
@@ -150,11 +150,13 @@ set-location $BaseFolder
 & .\17_Managed_Backups.ps1 $SQLInstance $myuser $mypass
 # & .\18_Replication.ps1 $SQLInstance $myuser $mypass
 # & .\19_AlwaysOn.ps1 $SQLInstance $myuser $mypass
-& .\20_DataBase_Objects.ps1 $SQLInstance $myuser $mypass
-& .\21_Dac_Packages.ps1 $SQLInstance $myuser $mypass
+# & .\21_Dac_Packages.ps1 $SQLInstance $myuser $mypass
 & .\22_Policy_Based_Mgmt.ps1 $SQLInstance $myuser $mypass
 & .\23_Database_Diagrams.ps1 $SQLInstance $myuser $mypass
 & .\24_Plan_Guides.ps1 $SQLInstance $myuser $mypass
+# & .\30_DataBase_Objects.ps1 $SQLInstance $myuser $mypass
+& .\32_Database_Recovery_Models.ps1 $SQLInstance $myuser $mypass
+& .\33_VLF_Count.ps1 $SQLInstance $myuser $mypass
 
 
 Write-Output "`r`n"
