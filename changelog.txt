@@ -1,5 +1,19 @@
 Changelog
 
+Feb 25, 2016
+=Added=
+34_User_Objects_in_System_Databases.ps1
+
+=Fixed=
+Removed dependency on external CSS file for all scripts with HTML Output
+01_Server_Logins - New logic to determine 3 Login Types and always use AD Module installed and on a Domain
+
+
+Feb 22, 2016
+=Added=
+32_Database_Recovery_Models
+33_VLF_Counts
+
 Feb 15, 2016
 =Added=
 Network Adapter Configs to 01_Server_Appliance.ps1
