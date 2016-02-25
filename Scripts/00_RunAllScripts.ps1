@@ -157,6 +157,7 @@ set-location $BaseFolder
 # & .\30_DataBase_Objects.ps1 $SQLInstance $myuser $mypass
 & .\32_Database_Recovery_Models.ps1 $SQLInstance $myuser $mypass
 & .\33_VLF_Count.ps1 $SQLInstance $myuser $mypass
+& .\34_User_Objects_in_Master.ps1 $SQLInstance $myuser $mypass
 
 
 Write-Output "`r`n"

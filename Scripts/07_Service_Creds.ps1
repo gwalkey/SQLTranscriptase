@@ -193,47 +193,47 @@ if(!(test-path -path $fullfolderPath))
 	mkdir $fullfolderPath | Out-Null
 }
 
-
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
-	{
-		Margin: 0px 0px 0px 4px;
-		Border: 1px solid rgb(190, 190, 190);
-		Font-Family: Tahoma;
-		Font-Size: 9pt;
-		Background-Color: rgb(252, 252, 252);
-	}
+    {
+        Margin: 0px 0px 0px 4px;
+        Border: 1px solid rgb(190, 190, 190);
+        Font-Family: Tahoma;
+        Font-Size: 9pt;
+        Background-Color: rgb(252, 252, 252);
+    }
 tr:hover td
-	{
-		Background-Color: rgb(150, 150, 220);
-		Color: rgb(255, 255, 255);
-	}
+    {
+        Background-Color: rgb(150, 150, 220);
+        Color: rgb(255, 255, 255);
+    }
 tr:nth-child(even)
-	{
-		Background-Color: rgb(242, 242, 242);
-	}
+    {
+        Background-Color: rgb(242, 242, 242);
+    }
 th
-	{
-		Text-Align: Left;
-		Color: rgb(150, 150, 220);
-		Padding: 1px 4px 1px 4px;
-	}
+    {
+        Text-Align: Left;
+        Color: rgb(150, 150, 220);
+        Padding: 1px 4px 1px 4px;
+    }
 td
-	{
-		Vertical-Align: Top;
-		Padding: 1px 4px 1px 4px;
-	}
+    {
+        Vertical-Align: Top;
+        Padding: 1px 4px 1px 4px;
+    }
 "
-
-# Export CSS File for HTML formatting
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
+$head+="</style>"
 
 # Export Creds
 $RunTime = Get-date
-$mySettings = $results1
-$mySettings | select Name, StartName  | ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>NT Service Credentials</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\HtmlReport.html"
+
+$myoutputfile4 = $FullFolderPath+"\NT_Service_Credentials.html"
+$myHtml1 = $results1 | select Name, StartName | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>SQL Server Related NT Service Credentials</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "NT Service Credentials"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 Write-Output ("{0} NT Service Creds Exported" -f $results1.count)
 

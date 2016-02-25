@@ -3,7 +3,7 @@
     Gets the core Database Objects on the target server
 
 .DESCRIPTION
-    Writes the Objects out into subfolders in the "20 - DataBase Objects" folder
+    Writes the Objects out into subfolders in the "30 - DataBase Objects" folder
     Scripted Objects include:
     Database definition with Files and Filegroups
     DataBase Triggers
@@ -36,7 +36,7 @@
 
 .NOTES
     Use the -myDatabase parameter to just script out one database
-    Use the -myTable parameter to just script out one table (needs the Database parameter too)
+    Use the -myTable parameter to just script out one table in the above Database
 
 .LINK
     https://github.com/gwalkey
@@ -221,9 +221,9 @@ else
 # Find/Inspect other Server-Level Objects here
 Write-Output "Looking for Objects..."
 
-# Create some CSS for help in HTML formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -253,6 +253,9 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
+$head+="</style>"
+
+$RunTime = Get-date
 
 # Create Database Summary Listing
 $mySQLquery = 
@@ -270,6 +273,7 @@ SELECT
 FROM sys.master_files WITH (NOLOCK)
 ORDER BY DB_NAME([database_id]) OPTION (RECOMPILE);
 "
+
 #Run SQL
 if ($serverauth -eq "win")
 {
@@ -322,13 +326,15 @@ if(!(test-path -path $FullFolderPath))
 {
     mkdir $FullFolderPath | Out-Null
 }
-$myCSS | out-file "$FullFolderPath\HTMLReport.css" -Encoding ascii
-$sqlresultsX | select Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -PreContent "<h1>$SqlInstance</H1><H2>Database Summary</h2>" -PostContent "<h3>Ran on : $RunTime</h3>" -CSSUri "HtmlReport.css"| Set-Content "$FullFolderPath\Database_Summary.html"
+
+$myoutputfile4 = $FullFolderPath+"\Database_Summary.html"
+$myHtml1 = $sqlresultsX | select Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Database Summary"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Create Database Object Reconstruction Order Hints File
 "Database Object Reconstruction Order" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "`n " | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"01) Database with Filegroups" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"01) Database itself with Filegroups and Files" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "02) .NET Assemblies" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "03) Linked Servers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
 "04) Logins" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
@@ -371,7 +377,6 @@ $scripter.Options.FullTextIndexes 		= $true
 $scripter.Options.FullTextStopLists     = $true
 $scripter.Options.IncludeFullTextCatalogRootPath= $true
 
-
 $scripter.Options.IncludeHeaders        = $true
 $scripter.Options.IncludeDatabaseRoleMemberships= $true
 $scripter.Options.IncludeDatabaseContext = $true;
@@ -393,7 +398,6 @@ $scripter.Options.SchemaQualifyForeignKeysReferences = $true
 
 $scripter.Options.ToFileOnly 			= $true
 $scripter.Options.Triggers              = $true
-
 
 # WithDependencies create one huge file for all tables in the order needed to maintain RefIntegrity
 $scripter.Options.WithDependencies		= $false # Leave OFF - creates issues - Jan 2016 we script out the DRO Tabel Order in a separate file now
@@ -536,13 +540,16 @@ foreach($sqlDatabase in $srv.databases)
         mkdir $DBSettingsPath | Out-Null	
     }
    
-    # Create CSS file for DB Settings HTML file
-    $myCSS | out-file "$DBSettingsPath\HTMLReport.css" -Encoding ascii
-   
+       
     # Database Settings
     Write-Output "$fixedDBName - Settings"
     $mySettings = $db.Properties
-    $mySettings | sort-object Name | select Name, Value | ConvertTo-Html  -CSSUri "$DBSettingsPath\HTMLReport.css"| Set-Content "$DBSettingsPath\HtmlReport.html"
+    
+    $myoutputfile4 = $DBSettingsPath+"\Database_Settings.html"
+    $myHtml1 = $mySettings | sort-object Name | select Name, Value | ConvertTo-Html -Fragment -as table -PreContent "<h3>Database Settings for: $SQLInstance </h3>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Database Settings"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+    
+    #$mySettings | sort-object Name | select Name, Value | ConvertTo-Html  -CSSUri "$DBSettingsPath\HTMLReport.css"| Set-Content "$DBSettingsPath\HtmlReport.html"
        
     # Tables
     Write-Output "$fixedDBName - Tables"

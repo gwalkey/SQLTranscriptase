@@ -132,8 +132,8 @@ catch
 }
 
 
-# Set Local Vars
-$server 	= $SQLInstance
+# Set Local Vars - SMO Object
+$server = $SQLInstance
 
 if ($serverauth -eq "win")
 {
@@ -157,9 +157,9 @@ if(!(test-path -path $output_path))
     }
 
 
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -189,19 +189,22 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
+$head+="</style>"
 
 
-$myCSS | out-file "$output_path\HTMLReport.css" -Encoding ascii
 
 # Export it
 $RunTime = Get-date
-$mySettings = $srv.Configuration.Properties
-$mySettings | sort-object DisplayName | select Displayname, ConfigValue, runValue | ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Server Settings</h2>" -CSSUri "HtmlReport.css"| Set-Content "$output_path\HtmlReport.html"
+
+$myoutputfile4 = $output_path+"\Server_Settings.html"
+$myHtml1 = $srv.Configuration.Properties | sort-object DisplayName | select Displayname, ConfigValue, runValue | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>$SqlInstance</H1><H2>Server Settings</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Server Roles"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # ----------------------------
 # Get Buffer Pool Extensions
 # ----------------------------
-if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*")
+if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*" -or $myver -like "15.0*")
 {
 
     $mySQLquery = "USE Master; select State, path, current_size_in_kb as sizeKB from sys.dm_os_buffer_pool_extension_configuration"
@@ -279,7 +282,7 @@ if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*")
 }
 else
 {
-    Write-Output "Buffer Pool Extensions not available on the version of SQL"
+    Write-Output "SQL 2014+ required for Buffer Pool Extensions"
 }
 
 # Return To Base

@@ -97,11 +97,9 @@ catch
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference 
 
-
-
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -131,13 +129,16 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
+$head+="</style>"
 
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
 # Export It
 $RunTime = Get-date
-$mySettings = $ShareArray
-$mySettings | select Name, Path, Description  | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Shares</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\Shares_Overview.html"
+
+$myoutputfile4 = $FullFolderPath+"\Shares_Overview.html"
+$myHtml1 = $ShareArray | select  Name, Path, Description | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Shares Overview</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Shares Overview"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Loop Through Each Share, exporting NTFS and SMB permissions
 Write-Output "Dumping NTFS/SMB Share Permissions..."

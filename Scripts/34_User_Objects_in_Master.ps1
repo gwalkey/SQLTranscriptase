@@ -1,15 +1,16 @@
 ﻿<#
 .SYNOPSIS
-  Gets the Tranaasaction Log Recovery Mode for all non-system databases
+  Gets the Non-Microsoft objects in the Master Database
 	
 .DESCRIPTION
-  Gets the Tranaasaction Log Recovery Mode for all non-system databases
+  Gets the Non-Microsoft objects in the Master Database
+	
    
 .EXAMPLE
-    25_Database_Recovery_Models.ps1 localhost
+    34_User_Objects_in_Master.ps1 localhost
 	
 .EXAMPLE
-    25_Database_Recovery_Models.ps1 server01 sa password
+    34_User_Objects_in_Master.ps1 server01 sa password
 
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
@@ -19,6 +20,7 @@
 	
 .NOTES
 	.NET DataAdapter faster and more sustainable than Invoke-SqlCmd
+
 .LINK
 	https://github.com/gwalkey
 	
@@ -35,7 +37,7 @@ Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 
 #  Script Name
-Write-Host  -f Yellow -b Black "32 - Database Recovery Models"
+Write-Host  -f Yellow -b Black "34 - User Objects in Master DB" 
 
 
 # Load SMO Assemblies
@@ -46,7 +48,7 @@ LoadSQLSMO
 # Usage Check
 if ($SQLInstance.Length -eq 0) 
 {
-    Write-host -f yellow -b black "Usage: ./32_Database_Recovery_Models.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
+    Write-host -f yellow -b black "Usage: ./34_User_Objects_in_Master.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
     Set-Location $BaseFolder
     exit
 }
@@ -129,7 +131,7 @@ catch
 
 
 
-# Set Local Vars
+# Set Local Vars for SMO Object usage
 $server = $SQLInstance
 
 if ($serverauth -eq "win")
@@ -146,7 +148,7 @@ else
 
 
 # Create output folder
-$output_path = "$BaseFolder\$SQLInstance\32 - DB Recovery Models\"
+$output_path = "$BaseFolder\$SQLInstance\34 - User Objects in Master DB\"
 if(!(test-path -path $output_path))
     {
         mkdir $output_path | Out-Null
@@ -156,21 +158,23 @@ if(!(test-path -path $output_path))
 # SQL
 $sql1 = 
 "
-SELECT  @@SERVERNAME AS Server ,
-        d.name AS DBName ,
-		(select ROUND(SUM(size) * 8 / 1024, 0) from sys.master_files where database_id = d.database_id) as 'SizeMB',
-        d.recovery_model_Desc AS RecoveryModel ,
-        d.Compatibility_level AS CompatiblityLevel ,
-        d.create_date ,
-        d.state_desc
-FROM    sys.databases d
-where d.name not in ('master','tempdb','msdb','model','SSISDB','distribution')
-ORDER BY 2;
+SELECT
+CASE WHEN  type = 'U' THEN 'TABLE '
+               WHEN  type = 'P' THEN 'PROCEDURE '
+               WHEN  type = 'FN'THEN 'FUNCTION '
+               WHEN  type = 'V'THEN 'VIEW ' 
+END as 'ObjectType',
+[Name] 
+FROM Master.sys.objects
+WHERE is_ms_shipped <> 1
+AND TYPE IN ('U','P','FN','V')
+order by 1,2
+
 "
 
 
 # Run Query 1
-Write-Output "Running SQL.."
+Write-Output "Running SQL 1.."
 if ($serverauth -ne "win")
 {
     # .NET Method
@@ -215,11 +219,6 @@ else
 	$results = $DataSet.Tables[0].Rows
 
 }
-$RunTime = Get-date
-
-# Write out rows to CSV
-$myoutputfile = $output_path+"Recovery_Models.csv"
-$results | select Server, DBName, SizeMB, RecoveryModel, CompatibilityLevel, create_date, state_Desc | ConvertTo-csv| Set-Content $myoutputfile
 
 # Use HTML Fragments for multiple tables and inline CSS
 $head = "<style type='text/css'>"
@@ -257,9 +256,8 @@ $head+="</style>"
 
 $RunTime = Get-date
 
-$myoutputfile3 = $output_path+"Recovery_Models.html"
-
-$myHTML1 = $results | select Server, DBName, SizeMB, RecoveryModel, CompatibilityLevel, create_date, state_Desc | ConvertTo-Html  -fragment -as Table -PreContent "<h3>Database Recovery Models on $SQLInstance</h3>"
-Convertto-Html -head $head -Body "$myHtml1" -Title "Database Recovery Models"  -PostContent "<h3>Ran on : $RunTime</h3>" |Set-Content -Path $myoutputfile3
+$myoutputfile4 = $output_path+"User_Objects_In_Master.html"
+$myHtml1 = $results | select ObjectType, Name| ConvertTo-Html -Fragment -as table -PreContent "<h3>User Objects in Master Database on $SQLInstance </h3>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "User Objects in Master DB"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 set-location $BaseFolder

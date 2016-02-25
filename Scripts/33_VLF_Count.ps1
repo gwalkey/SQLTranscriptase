@@ -448,10 +448,46 @@ else
 
 }
 
-$head = "<link rel='stylesheet' type='text/css' href='HtmlReport.css'/>"
-$myoutputfile4 = $output_path+"VLF_Count_Full.html"
-$myHtml1 = $results | select DBName, vlfcount| ConvertTo-Html -Fragment -as table -PreContent "<h3>Name Order</h3>"
+# Use HTML Fragments for multiple tables and inline CSS
+$head = "<style type='text/css'>"
+$head+="
+table
+    {
+        Margin: 0px 0px 0px 4px;
+        Border: 1px solid rgb(190, 190, 190);
+        Font-Family: Tahoma;
+        Font-Size: 9pt;
+        Background-Color: rgb(252, 252, 252);
+    }
+tr:hover td
+    {
+        Background-Color: rgb(150, 150, 220);
+        Color: rgb(255, 255, 255);
+    }
+tr:nth-child(even)
+    {
+        Background-Color: rgb(242, 242, 242);
+    }
+th
+    {
+        Text-Align: Left;
+        Color: rgb(150, 150, 220);
+        Padding: 1px 4px 1px 4px;
+    }
+td
+    {
+        Vertical-Align: Top;
+        Padding: 1px 4px 1px 4px;
+    }
+"
+$head+="</style>"
+
+$RunTime = Get-date
+
+
+$myoutputfile4 = $output_path+"VLF_Count.html"
+$myHtml1 = $results | select DBName, vlfcount| ConvertTo-Html -Fragment -as table  -PreContent "<h3>VLF Count on Server $SQLINstance</h3> <h3>Name Order</h3>"
 $myHtml2 = $results3 | select DBName, vlfcount| ConvertTo-Html -Fragment -as table -PreContent "<h3>Count Order</h3>"
-Convertto-Html -head $head -Body "$myHtml1<br>$myHtml2" -Title "VLF Count Summary" | Set-Content -Path $myoutputfile4
+Convertto-Html -head $head -Body "$myHtml1<br>$myHtml2" -Title "VLF Count Summary" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 set-location $BaseFolder

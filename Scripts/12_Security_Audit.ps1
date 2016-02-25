@@ -154,9 +154,10 @@ if(!(test-path -path $fullfolderPath))
 	mkdir $fullfolderPath | Out-Null
 }
 
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -186,8 +187,7 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
-
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
+$head+="</style>"
 
 
 # Export Security Information:
@@ -289,8 +289,11 @@ else
 
 # Write out rows
 $RunTime = Get-date
-$results | select Login, DefaultDB, language, IsDenied, IsWinAuthentication, IsWinGroup, CreateDate, UpdateDate, ServerRoles, IsSysAdmin|`
-ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Logins</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\1_Server_Logins.html"
+
+$myoutputfile4 = $FullFolderPath+"\1_Server_Logins.html"
+$myHtml1 = $results | select Login, DefaultDB, language, IsDenied, IsWinAuthentication, IsWinGroup, CreateDate, UpdateDate, ServerRoles, IsSysAdmin | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Logins</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Server Logins" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 
 # ----------------------------------------------------
@@ -299,37 +302,51 @@ ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlI
 Write-Output "Server Login to Database User Global Mapping Listing..."
 
 $mySQL2 = "
-declare @mySQL varchar(1000)
-
-create table #MappingTable
-([Login_Name] NVARCHAR(255), [Database_Name] NVARCHAR(255), [Database_User] nvarchar(255), [Default_Schema] nvarchar(255))
 
 
-set @mySQL = '	
+create table #Login2UserMapping (
+	login_name nvarchar(255),
+	Database_Name nvarchar(255),
+    Database_User nvarchar(255),
+	Default_Schema nvarchar(255)
+)
 
-use ?
+DECLARE @Database_Name nvarchar(255)
+DECLARE @sqlcmd nvarchar(max)
 
-insert into #MappingTable
-        SELECT 
-	        sp.name AS ''Login_Name'', 
-			db_name() AS ''Database_Name'',
-	        dp.name AS ''Database_User'',
-			coalesce(dp.default_schema_name,'' '') as ''Default_Schema''
-        FROM 
-        	sys.database_principals dp 
-        INNER JOIN sys.server_principals sp 
-            ON dp.sid = sp.sid 
-        ORDER BY 
-        	sp.name, 
-    	    dp.name;
+DECLARE db_cursor CURSOR Fast_Forward
+FOR SELECT name from sys.databases where [name] not like 'Sharepoint%' and [name] not like '%.%'
+OPEN db_cursor
 
-'
+FETCH NEXT FROM db_cursor INTO @Database_Name
+WHILE (@@fetch_status =0)
+BEGIN
+	set @sqlcmd = 'Use '+@Database_Name+'; '
+	set @sqlcmd=@sqlcmd + '
+	insert into #Login2UserMapping
+	SELECT 
+	sp.name AS ''Login_Name'', 
+	db_name() AS ''Database_Name'',
+	dp.name AS ''Database_User'',
+	coalesce(dp.default_schema_name,'' '') as ''Default_Schema''
+    FROM 
+    sys.database_principals dp 
+    INNER JOIN sys.server_principals sp 
+    ON dp.sid = sp.sid 
+    ORDER BY 
+    sp.name, 
+    dp.name;
+	'
+	exec (@sqlcmd)
 
-exec sp_MSforeachdb @mySQL
+    FETCH NEXT FROM db_cursor INTO @Database_Name
+END
+/*close and deallocate cursor*/
+CLOSE db_cursor
+DEALLOCATE db_cursor
 
-select * from #MappingTable order by 1,2,3
-drop table #MappingTable
-
+select * from #Login2UserMapping order by 1,2
+drop table #Login2UserMapping
 
 "
 
@@ -380,9 +397,11 @@ else
 
 # Write Out Rows
 $RunTime = Get-date
-$results2 | select Login_Name, Database_Name, Database_User, Default_Schema|`
-ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Login to Database User Mapping</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\2_Server_Logins_to_Database_User_Mappings.html"
 
+$myoutputfile4 = $FullFolderPath+"\2_Server_Logins_to_Database_User_Mappings.html"
+$myHtml1 = $results2 | select  Login_Name, Database_Name, Database_User, Default_Schema | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Login to Database User Mapping</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Server Login to Database User Mapping" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 set-location $BaseFolder
 
@@ -480,9 +499,10 @@ foreach($sqlDatabase in $srv.databases)
 	    $results2 = $DataSet.Tables[0].Rows
     }
 
-    # Write out rows
-    $myCSS | out-file "$output_path\HTMLReport.css" -Encoding ascii
-    $results2 | select Login, User | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Login-to-User Mappings</h2>" -CSSUri "HtmlReport.css"| Set-Content "$output_path\2_Login_to_User_Mapping.html"
+    $myoutputfile4 = $output_path+"\2_Login_to_User_Mapping.html"
+    $myHtml1 = $results2 | select  Login, User | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Login-to-User Mappings</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Login-to-User Mappings" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
     set-location $BaseFolder
 
@@ -553,8 +573,11 @@ foreach($sqlDatabase in $srv.databases)
 	    $results3 = $DataSet.Tables[0].Rows
     }
 
-    # Write out rows    
-    $results3 | select User_Name,Role_Name | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Roles Per User</h2>" -CSSUri "HtmlReport.css"| Set-Content "$output_path\3_Roles_Per_User.html"
+    
+    $myoutputfile4 = $output_path+"\3_Roles_Per_User.html"
+    $myHtml1 = $results3 | select User_Name,Role_Name | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Roles Per User</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Roles Per User" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
     set-location $BaseFolder
 
@@ -626,8 +649,11 @@ foreach($sqlDatabase in $srv.databases)
 	    $results4 = $DataSet.Tables[0].Rows
     }
 
-    # Write out rows    
-    $results4 | select User, Operation, permission_name, IsGrantOption | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>DataBase-Level Permissions</h2>" -CSSUri "HtmlReport.css"| Set-Content "$output_path\4_DBLevel_Permissions.html"
+    $myoutputfile4 = $output_path+"\4_DB-Level_Permissions.html"
+    $myHtml1 = $results4 | select User, Operation, permission_name, IsGrantOption | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>DataBase-Level Permissions</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "DataBase-Level Permissions" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+
 
     set-location $BaseFolder
 
@@ -712,9 +738,10 @@ foreach($sqlDatabase in $srv.databases)
 	    $results5 = $DataSet.Tables[0].Rows
     }
 
-    # Write out rows    
-    $results5 | select User, PermType, permission_name, SchemaName, ObjectName, ObjectType, ColumnName, IsGrantOption | `
-    ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Object-Level Permissions</h2>" -CSSUri "HtmlReport.css"| Set-Content "$output_path\5_Object_Permissions.html"
+    $myoutputfile4 = $output_path+"\5_Object_Permissions.html"
+    $myHtml1 = $results5 | select User, PermType, permission_name, SchemaName, ObjectName, ObjectType, ColumnName, IsGrantOption | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Object-Level Permissions</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Object-Level Permissions" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4    
 
     set-location $BaseFolder
         

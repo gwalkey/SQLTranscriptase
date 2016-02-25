@@ -109,10 +109,9 @@ catch
 # Reset default PS error handler - WMI error trapping
 $ErrorActionPreference = $old_ErrorActionPreference 
 
-
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -142,14 +141,14 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
+$head+="</style>"
 
-# Export CSS File for Formatting
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
-
-# Export It
 $RunTime = Get-date
-$mySettings = $VolumeArray
-$mySettings | select Name, Label, FileSystem, DriveType, $VolumeTotalGB, $VolumeUsedGB, $VolumeFreeGB, BootVolume, DriveLetter, BlockSize  | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>"  -PreContent "<h1>$SqlInstance</H1><H2>Server Storage Volumes</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\HtmlReport.html"
+
+$myoutputfile4 = $FullFolderPath+"\Server_Storage_Volumes.html"
+$myHtml1 = $VolumeArray | select Name, Label, FileSystem, DriveType, $VolumeTotalGB, $VolumeUsedGB, $VolumeFreeGB, BootVolume, DriveLetter, BlockSize | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Storage Volumes</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Storage Volumes"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Return To Base
 set-location $BaseFolder

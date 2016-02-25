@@ -4,7 +4,6 @@
 	
 .DESCRIPTION
    Writes the SQL Server Roles out to the "01 - Server Roles" folder
-   One file for each role 
    
 .EXAMPLE
     01_Server_Roles.ps1 localhost
@@ -186,9 +185,9 @@ order by 1,2,3
 "
 
 
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -218,8 +217,8 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
+$head+="</style>"
 
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
 
 # Run SQL
 if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
@@ -272,7 +271,13 @@ else
 
 # Write out rows
 $RunTime = Get-date
-$results | select security_type, security_entity, principal_type, principal_name, state_desc | ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Server Roles</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\HtmlReport.html"
+
+$myoutputfile4 = $FullFolderPath+"\Server_Role_Members.html"
+$myHtml1 = $results | select security_type, security_entity, principal_type, principal_name, state_desc | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Roles</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Server Roles"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+
+
 
 # Return To Base
 set-location $BaseFolder

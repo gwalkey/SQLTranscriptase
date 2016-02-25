@@ -199,18 +199,13 @@ $scripter.Options.ScriptData 	        = $false;
 $scripter.Options.ToFileOnly 			= $true;
 
 
-# The SMO ActiveDirectory Object holds Domain/Workgroup membership status of the Target Server
-$OnDomain = $false
-if ($srv.ActiveDirectory -ne $null)
-{
-    $OnDomain = $true
-    Write-Output ("Server On Domain? Yes")
-}
-else
-{
-    Write-Output ("Server On Domain? No")
-}
+# OnDomain Check
 
+
+if ($env:computername  -eq $env:userdomain) 
+    {$OnDomain = $false}
+else
+    {$OnDomain = $true}
 
 # If we are part of a Domain, Load the AD Module if it is installed on the user's system
 if ($OnDomain -eq $true)
@@ -228,12 +223,12 @@ if ($OnDomain -eq $true)
     
         if ($MyDCs -ne $null)
         {
-            Write-Output "Domain Controller found - Resolving of AD Group User Memberships Enabled"
+            Write-Output "I am in a Domain - Resolving of AD Group-User Memberships Enabled"
             $ADModuleExists = $true
         }
         else
         {
-            Write-Output "Domain Controller NOT found - Resolving of AD Group User Memberships Disabled - are you in a Workgroup?"
+            Write-Output "I am NOT in a Domain - Resolving of AD Group-User Memberships Disabled"
         }
     
         # Reset default PS error handler
@@ -246,12 +241,12 @@ if ($OnDomain -eq $true)
         $ErrorActionPreference = $old_ErrorActionPreference 
     
         # PS AD Module not installed
-        Write-Output "AD Module Not Found - AD Group User Resolution not attempted"
+        Write-Output "AD Module Not Installed - AD Group User Resolution not attempted"
     }
 }
 else
 {
-    Write-Output "Target Server is NOT in a Domain - Resolving of AD Group User Memberships Disabled"
+    Write-Output "We are NOT in a Domain - Resolving of AD Group User Memberships Disabled"
 }
 
 
@@ -303,15 +298,15 @@ foreach ($Login in $Logins)
     if ($Login.Name -eq "##MS_SQLEnableSystemAssemblyLoadingUser##") {continue}
     if ($Login.Name -eq "##MS_SSISServerCleanupJobLogin##") {continue}
 
+    Write-Output ("Scripting out: {0}" -f $Login.Name)
+
     # Process Windows Domain Groups
     if ($OnDomain -eq $true -and $ADModuleExists -eq $true -and $Login.LoginType -eq "WindowsGroup")
     {
-
-        # For this SQL Login, resolve all Windows Users in this AD Group and below in the AD Tree - recursive        
-
+            
         # Strip the Domain part off the SQL Login
         $ADName = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[1]
-        $ADDomain = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[0]
+        $ADDomain = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[0]        
 
         $myFixedGroupName = $ADName.replace('\','_')
 	    $myFixedGroupName = $myFixedGroupName.replace('/', '-')
@@ -320,15 +315,14 @@ foreach ($Login in $Logins)
 	    $myFixedGroupName = $myFixedGroupName.replace('&', '-')
 	    $myFixedGroupName = $myFixedGroupName.replace(':', '-')
 
-        # Is this a LOCAL Windows Group (on the server itself) or on the same DOMAIN I am on?
-        # Get My Domain
+        # Get the Domain I am in
         $MyDomain = Get-ADDomain -Current LocalComputer
 
-        # Process Windows Groups in the current domain (me and the server are in the same domain/workgroup)
+        # ---------------------------
+        # Resolve Users in AD Groups
+        # ---------------------------
         if ($MyDomain.NetBIOSName -eq $ADDomain)
         {
-        
-            Write-Output ("Scripting out: {0}" -f $Login.Name)
 
             # One output folder per Windows Group        
             $WinGroupSinglePath = $WinGroupsPath+$myFixedGroupName+"\"
@@ -357,7 +351,7 @@ foreach ($Login in $Logins)
                 $MyAdUser = Get-ADUser -LDAPFilter "(samaccountname=$Sam)"
                 If ($MyAdUser.enabled -eq $false)
                 {
-                    #Write-Output $Sam
+                    # Create as Disabled if disabled in AD
                     $CreateObjectName = "CREATE LOGIN ["+$ADDomain+"\"+$ADUser.SamAccountName+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "+ "`r ALTER LOGIN ["+$ADDomain+"\"+$ADUser.SamAccountName+"] DISABLE;"
                 }
                 else
@@ -370,7 +364,7 @@ foreach ($Login in $Logins)
         }
         else
         {
-            # Treat these local (to the machine) groups as users
+            # Since there is no way to enumerate Workgroup "groups"...
             Write-Output ("Skipping local group {0}" -f $Login.Name)
         }
         
@@ -380,73 +374,93 @@ foreach ($Login in $Logins)
 
     # Process Windows Users (Domain or Workgroup)
     if ($Login.LoginType -eq "WindowsUser")
-    {
-        Write-Output ("Scripting out: {0}" -f $Login.Name)
-        #CopyObjectsToFiles $login $WinUsersPath
-
+    {            
         $fixedFileName2 = $Login.name.replace('\','_')
-        # If the Ad Module is loaded and the Target Server is on a DOMAIN, do an AD Lookup to get the Account Enabled status, else SMO does the scripting
+
+        # If the Ad Module is loaded and we are in a DOMAIN, do an AD Lookup to get the Account Enabled status, else SMO does the scripting below in the final else
         if ($OnDomain -eq $true -and $ADModuleExists -eq $true )
         {
          
-            # Get Target Server Domain if not same as ours, example DMZ Servers
-            $ADDomain = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[0]
-            
+            $MyDomain = Get-ADDomain -Current LocalComputer
 
-            # Remote Domain <> Our Domain means we are talking to a Workgroup Server using Local Accounts
-            if ($ADDomain -eq $SQLInstance)
-            {
-                $MyAdUser = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[1]
+            # Get Domain Part of Login Name if it exists
+            if ($Login.Name -like "*\*")
+            {                
+                $ADDomain = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[0]
+                $MyADUser = ($Login.Name -split {$_ -eq "," -or $_ -eq "\"})[1]
             }
             else
             {
-                # Regular Domain Account on same Domain as us
+                $ADDomain = $null
+                $MyADUser = $Login.Name
+            }
+            
+            # We are in a Domain, and the domain portion of the Login Name MATCHES our Domain
+            if ($ADDomain -ne $null -and $ADDomain -eq $MyDomain)
+            {
+                # Regular AD User - do the AD Lookup
+                $MyADUser = $Login.Name
+
                 $SAM = $Login.Name.Replace($ADDomain+"\",'')
                 $MyAdUser = Get-ADUser -LDAPFilter "(SamAccountName=$SAM)"
-                # If AD lookup returns a NULL object for the SAM, Assume the Account is a LOCAL WINDOWS Account, not an AD Account
-                if ($myAdUser -eq $null)
+
+                # Is an actual AD Account
+                if ($MyAdUser.enabled -eq $false)
+                {                    
+                    $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "+ "`r ALTER LOGIN ["+$Login.Name+"] DISABLE;"
+                }
+                else            
                 {
-                    # Is a Local Windows Account
-                    if ($Login.IsDisabled -eq $true)
-                    {
-                        $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "+ "`r ALTER LOGIN ["+$Login.Name+"] DISABLE;"
-                    }
-                    else
-                    {
-                        $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "
-                    }
+                    $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english];"
+                }
+
+            }
+            #  We are in a domain, but the Domain portion of the Login Name does NOT match our Domain
+            else
+            {
+                # Is Disabled?
+                if ($Login.IsDisabled -eq $true)
+                {
+                   $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "+ "`r ALTER LOGIN ["+$Login.Name+"] DISABLE;"
                 }
                 else
                 {
-                    # Is an actual AD Account
-                    if ($MyAdUser.enabled -eq $false)
-                    {                    
-                        $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "+ "`r ALTER LOGIN ["+$Login.Name+"] DISABLE;"
-                    }
-                    else            
-                    {
-                        $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english];"
-                    }
+                   $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "
                 }
-            }
-
-            # output
-            $MyScriptingFilePath = $WinUsersPath+"\"+$fixedFileName2+".sql"
-            $CreateObjectName | out-file -FilePath $MyScriptingFilePath -Encoding ascii -Force
+            }            
         }
+
         else
         {
-            # Not on Domain or AD Module not loaded, get Windows User's object's property directly            
-            $SQLCreateLogin = $Login.Script()
-            $MyScriptingFilePath = $WinUsersPath+"\"+$fixedFileName2+".sql"
-            $SQLCreateLogin | out-file -FilePath $MyScriptingFilePath -Encoding ascii -Force
+            # We are NOT in a Domain or the AD Module is not installed
+            # Is Disabled?
+            if ($Login.IsDisabled -eq $true)
+            {
+                $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "+ "`r ALTER LOGIN ["+$Login.Name+"] DISABLE;"
+            }
+            else
+            {
+                $CreateObjectName = "CREATE LOGIN ["+$Login.Name+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english]; "
+            }
         }
-    }
+            
+        # output results        
+        $MyScriptingFilePath = $WinUsersPath+"\"+$fixedFileName2+".sql"
+        $CreateObjectName | out-file -FilePath $MyScriptingFilePath -Encoding ascii -Force
+     }
+     #else
+     #{
+     #   # Not on Domain or AD Module not loaded, get Windows User's object's property directly            
+     #   $SQLCreateLogin = $Login.Script()
+     #   $MyScriptingFilePath = $WinUsersPath+"\"+$fixedFileName2+".sql"
+     #   $SQLCreateLogin | out-file -FilePath $MyScriptingFilePath -Encoding ascii -Force
+     #}
 
+    # -----------------------
     # Process SQL Auth Users
+    # -----------------------
     if ($Login.LoginType -eq "SQLLogin")
     {
-        Write-Output ("Scripting out: {0}" -f $Login.Name)
         CopyObjectsToFiles $login $SQLAuthUsersPath
     }
 

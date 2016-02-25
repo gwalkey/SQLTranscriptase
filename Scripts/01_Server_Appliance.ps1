@@ -186,9 +186,17 @@ else
     $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
-$myCreateDate = $sqlresults.column1
-$mystring =  "Server Create Date: " +$MyCreateDate
-$mystring | out-file $fullFileName -Encoding ascii -Append
+if ($sqlresults -ne $null)
+{
+    $myCreateDate = $sqlresults.column1
+    $mystring =  "Server Create Date: " +$MyCreateDate
+    $mystring | out-file $fullFileName -Encoding ascii -Append
+}
+else
+{
+    $mystring =  "Server Create Date: unknown"
+    $mystring | out-file $fullFileName -Encoding ascii -Append
+}
 
 $mystring =  "Server Name: " +$srv.Name 
 $mystring | out-file $fullFileName -Encoding ascii -Append
@@ -456,9 +464,9 @@ else
     $sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
-# Create some CSS for help in column formatting during HTML exports
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -488,16 +496,14 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
-# CSS file
-if(!(test-path -path "$fullfolderPath\HTMLReport.css"))
-{
-    $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii    
-}
+$head+="</style>"
 
 $RunTime = Get-date
-$sqlresults2 | select file_version, product_version, debug, patched, prerelease, private_build, special_build, language, company, description, name `
-| ConvertTo-Html    -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Loaded DLLs</h2>" -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\02_Loaded_Dlls.html"
 
+$myoutputfile4 = $FullFolderPath+"\02_Loaded_Dlls.html"
+$myHtml1 = $sqlresults2 | select file_version, product_version, debug, patched, prerelease, private_build, special_build, language, company, description, name| `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Loaded DLLs</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Loaded DLLs"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Trace Flags
 $mySQLquery2= "dbcc tracestatus();"
@@ -568,13 +574,15 @@ else
 
 if ($sqlresults3 -ne $null)
 {
-    $sqlresults3 | select TraceFlag, Status, Global, Session | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Trace Flags</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\03_Trace_Flags.html"
-    #Write-Output ("Trace Flags:")
-    #Write-output $sqlresults3
+    Write-Output ("Trace Flags Found")
+    $myoutputfile4 = $FullFolderPath+"\03_Trace_Flags.html"
+    $myHtml1 = $sqlresults3 | select TraceFlag, Status, Global, Session | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Trace Flags</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Trace Flags"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4    
 }
 else
 {
-    
+    Write-Output "No Trace Flags Set"
 }
 
 
@@ -603,7 +611,6 @@ if ($ddrivers -ne  $null)
     $fullFileName = $fullfolderPath+"\04_Device_Drivers.txt"
     New-Item $fullFileName -type file -force  |Out-Null
     Add-Content -Value "Device Drivers for $SQLInstance" -Path $fullFileName -Encoding Ascii  
-    #$ddrivers | Set-Content "$fullfolderPath\04_Device_Drivers.txt" 
     Add-Content -Value $ddrivers -Path $fullFileName -Encoding Ascii
 }
 
@@ -617,7 +624,10 @@ try
 
     if ($rprocesses -ne  $null)
     {
-        $rprocesses | select Name, Handles, VM, WS, PM, NPM | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Running Processes</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\05_Running_Processes.html"
+        $myoutputfile4 = $FullFolderPath+"\05_Running_Processes.html"
+        $myHtml1 = $rprocesses | select Name, Handles, VM, WS, PM, NPM | `
+        ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Running Processes</h2>"
+        Convertto-Html -head $head -Body "$myHtml1" -Title "Running Processes" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
     }
 }
 catch
@@ -634,7 +644,10 @@ try
 
     if ($Services -ne  $null)
     {
-        $Services | select Name, DisplayName, Status, StartType | ConvertTo-Html   -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>NT Services</h2>"  -CSSUri "HtmlReport.css" | Set-Content "$fullfolderPath\06_NT_Services.html"
+        $myoutputfile4 = $FullFolderPath+"\06_NT_Services.html"
+        $myHtml1 = $Services | select Name, DisplayName, Status, StartType | `
+        ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>NT Services</h2>"
+        Convertto-Html -head $head -Body "$myHtml1" -Title "NT Services" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
     }
 }
 catch

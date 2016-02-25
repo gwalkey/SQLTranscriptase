@@ -226,8 +226,6 @@ Write-Output "$fixedDBName - Stored Procs"
 $storedProcs = $db.StoredProcedures | Where-object  {-not $_.IsSystemObject  }
 CopyObjectsToFiles $storedProcs $output_path
 
-Write-Output ("{0} Startup Stored Procs Exported" -f $storedProcs.count)
-
 # Return To Base
 set-location $BaseFolder
 

@@ -131,9 +131,9 @@ catch
     # Server Properties
     $Props=$svr.ServerProperties
 
-    # Create some CSS for help in column formatting
-    $myCSS = 
-    "
+    # HTML CSS
+    $head = "<style type='text/css'>"
+    $head+="
     table
         {
             Margin: 0px 0px 0px 4px;
@@ -163,15 +163,18 @@ catch
             Padding: 1px 4px 1px 4px;
         }
     "
+    $head+="</style>"
 
-
-    $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
-
-    # Export it
+       
+    # Write out rows
     $RunTime = Get-date
-    $Props | sort-object Name | select Name, Value, CurrentValue, DefaultValue, RequiresRestart, Type, Units, Category | ConvertTo-Html -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>SSAS Engine Settings</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\SSAS_Engine_Settings.html"
-    Write-Output (" Server Engine Config Settings: {0}" -f $Props.count)
+    
+    $myoutputfile4 = $FullFolderPath+"\SSAS_Engine_Settings.html"
+    $myHtml1 = $Props | sort-object Name | select Name, Value, CurrentValue, DefaultValue, RequiresRestart, Type, Units, Category | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>SSAS Engine Settings</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "SSAS Engine Settings"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
+    Write-Output (" Server Engine Config Settings: {0}" -f $Props.count)
 
     # ----------------
     # SSAS DB Objects

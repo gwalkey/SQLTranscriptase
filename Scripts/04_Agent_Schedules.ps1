@@ -891,9 +891,9 @@ else
 }
 
 
-# Create some CSS for help in column formatting during HTML exports
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -923,18 +923,15 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
-# CSS file
-if(!(test-path -path "$fullfolderPath\HTMLReport.css"))
-{
-    $myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii    
-}
-
+$head+="</style>"
 
 $RunTime = Get-date
-# Export the Enabled Job Schedules to HTML
-$LiveSkeds | select Sked, Sked_Enabled, Job, Job_Enabled, Frequency, Freq_Interval, Freq_SubDay_Type, Freq_SubDay_Interval, StartDate, StartTime, StartHour, `
-00Z, 01Z, 02Z, 03Z, 04Z, 05Z, 06Z, 07Z, 08Z, 09Z, 10Z, 11Z, 12Z, 13Z, 14Z, 15Z, 16Z, 17Z, 18Z, 19Z, 20Z, 21Z, 22Z, 23Z `
-| ConvertTo-Html  -PreContent "<h1>$SqlInstance</H1><H2>SQL Agent Job Schedules</h2>" -CSSUri "HtmlReport.css" -PostContent "<h3>Ran on : $RunTime</h3>"| Set-Content "$fullfolderPath\AgentJobSchedules.html"
+
+$myoutputfile4 = $FullFolderPath+"\AgentJobSchedules.html"
+$myHtml1 = $LiveSkeds |  select Sked, Sked_Enabled, Job, Job_Enabled, Frequency, Freq_Interval, Freq_SubDay_Type, Freq_SubDay_Interval, StartDate, StartTime, StartHour, `
+00Z, 01Z, 02Z, 03Z, 04Z, 05Z, 06Z, 07Z, 08Z, 09Z, 10Z, 11Z, 12Z, 13Z, 14Z, 15Z, 16Z, 17Z, 18Z, 19Z, 20Z, 21Z, 22Z, 23Z | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>SQL Agent Job Schedules</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "SQL Agent Job Schedules"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Export the Enabled Job Schedules to CSV
 $LiveSkeds | select Sked, Sked_Enabled, Job, Job_Enabled, Frequency, Freq_Interval, Freq_SubDay_Type, Freq_SubDay_Interval, StartDate, StartTime, StartHour, `
