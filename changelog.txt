@@ -13,7 +13,6 @@ Feb 25, 2016
 Removed dependency on external CSS file for all scripts with HTML Output
 01_Server_Logins - New logic to determine 3 Login Types and always use AD Module installed and on a Domain
 
-
 Feb 22, 2016
 =Added=
 32_Database_Recovery_Models
