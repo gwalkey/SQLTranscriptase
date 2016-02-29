@@ -733,12 +733,13 @@ else
 if ($sqlresults6 -ne $null)
 {
     Write-Output ("SQL Logins with Passwords and SIDs: {0}" -f $sqlresults6.count)
-    $myoutputfile4 = $output_path+"\06_MSDN_Logins.sql"
-    if(test-path -path $myoutputfile4)
+    $myoutputfile4 = $output_path+"\Logins_with_Passwords_and_SIDs.sql"
+    if (Test-Path $myoutputfile4) 
     {
-         remove-item -path $myoutputfile4 -force | Out-Null
-         Add-Content -Value "Logins for $sqlinstance `r`n" -Path $myoutputfile4 -Force
+        Remove-Item -path $myoutputfile4 -Force | out-null
     }
+    
+    Add-Content -Value "Logins for $sqlinstance `r`n" -Path $myoutputfile4 -Encoding Ascii
 
     foreach ($myLogin in $sqlresults6)
     {
