@@ -1,5 +1,9 @@
 Changelog
 
+Feb 28, 2016
+01_Server_Logins
+Added Logins with Hashed Passwords and SIDs
+
 Feb 25, 2016
 =Added=
 34_User_Objects_in_System_Databases.ps1
