@@ -2,7 +2,7 @@
 SQL Server Documentation in Powershell<br>
 Check the Wiki for Installation instructions
 
-Shoot me an email at george@insyncva.com with suggestions
+Shoot me an email at dev@insyncva.com with suggestions
 
 Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
