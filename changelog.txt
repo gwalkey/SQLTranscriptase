@@ -1,5 +1,10 @@
 Changelog
 
+Mar 3, 2016
+=Added=
+01_Server_Appliance
+SQL Engine Last Start Time
+
 Feb 28, 2016
 =Updated=
 01_Server_Logins
