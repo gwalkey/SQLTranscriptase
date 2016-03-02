@@ -94,6 +94,7 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
+        $myver = $results.Column1
 
         $serverauth="sql"
     }
@@ -118,6 +119,7 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
+        $myver = $results.Column1
 
         $serverauth = "win"
     }
@@ -168,6 +170,99 @@ $fullFileName = $fullfolderPath+"\01_Server_Appliance.txt"
 New-Item $fullFileName -type file -force  |Out-Null
 Add-Content -Value "Server Hardware and Software Capabilities for $SQLInstance `r`n" -Path $fullFileName -Encoding Ascii
 
+
+# Server Uptime
+if ($myver -like "9.0*")
+{
+    $mysql11 = 
+    "
+    SELECT DATEADD(ms,-sample_ms,GETDATE()) AS sqlserver_start_time FROM sys.dm_io_virtual_file_stats(1,1);
+    "
+}
+else
+{
+    $mysql11 =
+    "
+    SELECT sqlserver_start_time FROM sys.dm_os_sys_info;
+    "
+}
+
+# connect correctly
+if ($serverauth -eq "win")
+{
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQL11
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -ne 0) 
+    {
+	    $sqlresults11 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults11 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
+}
+else
+{
+	# .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQL11
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $sqlresults11 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults11 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
+}
+
+if ($sqlresults11 -ne $null)
+{
+    #Add-Content -Value "Server Uptime:" -Path $fullFileName -Encoding Ascii
+    "Engine Start Time: " + $sqlresults11.Rows[0].sqlserver_start_time+"`r`n" | out-file $fullFileName -Encoding ascii -Append  
+}
+else
+{
+    Write-Output "Cannot determine Server Uptime"
+}
+
+
+
 # SQL
 $mySQLQuery1 = 
 "SELECT @@SERVERNAME AS [Server Name], create_date AS 'column1' 
@@ -186,17 +281,9 @@ else
     $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
 
-if ($sqlresults -ne $null)
-{
-    $myCreateDate = $sqlresults.column1
-    $mystring =  "Server Create Date: " +$MyCreateDate
-    $mystring | out-file $fullFileName -Encoding ascii -Append
-}
-else
-{
-    $mystring =  "Server Create Date: unknown"
-    $mystring | out-file $fullFileName -Encoding ascii -Append
-}
+$myCreateDate = $sqlresults.column1
+$mystring =  "Server Create Date: " +$MyCreateDate
+$mystring | out-file $fullFileName -Encoding ascii -Append
 
 $mystring =  "Server Name: " +$srv.Name 
 $mystring | out-file $fullFileName -Encoding ascii -Append
