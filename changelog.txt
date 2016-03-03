@@ -3,7 +3,10 @@ Changelog
 Mar 3, 2016
 =Added=
 01_Server_Appliance
-SQL Engine Last Start Time
+SQL Engine Last Start Time\
+
+31_DataBase_Export_Table_Data
+Dumps Table Data out in BCP format
 
 Feb 28, 2016
 =Updated=
