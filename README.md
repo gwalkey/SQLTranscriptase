@@ -9,12 +9,15 @@ http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disast
 
 Upcoming Presentations:
 
-Richmond, Va  - 2016<br>
+Richmond, Va  - March 19 2016<br>
 http://www.sqlsaturday.com/486/EventHome.aspx
+
+Microsoft - Redmond, WA - April 2016
+http://www.sqlsaturday.com/511/EventHome.aspx
 
 Previous Presentations:
 
-Chicago, IL - 2016<br>
+Chicago, IL - March 5, 2016<br>
 http://www.sqlsaturday.com/484/eventhome.aspx
 
 Richmond, VA - 2015<br>
