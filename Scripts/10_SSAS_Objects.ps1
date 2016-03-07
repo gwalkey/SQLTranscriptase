@@ -88,15 +88,16 @@ catch
 }
 
 
-    # Create output folder
-    if ($svr.Databases.Count -ge 1)
+$fullfolderPath = "$BaseFolder\$sqlinstance\10 - SSAS\"
+
+# Create output folder
+if ($svr.Databases.Count -ge 1)
+{
+    if(!(test-path -path $fullfolderPath))
     {
-        $fullfolderPath = "$BaseFolder\$sqlinstance\10 - SSAS\"
-        if(!(test-path -path $fullfolderPath))
-        {
-            mkdir $fullfolderPath | Out-Null
-        }
+        mkdir $fullfolderPath | Out-Null
     }
+}
 
     
     # Server Assemblies
