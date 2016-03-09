@@ -1,9 +1,9 @@
-﻿<#
+<#
 .SYNOPSIS
-    Dumps Table Data to Files
+    Dumps Table Data to BCP Native Format files
 
 .DESCRIPTION
-    Creates lots of INSERT Statments
+    Dumps Table Data to BCP Native Format files
 
 .EXAMPLE
     31_DataBase_Export_Table_Data
@@ -200,71 +200,86 @@ foreach($sqlDatabase in $srv.databases)
     }
 
     Write-Output ("Processing {0}" -f $FixedDBName)
-
-    # Create Batch Files
-    New-Item "$DB_Path\BCPTableOut.cmd" -type file -force  |Out-Null
-    Add-Content -Value "@echo off" -Path  "$DB_Path\BCPTableOut.cmd" -Encoding Ascii
-
-    New-Item "$DB_Path\BCPTableIn.cmd" -type file -force  |Out-Null
-    Add-Content -Value "@echo off" -Path  "$DB_Path\BCPTableIn.cmd" -Encoding Ascii
-
     # --------------------------------
-    # Export Table Data
+    # Start Exporting Table Data
     # --------------------------------
     foreach ($DBTable in $db.tables)
     {
-        $tblSchema = $DBTable.Schema
+
+        # Breakout TableName   
+        $tblSchema = ($DBTable -split {$_ -eq "."})[0]
+        $tblTable = ($DBTable -split {$_ -eq "."})[1]
+
         $tblSchema2 = $tblSchema
         $tblSchema2 = $tblSchema2.replace('[','')
         $tblSchema2 = $tblSchema2.replace(']','')
         $tblSchema2 = $tblSchema2.replace(' ','_')
 
-        $tblTable = $DBTable.Name
         $tblTable2 = $tblTable
         $tblTable2 = $tblTable2.replace('[','')
         $tblTable2 = $tblTable2.replace(']','')
         $tblTable2 = $tblTable2.replace(' ','_')
 
-        $FileFullName = $tblSchema2+"."+$tblTable2+".dat"
-        $FileFormatFullName = $tblSchema2+"."+$tblTable2+".fmt"
+        $FileFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".dat"
+        $FileFormatFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".fmt"
 
         # Windows Auth
         if ($serverauth -eq "win")
         {
-            # Create Batch file to run all the exports, and call it later
-            $myoutstring =  "bcp.exe ["+$fixedDBName+"].["+$tblSchema+"].["+$tblTable+"] out "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
-            $myoutstring += "bcp.exe ["+$fixedDBName+"].["+$tblSchema+"].["+$tblTable+"] format nul -T -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
+            # Create Batch files to run the export itself, and call those
+            # Data
+            $myoutstring = "@echo off `n bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" out "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
             $myoutstring
-            Add-Content -Value $myoutstring -Path  "$DB_Path\BCPTableOut.cmd" -Encoding Ascii
+            $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
-            $myinString = "bcp.exe ["+$fixedDBName+"].["+$tblSchema+"].["+$tblTable+"] in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance +" -f "+[char]34+$FileFormatFullName+[char]34
-            $myinString
-            Add-Content -Value $myinString -Path  "$DB_Path\BCPTableIn.cmd" -Encoding Ascii
+            # Format File
+            #$myformatstring = "@echo off `n bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
+            #$myformatstring
+            #$myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
 
+            # Import ETL
+            $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
+            $myImportETL
+            $myImportETL | out-file -FilePath "$DB_Path\BCPTableImport.cmd" -append -Encoding ascii
+
+            set-location $DB_Path
+
+            .\BCPTableDump.cmd
+            #.\BCPTableFormat.cmd
+
+            set-location $BaseFolder
 
         }
         else
         # SQL Auth
         {
-            # Create Batch file to run all the exports, and call it later            
-            $myoutstring += "bcp.exe ["+$fixedDBName+"].["+$tblSchema+"].["+$tblTable+"] out "+[char]34+$FileFullName+[char]34 + " -n -S " +$SQLInstance + " -U "+$myUser + " -P "+ $myPass + "`n"
-            $myoutstring += "bcp.exe ["+$fixedDBName+"].["+$tblSchema+"].["+$tblTable+"] format nul -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34 + " -U "+$myUser + " -P "+ $myPass + "`n"
-            $myoutstring
-            Add-Content -Value $myoutstring -Path  "$DB_Path\BCPTableOut.cmd" -Encoding Ascii
+            # Create Batch files to run the export itself, and call those
+            # Data
+            $myoutstring = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" out "+[char]34+$FileFullName+[char]34 + " -n -S " +$SQLInstance + " -U "+$myUser + " -P "+ $myPass
+            $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
-            $myinString = "bcp.exe ["+$fixedDBName+"].["+$tblSchema+"].["+$tblTable+"] in "+[char]34+$FileFullName+[char]34 + " -n -S " +$SQLInstance +" -f "+[char]34+$FileFormatFullName+[char]34 + " -U "+$myUser + " -P "+ $myPass+ "`n"
-            $myinString
-            Add-Content -Value $myinString -Path  "$DB_Path\BCPTableIn.cmd" -Encoding Ascii
+            # Format File
+            #$myformatstring = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34 + " -U "+$myUser + " -P "+ $myPass
+            #$myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
+
+            # Import ETL
+            $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + " -U "+$myUser + " -P "+ $myPass + "`n"
+            $myImportETL
+            $myImportETL | out-file -FilePath "$DB_Path\BCPTableImport.cmd" -append -Encoding ascii
+
+
+            set-location $DB_Path
+
+            .\BCPTableDump.cmd | Out-Null
+            #.\BCPTableFormat.cmd | out-null
+
+            set-location $BaseFolder
         }
-
     } # Next Table
 
-    # Run Batch Export
-    Write-Output ("Exporting Data for {0}" -f $fixedDBName)
     set-location $DB_Path
-    .\BCPTableOut.cmd
+    remove-item -Path "$DB_Path\BCPTableDump.cmd"
     set-location $BaseFolder
-
 
 } # Next Database
 
