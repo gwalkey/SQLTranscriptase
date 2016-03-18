@@ -218,9 +218,9 @@ else
 }
 
 
-# Create some CSS for help in column formatting
-$myCSS = 
-"
+# HTML CSS
+$head = "<style type='text/css'>"
+$head+="
 table
     {
         Margin: 0px 0px 0px 4px;
@@ -250,29 +250,28 @@ td
         Padding: 1px 4px 1px 4px;
     }
 "
+$head+="</style>"
 
-
-$myCSS | out-file "$fullfolderPath\HTMLReport.css" -Encoding ascii
-
-# Export it
 $RunTime = Get-date
 
-$results | select Database, 
-                  Query, 
-                  execution_count, 
-                  total_worker_time, 
-                  total_logical_reads, 
-                  total_logical_writes,
-                  @{Name="total_elapsed_time_in_sec"; Expression={"{0:N6}" -f $_.total_elapsed_time_in_sec}},
-                  last_logical_reads,
-                  last_logical_writes,
-                  last_worker_time, 
-                  @{Name="last_elapsed_time_in_sec"; Expression={"{0:N6}" -f $_.last_elapsed_time_in_sec}},                   
-                  last_execution_time | `
-                  ConvertTo-Html  -PostContent "<h3>Ran on : $RunTime</h3>" -PreContent "<h1>$SqlInstance</H1><H2>Server Settings</h2>" -CSSUri "HtmlReport.css"| Set-Content "$fullfolderPath\Top25_Worst_Queries.html"
+$myoutputfile4 = $FullFolderPath+"\Top25_Worst_Queries.html"
+$myHtml1 = $results | `
+    select `
+        Database, 
+        Query, 
+        execution_count, 
+        total_worker_time, 
+        total_logical_reads, 
+        total_logical_writes,
+        @{Name="total_elapsed_time_in_sec"; Expression={"{0:N6}" -f $_.total_elapsed_time_in_sec}},
+        last_logical_reads,
+        last_logical_writes,
+        last_worker_time, 
+        @{Name="last_elapsed_time_in_sec"; Expression={"{0:N6}" -f $_.last_elapsed_time_in_sec}},                   
+        last_execution_time | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Top 25 Worst Queries</h2>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Top 25 Worst Queries"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content "$fullfolderPath\Top25_Worst_Queries.html"
 
-
-# $results | ogv
 
 # Return To Base
 set-location $BaseFolder

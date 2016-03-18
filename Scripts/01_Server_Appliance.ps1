@@ -265,10 +265,13 @@ else
 
 # SQL
 $mySQLQuery1 = 
-"SELECT @@SERVERNAME AS [Server Name], create_date AS 'column1' 
-FROM sys.server_principals WITH (NOLOCK)
-WHERE name = N'NT AUTHORITY\SYSTEM'
-OR name = N'NT AUTHORITY\NETWORK SERVICE' OPTION (RECOMPILE);
+"
+USE [master]
+GO
+SELECT	MIN([crdate])
+FROM	[sys].[sysdatabases]
+WHERE	[dbid] > 4 --not master, tempdb, model, msdb
+GO
 "
 
 # connect correctly
@@ -280,12 +283,13 @@ else
 {
     $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
 }
-
 $myCreateDate = $sqlresults.column1
-$mystring =  "Server Create Date: " +$MyCreateDate
+
+
+$mystring =  "SQL Server Name: " +$srv.Name 
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
-$mystring =  "Server Name: " +$srv.Name 
+$mystring =  "SQL Server Create Date: " +$MyCreateDate
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
 $mystring =  "SQL Version: " +$srv.Version 
@@ -675,7 +679,7 @@ else
 
 # Device Drivers
 $WinServer = ($SQLInstance -split {$_ -eq "," -or $_ -eq "\"})[0]
-if ($SQLInstance -eq 'localhost')
+if ($WinServer -eq 'localhost' -or $WinServer -eq '.')
 {
     $ddrivers = driverquery.exe /nh /fo table /s .
 }
@@ -706,8 +710,14 @@ if ($ddrivers -ne  $null)
 # Running Processes
 try
 {
-    $rprocesses = get-process -ComputerName $WinServer
-
+    if ($WinServer -eq "localhost" -or $WinServer -eq ".")
+    {
+        $rprocesses = get-process
+    }
+    else
+    {
+        $rprocesses = get-process -ComputerName $WinServer
+    }
 
     if ($rprocesses -ne  $null)
     {
