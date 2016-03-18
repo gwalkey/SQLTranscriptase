@@ -1,5 +1,21 @@
 Changelog
 
+Mar 18, 2016
+=Added=
+SQLT_GUI.ps1
+Winforms GUI for all the scripts
+
+=Changes=
+01_Server_Appliance
+Changed Query for SQL Install Date - SID User method (NT Anon) not reliable
+Embedded the CSS
+
+06_Top_25_Worst_Queries
+Embeded the CSS
+
+31_DataBase_Export_Table_Data
+Fixed the Output and Import CMD file
+
 Mar 3, 2016
 =Added=
 31_DataBase_Export_Table_Data
