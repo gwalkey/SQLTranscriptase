@@ -12,7 +12,7 @@ Upcoming Presentations:
 Richmond, Va  - March 19 2016<br>
 http://www.sqlsaturday.com/486/EventHome.aspx
 
-Microsoft - Redmond, WA - April 2016
+Microsoft - Redmond, WA - April 2016<br>
 http://www.sqlsaturday.com/511/EventHome.aspx
 
 Previous Presentations:
