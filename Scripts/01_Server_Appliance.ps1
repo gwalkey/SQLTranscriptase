@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Hardware/Software config of the targeted SQL server
 	
@@ -264,28 +264,92 @@ else
 
 
 # SQL
-$mySQLQuery1 = 
+$mySQLQuery12 = 
 "
-USE [master]
-GO
-SELECT	MIN([crdate])
+USE [master];
+
+SELECT	MIN([crdate]) as 'column1'
 FROM	[sys].[sysdatabases]
 WHERE	[dbid] > 4 --not master, tempdb, model, msdb
-GO
+;
 "
+
+# Catch SQL Errors
+$old_ErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'
 
 # connect correctly
 if ($serverauth -eq "win")
 {
-    $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -QueryTimeout 10 -erroraction SilentlyContinue
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLQuery12
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $sqlresults12 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults12 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
 else
 {
-    $sqlresults = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery1 -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+	# .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLQuery12
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $sqlresults12 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults12 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
-$myCreateDate = $sqlresults.column1
+
+# Reset default PS error handler
+$ErrorActionPreference = $old_ErrorActionPreference 	
 
 
+if ($sqlresults12 -ne $null) {$myCreateDate = $sqlresults12.column1} else {$myCreateDate ='Unknown'}
+
+
+# Get More Config Settings
 $mystring =  "SQL Server Name: " +$srv.Name 
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
@@ -543,17 +607,73 @@ $mystring5| out-file $fullFileName -Encoding ascii -Append
 
 
 # Loaded DLLs
-$mySQLquery = "select * from sys.dm_os_loaded_modules order by description"
+$mySQLquery15 = "select * from sys.dm_os_loaded_modules order by description"
+
 
 # connect correctly
 if ($serverauth -eq "win")
 {
-    $sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLQuery15
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -ne 0) 
+    {
+	    $sqlresults15 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults15 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
 else
 {
-    $sqlresults2 = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue
+	# .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLQuery15
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $sqlresults15 = $DataSet.Tables[0]
+    }
+    else
+    {
+        $sqlresults15 =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
+
 
 # HTML CSS
 $head = "<style type='text/css'>"
@@ -592,12 +712,12 @@ $head+="</style>"
 $RunTime = Get-date
 
 $myoutputfile4 = $FullFolderPath+"\02_Loaded_Dlls.html"
-$myHtml1 = $sqlresults2 | select file_version, product_version, debug, patched, prerelease, private_build, special_build, language, company, description, name| `
+$myHtml1 = $sqlresults15 | select file_version, product_version, debug, patched, prerelease, private_build, special_build, language, company, description, name| `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Loaded DLLs</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Loaded DLLs"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Trace Flags
-$mySQLquery2= "dbcc tracestatus();"
+$mySQLquery3= "dbcc tracestatus();"
 
 # connect correctly
 if ($serverauth -eq "win")
@@ -609,7 +729,7 @@ if ($serverauth -eq "win")
 	$Connection = New-Object System.Data.SqlClient.SqlConnection
 	$Connection.ConnectionString = $SQLConnectionString
 	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery2
+	$SqlCmd.CommandText = $mySQLquery3
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
@@ -640,7 +760,7 @@ else
 	$Connection = New-Object System.Data.SqlClient.SqlConnection
 	$Connection.ConnectionString = $SQLConnectionString
 	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery2
+	$SqlCmd.CommandText = $mySQLquery3
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
