@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the .NET Assemblies registered on the target server
 	
@@ -175,7 +175,6 @@ foreach($sqlDatabase in $srv.databases)
     $mySQLquery = 
     "
     USE $fixedDBName
-    GO
 
     SELECT  
     a.name as [AName],
@@ -197,7 +196,7 @@ foreach($sqlDatabase in $srv.databases)
     $results = @()
     if ($serverauth -eq "win")
     {
-        <#
+        
     	# .NET Method
 	    # Open connection and Execute sql against server using Windows Auth
 	    $DataSet = New-Object System.Data.DataSet
@@ -222,15 +221,12 @@ foreach($sqlDatabase in $srv.databases)
         # Close connection to sql server
         $Connection.Close()
 
-        #>
         
-        
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue -MaxCharLength 100000000
     }
     else
     {
 
-        <#
+        
     	# .NET Method
 	    # Open connection and Execute sql against server
 	    $DataSet = New-Object System.Data.DataSet
@@ -249,9 +245,7 @@ foreach($sqlDatabase in $srv.databases)
 	    # Close connection to sql server
 	    $Connection.Close()
         $results = $DataSet.Tables[0].Rows
-        #>
-
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue -MaxCharLength 100000000
+        
     }
 
     # Any results?
