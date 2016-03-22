@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the SQL Agent Jobs
 	
@@ -135,13 +135,68 @@ $ErrorActionPreference = 'SilentlyContinue'
 
 $EditionSQL = "SELECT SERVERPROPERTY('Edition')"
 
+# connect correctly
 if ($serverauth -eq "win")
 {
-    $Edition = Invoke-SqlCmd -query $EditionSQL -Server $SQLInstance
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $EditionSQL
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $Edition = $DataSet.Tables[0]
+    }
+    else
+    {
+        $Edition =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
 else
 {
-    $Edition = Invoke-SqlCmd -query $EditionSQL  -Server $SQLInstance –Username $myuser –Password $mypass    
+	# .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $EditionSQL
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+    # Eval Return Set
+    if ($DataSet.Tables.Count -gt 0) 
+    {
+	    $Edition = $DataSet.Tables[0]
+    }
+    else
+    {
+        $Edition =$null
+    }
+
+    # Close connection to sql server
+	$Connection.Close()
+
 }
 
 if ($Edition -ne $null )
