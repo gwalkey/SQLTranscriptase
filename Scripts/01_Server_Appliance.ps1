@@ -531,7 +531,7 @@ if ($SQLInstance -eq 'localhost')
 }
 else
 {
-    if ($myuser.Length -ge 0 -and $mypass.Length -ge 0)
+    if ($myuser.Length -gt 0 -and $mypass.Length -gt 0)
     {        
         $MyPSVersion = $null
     }
