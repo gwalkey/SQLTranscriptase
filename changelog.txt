@@ -1,5 +1,11 @@
 Changelog
 
+March 28, 2016
+=Changes=
+Replaced Invoke-SQLCMD with .net Data Adapter code in 4 modules
+01_Server_Appliance
+Fixed Bug getting the Powershell version
+
 Mar 18, 2016
 =Added=
 SQLT_GUI.ps1
