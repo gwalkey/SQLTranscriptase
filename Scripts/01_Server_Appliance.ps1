@@ -537,7 +537,7 @@ else
     }
     else
     {
-        $MyPSVersion = Invoke-Command -ComputerName $SQLInstance -ScriptBlock {$PSVersionTable.PSVersion}
+        $MyPSVersion = Invoke-Command -ComputerName $WinServer -ScriptBlock {$PSVersionTable.PSVersion}
     }
 }
 if ($MyPSVersion -ne $null)
