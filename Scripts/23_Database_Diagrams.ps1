@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Database Diagrams from the target server
 	
@@ -128,7 +128,7 @@ catch
 
 
 # Set Local Vars
-$server 	= $SQLInstance
+$server = $SQLInstance
 
 if ($serverauth -eq "win")
 {
@@ -172,16 +172,22 @@ foreach($sqlDatabase in $srv.databases)
     "
     USE $fixedDBName;
     
-    select [name], [principal_id], [version], [definition] from dbo.sysdiagrams
+    if (select 1 from sys.tables where name = 'sysdiagrams')=1
+    begin
+	    select [name], [principal_id], [version], [definition] from dbo.sysdiagrams
+    end
+
     "
+
+    # Catch Errors
+    $old_ErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
 
     # Run SQL
     $results = @()
     if ($serverauth -eq "win")
     {
-
-        <#
-    	# .NET Method
+       	# .NET Method
 	    # Open connection and Execute sql against server using Windows Auth
 	    $DataSet = New-Object System.Data.DataSet
 	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
@@ -195,18 +201,23 @@ foreach($sqlDatabase in $srv.databases)
     
 	    # Insert results into Dataset table
 	    $SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $results = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+	        $Connection.Close()
+        }
+        else
+        {
+            # Close connection to sql server
+            $results = $null
+	        $Connection.Close()
+            continue
+        }
 
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results = $DataSet.Tables[0].Rows
-        #>
-
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue -MaxCharLength 100000000
     }
     else
     {
-
-        <#
     	# .NET Method
 	    # Open connection and Execute sql against server
 	    $DataSet = New-Object System.Data.DataSet
@@ -221,18 +232,28 @@ foreach($sqlDatabase in $srv.databases)
     
 	    # Insert results into Dataset table
 	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results = $DataSet.Tables[0].Rows
-        #>
-
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue -MaxCharLength 100000000
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $results = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+	        $Connection.Close()
+            
+        }
+        else
+        {
+            # Close connection to sql server
+            $results = $null
+	        $Connection.Close()
+            continue
+        }     
+        
     }
 
-    # Any results?
-    if ($results -eq $null) {continue}
-    
+    # Reset default PS error handler
+    $ErrorActionPreference = $old_ErrorActionPreference
+
+    if (!$results) {continue}
+
     Write-Output ("Scripting out Database Diagrams for: {0}" -f $fixedDBName)
     
     
