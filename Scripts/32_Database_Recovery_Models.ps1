@@ -1,9 +1,9 @@
-﻿<#
+<#
 .SYNOPSIS
-  Gets the Tranaasaction Log Recovery Mode for all non-system databases
+    Gets the Tranaasaction Log Recovery Mode for all non-system databases
 	
 .DESCRIPTION
-  Gets the Tranaasaction Log Recovery Mode for all non-system databases
+    Gets the Tranaasaction Log Recovery Mode for all non-system databases
    
 .EXAMPLE
     25_Database_Recovery_Models.ps1 localhost
@@ -18,7 +18,7 @@
 	HTML Files
 	
 .NOTES
-	.NET DataAdapter faster and more sustainable than Invoke-SqlCmd
+	
 .LINK
 	https://github.com/gwalkey
 	
