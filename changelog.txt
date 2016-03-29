@@ -1,8 +1,18 @@
 Changelog
 
+March 29, 2016
+=Changes=
+09_SSIS_Packages_from_SSISDB
+Replaced Invoke-SQLCMD with .net Data Adapter code
+
 March 28, 2016
 =Changes=
-Replaced Invoke-SQLCMD with .net Data Adapter code in 4 modules
+24_Plan_Guides
+23_Database_Diagrams
+32_Database_Recovery_Models
+04_Agent_Schedules
+Replaced Invoke-SQLCMD with .net Data Adapter code
+
 01_Server_Appliance
 Fixed Bug getting the Powershell version
 
