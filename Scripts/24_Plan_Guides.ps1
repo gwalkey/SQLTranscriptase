@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets any saved Plan Guides per Database from the target server
 	
@@ -168,29 +168,92 @@ foreach($sqlDatabase in $srv.databases)
     # Get Diagrams
     $mySQLquery = 
     "
-    USE $fixedDBName
-    GO
-    select * from  sys.plan_guides
+    USE $fixedDBName;
+    
+    select * from  sys.plan_guides;
     "
+
+    # Catch Errors   
+    $old_ErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
 
     # Run SQL
     $results = @()
     if ($serverauth -eq "win")
-    {    
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -QueryTimeout 10 -erroraction SilentlyContinue -MaxCharLength 100000000
+    {
+
+        # .NET Method
+	    # Open connection and Execute sql against server using Windows Auth
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $mySQLquery
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+    
+	    # Insert results into Dataset table
+	    $SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $results = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+	        $Connection.Close()
+        }
+        else
+        {
+            # Close connection to sql server
+            $results = $null
+	        $Connection.Close()
+            continue
+        }
+
     }
     else
     {
-        $results = Invoke-SqlCmd -ServerInstance $SQLInstance -Query $mySQLquery -Username $myuser -Password $mypass -QueryTimeout 10 -erroraction SilentlyContinue -MaxCharLength 100000000
+
+        # .NET Method
+	    # Open connection and Execute sql against server
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $mySQLquery
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+    
+	    # Insert results into Dataset table
+	    $SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $results = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+	        $Connection.Close()
+            
+        }
+        else
+        {
+            # Close connection to sql server
+            $results = $null
+	        $Connection.Close()
+            continue
+        }  
+
+
     }
 
     # Any results?
-    if ($results)
+    if (!$results) 
+        {continue}
+    else
     {
         Write-Output ("Scripting out Plan Guides for: {0}" -f $fixedDBName)
     }
-    else
-        {continue}
+
     
     # One Output folder per DB
     if(!(test-path -path $output_path))
@@ -201,7 +264,8 @@ foreach($sqlDatabase in $srv.databases)
 
     foreach ($pg in $results)
     {        
-        $PName = $pg.name
+        $PlanName = $pg.Name
+        $PlanID = $pg.Plan_guide_ID
 
         $pquery = "`
         Use "+$sqlDatabase.Name+";"+
@@ -217,22 +281,80 @@ foreach($sqlDatabase in $srv.databases)
 	        '@hints=N'+char(39)+[hints]+char(39) as 'column1'
         from 
 	        sys.plan_guides
-           where [name] = '$PName'
+           where [Plan_Guide_ID] = '$PlanID'
         "
 
                 
         # Dump Plan Guides
         if ($serverauth -eq "win")
         {
-            $presults = Invoke-Sqlcmd -MaxCharLength 100000000 -ServerInstance $SQLInstance -Query $pquery 
+
+            # .NET Method
+	        # Open connection and Execute sql against server using Windows Auth
+	        $DataSet = New-Object System.Data.DataSet
+	        $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	        $Connection = New-Object System.Data.SqlClient.SqlConnection
+	        $Connection.ConnectionString = $SQLConnectionString
+	        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	        $SqlCmd.CommandText = $pquery
+	        $SqlCmd.Connection = $Connection
+	        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	        $SqlAdapter.SelectCommand = $SqlCmd
+    
+	        # Insert results into Dataset table
+	        $SqlAdapter.Fill($DataSet) | out-null
+            if ($DataSet.tables[0].Rows.count -gt 0)
+            {
+                $presults = $DataSet.Tables[0].Rows
+                # Close connection to sql server
+	            $Connection.Close()
+            }
+            else
+            {
+                # Close connection to sql server
+                $presults = $null
+	            $Connection.Close()
+                continue
+            }
+
         }
         else
-        {     
-            $presults = Invoke-Sqlcmd -MaxCharLength 100000000 -ServerInstance $SQLInstance -Query $pquery -Username $myuser -Password $mypass
+        {
+            
+            # .NET Method
+	        # Open connection and Execute sql against server
+	        $DataSet = New-Object System.Data.DataSet
+	        $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	        $Connection = New-Object System.Data.SqlClient.SqlConnection
+	        $Connection.ConnectionString = $SQLConnectionString
+	        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	        $SqlCmd.CommandText = $pquery
+	        $SqlCmd.Connection = $Connection
+	        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	        $SqlAdapter.SelectCommand = $SqlCmd
+    
+    	    # Insert results into Dataset table
+	        $SqlAdapter.Fill($DataSet) | out-null
+            if ($DataSet.tables[0].Rows.count -gt 0)
+            {
+                $presults = $DataSet.Tables[0].Rows
+                # Close connection to sql server
+	            $Connection.Close()
+            }
+            else
+            {
+                # Close connection to sql server
+                $presults = $null
+	            $Connection.Close()
+                continue
+            }  
+
+
         }
+
         # Write Out
-        $myoutputfile = $output_path+"\"+$PName+".sql"
-        $presults.column1 | out-file -FilePath $myoutputfile -append -encoding ascii -width 10000000
+        $myoutputfile = $output_path+"\"+$PlanName+".sql"
+        $presults.column1 | out-file -FilePath $myoutputfile -encoding ascii -width 10000000 -Force
         
     } 
             
@@ -244,6 +366,4 @@ c:
 
 # Return To Base
 set-location $BaseFolder
-
-
 
