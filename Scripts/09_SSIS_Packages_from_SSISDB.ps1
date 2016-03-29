@@ -129,6 +129,21 @@ catch
 	exit
 }
 
+# Get Folder Structure 
+$mySQLquery = 
+"
+SELECT 
+    f.name as 'Folder',
+    j.name as 'Project'
+FROM 
+    [SSISDB].[catalog].[projects] j
+inner join 
+    [SSISDB].[catalog].[folders] f
+on 
+    j.[folder_id] = f.[folder_id]
+order by 
+    1,2
+"
 
 # See if the SSISDB Catalog Exists first
 $Folders = @()
@@ -153,7 +168,7 @@ if ($serverauth -eq "sql")
         $unc = 1
     }
 
-    # Look for the 2012+ SSIS Catalog on this server
+    # Only if the Catalog is found  
     if ($server.Databases["SSISDB"] ) { $exists = $true } else { $exists = $false }
 	
 	if ($exists -eq $FALSE)
@@ -171,15 +186,35 @@ if ($serverauth -eq "sql")
         exit
     }
  
-	# Get Folders/Projects Tree
-	$Folders +=  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Username $myuser -Password $mypass -Query "SELECT `
-	f.name as 'Folder',
-	j.name as 'Project'
-	FROM [SSISDB].[catalog].[projects] j
-	inner join [SSISDB].[catalog].[folders] f
-	on j.[folder_id] = f.[folder_id]
-	order by f.folder_id,j.project_id
-" 
+
+    # .NET Method
+    # Open connection and Execute sql against server
+    $DataSet = New-Object System.Data.DataSet
+    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+    $Connection = New-Object System.Data.SqlClient.SqlConnection
+    $Connection.ConnectionString = $SQLConnectionString
+    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+    $SqlCmd.CommandText = $mySQLquery
+    $SqlCmd.Connection = $Connection
+    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+    $SqlAdapter.SelectCommand = $SqlCmd
+    
+    # Insert results into Dataset table
+    $SqlAdapter.Fill($DataSet) | out-null
+    if ($DataSet.tables[0].Rows.count -gt 0)
+    {
+        $Folders = $DataSet.Tables[0].Rows
+        # Close connection to sql server
+        $Connection.Close()           
+    }
+    else
+    {
+        # Close connection to sql server
+        $Folders = $null
+        $Connection.Close()
+        continue
+    }  
+
 }
 else
 {
@@ -217,15 +252,34 @@ else
         exit
     }
  
-	# Get Folders/Projects Tree
-	$Folders +=  Invoke-Sqlcmd -MaxCharLength 10000000 -ServerInstance $SQLInstance -Query "SELECT `
-	f.name as 'Folder',
-	j.name as 'Project'
-	FROM [SSISDB].[catalog].[projects] j
-	inner join [SSISDB].[catalog].[folders] f
-	on j.[folder_id] = f.[folder_id]
-	order by 1,2
-    "
+
+    # .NET Method
+    # Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $mySQLquery
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+    if ($DataSet.tables[0].Rows.count -gt 0)
+    {
+        $Folders = $DataSet.Tables[0].Rows
+        # Close connection to sql server
+	    $Connection.Close()
+    }
+    else
+    {
+        # Close connection to sql server
+        $Folders = $null
+	    $Connection.Close()
+        #continue
+    }
 
 }
 
@@ -255,18 +309,77 @@ Foreach ($folder in $Folders)
 
 }
 
-
+# --------------
+# Environments
+# --------------
 Write-Output "Writing out Folder Environments..."
 
-# Get Only Folders
+# Get the Folder Structure
 $fquery = "select [name] FROM [SSISDB].[catalog].[Folders]"
+
 if ($serverauth -eq "win")
 {
-    $fresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $fquery 
+    # .NET Method
+    # Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $fquery
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+    if ($DataSet.tables[0].Rows.count -gt 0)
+    {
+        $fresults = $DataSet.Tables[0].Rows
+        # Close connection to sql server
+	    $Connection.Close()
+    }
+    else
+    {
+        # Close connection to sql server
+        $fresults = $null
+	    $Connection.Close()
+        #continue
+    }
+
 }
 else
-{     
-    $fresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $fquery -Username $myuser -Password $mypass
+{
+
+
+    # .NET Method
+    # Open connection and Execute sql against server
+    $DataSet = New-Object System.Data.DataSet
+    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+    $Connection = New-Object System.Data.SqlClient.SqlConnection
+    $Connection.ConnectionString = $SQLConnectionString
+    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+    $SqlCmd.CommandText = $fquery
+    $SqlCmd.Connection = $Connection
+    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+    $SqlAdapter.SelectCommand = $SqlCmd
+    
+    # Insert results into Dataset table
+    $SqlAdapter.Fill($DataSet) | out-null
+    if ($DataSet.tables[0].Rows.count -gt 0)
+    {
+        $Folders = $DataSet.Tables[0].Rows
+        # Close connection to sql server
+        $Connection.Close()           
+    }
+    else
+    {
+        # Close connection to sql server
+        $Folders = $null
+        $Connection.Close()
+        continue
+    }  
+
 }
 
 
@@ -306,15 +419,72 @@ foreach ($folder in $fresults)
     "
     
 
-    # Get Envs
+    # Get Environments
     if ($serverauth -eq "win")
     {
-        $envresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envquery 
+
+        # .NET Method
+        # Open connection and Execute sql against server using Windows Auth
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $envquery
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+        
+    	# Insert results into Dataset table
+    	$SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $envresults = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+	        $Connection.Close()
+        }
+        else
+        {
+            # Close connection to sql server
+            $envresults = $null
+	        $Connection.Close()
+            #continue
+        }
+
     }
     else
-    {     
-        $envresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envquery -Username $myuser -Password $mypass
+    {    
+     
+        # .NET Method
+        # Open connection and Execute sql against server
+        $DataSet = New-Object System.Data.DataSet
+        $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+        $Connection = New-Object System.Data.SqlClient.SqlConnection
+        $Connection.ConnectionString = $SQLConnectionString
+        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+        $SqlCmd.CommandText = $envquery
+        $SqlCmd.Connection = $Connection
+        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $SqlAdapter.SelectCommand = $SqlCmd
+        
+        # Insert results into Dataset table
+        $SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $envresults = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+            $Connection.Close()           
+        }
+        else
+        {
+            # Close connection to sql server
+            $envresults = $null
+            $Connection.Close()
+            continue
+        }  
+
     }
+
     # Write Out
     foreach ($env in $envresults)
     {
@@ -375,11 +545,66 @@ foreach ($folder in $fresults)
     # Get Vars
     if ($serverauth -eq "win")
     {
-        $envVresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envVquery
+
+        # .NET Method
+        # Open connection and Execute sql against server using Windows Auth
+	    $DataSet = New-Object System.Data.DataSet
+	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	    $Connection = New-Object System.Data.SqlClient.SqlConnection
+	    $Connection.ConnectionString = $SQLConnectionString
+	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	    $SqlCmd.CommandText = $envVquery
+	    $SqlCmd.Connection = $Connection
+	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	    $SqlAdapter.SelectCommand = $SqlCmd
+        
+    	# Insert results into Dataset table
+    	$SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $envVresults = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+	        $Connection.Close()
+        }
+        else
+        {
+            # Close connection to sql server
+            $envVresults = $null
+	        $Connection.Close()
+            #continue
+        }
+
     }
     else
-    {     
-        $envVresults = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $envVquery -Username $myuser -Password $mypass
+    {
+        # .NET Method
+        # Open connection and Execute sql against server
+        $DataSet = New-Object System.Data.DataSet
+        $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+        $Connection = New-Object System.Data.SqlClient.SqlConnection
+        $Connection.ConnectionString = $SQLConnectionString
+        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+        $SqlCmd.CommandText = $envVquery
+        $SqlCmd.Connection = $Connection
+        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+        $SqlAdapter.SelectCommand = $SqlCmd
+        
+        # Insert results into Dataset table
+        $SqlAdapter.Fill($DataSet) | out-null
+        if ($DataSet.tables[0].Rows.count -gt 0)
+        {
+            $envVresults = $DataSet.Tables[0].Rows
+            # Close connection to sql server
+            $Connection.Close()           
+        }
+        else
+        {
+            # Close connection to sql server
+            $envVresults = $null
+            $Connection.Close()
+            continue
+        } 
+
     }
     # Write Out
     foreach ($envV in $envVresults)
@@ -387,7 +612,6 @@ foreach ($folder in $fresults)
         $myoutputVfile = $SSISEnvFolderPath+$foldername+".sql"
         $envV.column1 | out-file -FilePath $myoutputVfile -append -encoding ascii -width 50000        
     }
-
     
 }
 
@@ -397,28 +621,55 @@ $destfrag = "\"+$sqlinstance+"_SSISDB_Master_Key.txt"
 $destfile = $backupfolder+$destfrag
 
 Write-Output "Writing out Key File..."
-$myquery = "use SSISDB; "
-$myquery += " backup master key to file = '$destfile'"
-$myquery += " encryption by password = 'Brf7d5XtWc5gJiTBU8uW'"
+$myquery =  " use SSISDB; "+
+            " backup master key to file = '$destfile'"+
+            " encryption by password = 'Brf7d5XtWc5gJiTBU8uW'"
 
 # Turn off Default Error Handling if this backup command fails on the remote server
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
+
 if ($serverauth -eq "win")
 {
     set-location $fullfolderPath
-    $keyresult = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $myquery
+
+	# .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+    $Connection.Open()
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $myquery
+	$SqlCmd.Connection = $Connection
+	$sqlCmd.ExecuteNonQuery() | out-null
+	$Connection.Close()
+
 }
 else
 {
     set-location $fullfolderPath
-    $keyresult = Invoke-Sqlcmd -MaxCharLength 10000000 -MaxBinaryLength 10000000 -ServerInstance $SQLInstance -Query $myquery -Username $myuser -Password $mypass 
+
+    # .NET Method
+	# Open connection and Execute sql against server using SQL Auth
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+    $Connection.Open()
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $myquery
+	$SqlCmd.Connection = $Connection
+	$sqlCmd.ExecuteNonQuery() | out-null
+	$Connection.Close()
+
 }
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference 
 
-# Copy Key File down from admin share
+# ---------------------------------------------
+# Copy Key File down from SQL Backup Location
+# ---------------------------------------------
 Write-Output "Copying down key file..."
 
 
