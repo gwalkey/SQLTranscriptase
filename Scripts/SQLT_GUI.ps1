@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Runs all or selected Posh scripts based on uer input
+    Runs all or selected Posh scripts based on user input
 
 	
 .DESCRIPTION
