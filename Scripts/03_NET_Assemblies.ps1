@@ -163,7 +163,13 @@ foreach($sqlDatabase in $srv.databases)
     # Skip System Databases - unless you actually installed some DLLs in those!- bad monkey
     if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB') {continue}
 
-
+    # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
+    if ($sqlDatabase.Status -ne 'Normal')     
+    {
+        Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
+        continue
+    }
+    
     # Strip brackets from DBname
     $db = $sqlDatabase
     $fixedDBName = $db.name.replace('[','')
