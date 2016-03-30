@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Runs all or selected Scripts based on chosen checkboxes
+    Runs all or selected Posh scripts based on uer input
 
 	
 .DESCRIPTION
@@ -25,8 +25,8 @@
 #>
 
 
-[reflection.assembly]::LoadWithPartialName("System.Windows.Forms") |out-null
-[reflection.assembly]::LoadwithPartialName("System.Drawing") | Out-Null
+Add-Type -AssemblyName "System.Windows.Forms"
+Add-Type -AssemblyName "System.Drawing"
 
 
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
@@ -757,15 +757,6 @@ $checkbox43.Add_CheckStateChanged({
 
 
 
-
-
-
-
-
-
-
-
-
 # Add the controls to the Form
 $form.controls.add($pictureBox)
 $Form.Controls.Add($Label1)
@@ -1446,3 +1437,7 @@ if($checkbox43.Checked)
     }	
 
 exit
+
+# Isn't GUI Programming tedious?
+# Hard on the Programmer, easy for the user
+# 1443 Lines....sheesh!
