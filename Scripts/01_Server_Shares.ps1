@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Windows SMB Shares on the target server
 	
@@ -76,6 +76,7 @@ try
     else
     {   
         echo null > "$fullfolderpath\01 - Server Shares - WMI Could not connect.txt"
+        Write-Output "WMI Could not connect"
         Set-Location $BaseFolder
         exit
     }
@@ -88,7 +89,7 @@ catch
         mkdir $fullfolderPath | Out-Null
     }
     echo null > "$fullfolderpath\01 - Server Shares - WMI Could not connect.txt"
-       
+    Write-Output "WMI Could not connect"       
     Set-Location $BaseFolder
     exit
 }
