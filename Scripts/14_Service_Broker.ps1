@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the SQL Service Broker Objects on the target server
 	
@@ -223,6 +223,14 @@ foreach($sqlDatabase in $srv.databases)
     $fixedDBName = $fixedDBName.replace(']','')
     $DB_Broker_output_path = "$BaseFolder\$SQLInstance\14 - Service Broker\$fixedDBname"
    
+    # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
+    if ($sqlDatabase.Status -ne 'Normal')     
+    {
+        Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
+        continue
+    }
+
+    # Init Counter
     $anyfound = $false
          
                 
