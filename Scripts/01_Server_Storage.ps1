@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Windows Volumes on the target server
 	
@@ -87,7 +87,7 @@ try
             mkdir $fullfolderPath | Out-Null
         }
         echo null > "$fullfolderpath\01 - Server Storage - WMI Could not connect.txt"
-        
+        Write-Output "WMI Could not connect"        
         Set-Location $BaseFolder
         exit
   
@@ -101,7 +101,7 @@ catch
          mkdir $fullfolderPath | Out-Null
     }
     echo null > "$fullfolderpath\01 - Server Storage - WMI Could not connect.txt"
-        
+    Write-Output "WMI Could not connect"        
     Set-Location $BaseFolder
     exit
 }
