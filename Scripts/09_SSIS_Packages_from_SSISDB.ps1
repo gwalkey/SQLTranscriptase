@@ -212,7 +212,6 @@ if ($serverauth -eq "sql")
         # Close connection to sql server
         $Folders = $null
         $Connection.Close()
-        continue
     }  
 
 }
@@ -278,7 +277,6 @@ else
         # Close connection to sql server
         $Folders = $null
 	    $Connection.Close()
-        #continue
     }
 
 }
@@ -344,7 +342,6 @@ if ($serverauth -eq "win")
         # Close connection to sql server
         $fresults = $null
 	    $Connection.Close()
-        #continue
     }
 
 }
@@ -368,16 +365,15 @@ else
     $SqlAdapter.Fill($DataSet) | out-null
     if ($DataSet.tables[0].Rows.count -gt 0)
     {
-        $Folders = $DataSet.Tables[0].Rows
+        $fresults = $DataSet.Tables[0].Rows
         # Close connection to sql server
         $Connection.Close()           
     }
     else
     {
         # Close connection to sql server
-        $Folders = $null
+        $fresults = $null
         $Connection.Close()
-        continue
     }  
 
 }
@@ -448,7 +444,6 @@ foreach ($folder in $fresults)
             # Close connection to sql server
             $envresults = $null
 	        $Connection.Close()
-            #continue
         }
 
     }
@@ -480,7 +475,6 @@ foreach ($folder in $fresults)
             # Close connection to sql server
             $envresults = $null
             $Connection.Close()
-            continue
         }  
 
     }
@@ -571,7 +565,6 @@ foreach ($folder in $fresults)
             # Close connection to sql server
             $envVresults = $null
 	        $Connection.Close()
-            #continue
         }
 
     }
@@ -602,7 +595,7 @@ foreach ($folder in $fresults)
             # Close connection to sql server
             $envVresults = $null
             $Connection.Close()
-            continue
+
         } 
 
     }
@@ -613,6 +606,7 @@ foreach ($folder in $fresults)
         $envV.column1 | out-file -FilePath $myoutputVfile -append -encoding ascii -width 50000        
     }
     
+    # Get Next Folder
 }
 
 # Export SSISDB Catalog Master Key
@@ -711,7 +705,10 @@ $myrestorecmd = "Restore master key from file = 'SSISDB_Master_Key.txt' `
 Write-Output "Writing out Master Key Restore Command..."
 $myrestorecmd | out-file $fullfolderPath\Master_Key_Restore_cmd.sql -Encoding ascii
 
-Write-Output ("{0} Packages Exported" -f $Folders.count)
+if ($Folders -ne $null -and $Folders.count -gt 0)
+{
+    Write-Output ("{0} Packages Exported" -f $Folders.count)
+}
 
 # Return To Base
 set-location $BaseFolder
