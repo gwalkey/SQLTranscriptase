@@ -1,5 +1,10 @@
 Changelog
 
+March 30, 2016
+=Changes=
+03_NET_Assemblies
+Skip offline Databases
+
 March 29, 2016
 =Changes=
 09_SSIS_Packages_from_SSISDB
