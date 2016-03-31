@@ -1,5 +1,16 @@
 Changelog
 
+March 31, 2016
+=Changes=
+01_Server_Storage & 01_Server_Shares
+Added Cant Connect Message
+
+09_Packages_from_SSISDB
+Handle Issue with catalog Installed but no folders found
+
+14_Service_Broker
+Skip offline Databases
+
 March 30, 2016
 =Changes=
 03_NET_Assemblies
