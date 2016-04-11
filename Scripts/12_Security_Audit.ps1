@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets SQL Server Security Information from the target server
 	
@@ -315,7 +315,7 @@ DECLARE @Database_Name nvarchar(255)
 DECLARE @sqlcmd nvarchar(max)
 
 DECLARE db_cursor CURSOR Fast_Forward
-FOR SELECT name from sys.databases where [name] not like 'Sharepoint%' and [name] not like '%.%'
+FOR SELECT name from sys.databases where [name] not like 'Sharepoint%' and [name] not like '%.%'  and [state]=0
 OPEN db_cursor
 
 FETCH NEXT FROM db_cursor INTO @Database_Name
