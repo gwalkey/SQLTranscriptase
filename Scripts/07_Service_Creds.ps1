@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the NT Service Credentials used to start each SQL Server exe
 	
@@ -18,8 +18,8 @@
 .Outputs
 	HTML Files
 	
-.NOTES
-
+.NOTES    
+    Get Service Startup Mode Suggested by Beth Richard  - erichards@dconc.gov
 	
 .LINK
 	https://github.com/gwalkey
@@ -231,7 +231,7 @@ $head+="</style>"
 $RunTime = Get-date
 
 $myoutputfile4 = $FullFolderPath+"\NT_Service_Credentials.html"
-$myHtml1 = $results1 | select Name, StartName | `
+$myHtml1 = $results1 | select Name, StartName, StartMode | `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>SQL Server Related NT Service Credentials</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "NT Service Credentials"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
