@@ -224,9 +224,16 @@ foreach($Share in $ShareArray)
             $Domain = $ACL.Trustee.Domain
             switch($ACL.AccessMask)
             {
-                2032127 {$Perm = "Full Control"}
-                1245631 {$Perm = "Change"}
-                1179817 {$Perm = "Read"}
+                1179785        {$Perm = "Read"}
+                1180063        {$Perm = "Read, Write"}
+                1179817        {$Perm = "ReadAndExecute"}
+                -1610612736    {$Perm = "ReadAndExecuteExtended"}
+                1245631        {$Perm = "ReadAndExecute, Modify, Write"}
+                1180095        {$Perm = "ReadAndExecute, Write"}        
+                268435456      {$Perm = "FullControl (Subs Only)"}
+                2032127        {$Perm = "Full Control"}
+                1245631        {$Perm = "Change"}
+                default        {$Perm = "None/Other"}
             }
 
             Write-Output ("Share: {0}, Domain: {1}, User: {2}, Permission: {3}" -f $ShareName, $Domain, $User, $Perm)
