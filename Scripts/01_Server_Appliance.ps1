@@ -398,6 +398,31 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $mystring =  "SQL Service Account: " +$srv.ServiceAccount
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
+$mystring =  "SQL Collation: " +$srv.Collation
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+$mystring =  "SQL Security Model: " +$srv.LoginMode
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+$mystring =  "SQL Protocols - Named Pipes: " +$srv.NamedPipesEnabled
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+$mystring =  "SQL Protocols - TCPIP: " +$srv.TcpEnabled
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+$mystring =  "SQL Browser Start Mode: " +$srv.BrowserStartMode
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+<#
+$mystring =  "SQL Information: " + ($srv.Information.Properties | select name, value | format-table | out-string)
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+#>
+
+$mystring =  "SQL Protocols: " + ($srv.endpoints | select Parent, Name, Endpointtype, EndpointState, ProtocolType |format-table| out-string)
+$mystring | out-file $fullFileName -Encoding ascii -Append
+
+
 " " | out-file $fullFileName -Encoding ascii -Append
 
 # Windows
@@ -449,7 +474,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring3 = Get-WmiObject -class Win32_Computersystem -ComputerName $WinServer | select manufacturer
+[string]$mystring3 = Get-WmiObject -class Win32_Computersystem -ComputerName $WinServer | select manufacturer
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -470,7 +495,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
+[string]$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -495,7 +520,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -872,6 +897,8 @@ catch
     Write-Output ("NT Services: Could not connect")
 }
 
+
+# Network Protocols
 
 # Return to Base
 set-location $BaseFolder
