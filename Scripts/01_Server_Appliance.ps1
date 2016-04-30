@@ -443,7 +443,7 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring2 = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+$mystring2 = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -495,7 +495,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-[string]$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
+[string]$mystring4 = Get-WmiObject -class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -520,7 +520,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -620,14 +620,14 @@ $ErrorActionPreference = $old_ErrorActionPreference
 
 # Footer
 $mystring5 =  "`r`nSQL Build reference: http://sqlserverbuilds.blogspot.com/ "
-$mystring5| out-file $fullFileName -Encoding ascii -Append
+$mystring5 | out-file $fullFileName -Encoding ascii -Append
 
 $mystring5 =  "`r`nSQL Build reference: http://sqlserverupdates.com/ "
-$mystring5| out-file $fullFileName -Encoding ascii -Append
+$mystring5 | out-file $fullFileName -Encoding ascii -Append
 
 
 $mystring5 = "`r`nMore Detailed Diagnostic Queries here:`r`nhttp://www.sqlskills.com/blogs/glenn/sql-server-diagnostic-information-queries-for-september-2015"
-$mystring5| out-file $fullFileName -Encoding ascii -Append
+$mystring5 | out-file $fullFileName -Encoding ascii -Append
 
 
 
