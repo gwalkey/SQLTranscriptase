@@ -607,6 +607,7 @@ SELECT p.sid, p.name, p.type, p.is_disabled, p.default_database_name, l.hasacces
 FROM sys.server_principals p 
 LEFT JOIN sys.syslogins l
 ON ( l.name = p.name ) WHERE p.type IN ( 'S', 'G', 'U' ) AND p.name <> 'sa'
+order by p.name
 
 OPEN login_curs
 
