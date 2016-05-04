@@ -495,10 +495,6 @@ catch
 
 
 # Proc, CPUs, Cores
-
-[string[]]$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
-
-
 try
 {
 
