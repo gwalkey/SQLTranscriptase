@@ -439,25 +439,34 @@ $mystring =  "OS Platform: " +$srv.Platform
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
 
-# Turn off default Error Handler for WMI
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
-$mystring2 = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
-
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference
-
+# OS Info Via WMI
 try
 {
-    Write-output ("OS Host Name: {0} " -f $mystring2.Name)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS BuildNumber: {0} " -f $mystring2.BuildNumber)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS Buildtype: {0} " -f $mystring2.BuildType)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS CurrentTimeZone: {0}" -f $mystring2.CurrentTimeZone)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS InstallDate: {0} " -f $mystring2.InstallDate)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS SystemDrive: {0} " -f $mystring2.SystemDrive)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS SystemDevice: {0} " -f $mystring2.SystemDevice)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("OS SystemDirectory: {0} " -f $mystring2.SystemDirectory)| out-file $fullFileName -Encoding ascii -Append
+
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name
+    Write-Output ("OS Host Name: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue  | select BuildNumber
+    Write-Output ("OS BuildNumber: {0}" -f $myWMI.BuildNumber )| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select BuildType
+    Write-Output ("OS Buildtype: {0}" -f $myWMI.BuildType )| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select CurrentTimeZone
+    Write-Output ("OS CurrentTimeZone: {0}" -f $myWMI.CurrentTimeZone)| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select InstallDate
+    Write-Output ("OS InstallDate: {0}" -f $myWMI.InstallDate)| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select SystemDrive
+    Write-Output ("OS SystemDrive: {0}" -f $myWMI.SystemDrive)| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select SystemDevice
+    Write-Output ("OS SystemDevice: {0}" -f $myWMI.SystemDevice)| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select SystemDirectory
+    Write-Output ("OS SystemDirectory:{0}" -f $myWMI.SystemDirectory)| out-file $fullFileName -Encoding ascii -Append
+
 }
 catch
 {
@@ -467,21 +476,16 @@ catch
 
 " " | out-file $fullFileName -Encoding ascii -Append
 
+# ---------------
 # Hardware
-
+# ---------------
 # Motherboard
 # Turn off default Error Handler for WMI
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
-[string]$mystring3 = Get-WmiObject -class Win32_Computersystem -ComputerName $WinServer | select manufacturer
-
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference
-
 try
 {
-    Write-output ("HW Manufacturer: {0} " -f $mystring3.Manufacturer)| out-file $fullFileName -Encoding ascii -Append
+    $myWMI = Get-WmiObject  -class Win32_Computersystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select manufacturer
+    Write-Output ("HW Manufacturer: {0}" -f $myWMI.Manufacturer ) | out-file $fullFileName -Encoding ascii -Append
+
 }
 catch
 {
@@ -491,20 +495,23 @@ catch
 
 
 # Proc, CPUs, Cores
-# Turn off default Error Handler for WMI
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
 
-[string]$mystring4 = Get-WmiObject -class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
+[string[]]$mystring4 = Get-WmiObject –class Win32_processor -ComputerName $WinServer | select Name,NumberOfCores,NumberOfLogicalProcessors
 
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference
 
 try
 {
-    Write-output ("HW Processor: {0} " -f $mystring4.Name)| out-file $fullFileName -Encoding ascii -Append
-    Write-Output ("HW CPUs: {0}" -f $mystring4.NumberOfLogicalProcessors)| out-file $fullFileName -Encoding ascii -Append
-    Write-output ("HW Cores: {0}" -f $mystring4.NumberOfCores)| out-file $fullFileName -Encoding ascii -Append
+
+
+    $myWMI = Get-WmiObject –class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name
+    Write-Output ("HW Processor: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue  | select NumberOfLogicalProcessors
+    Write-Output ("HW CPUs: {0}" -f $myWMI.NumberOfLogicalProcessors )| out-file $fullFileName -Encoding ascii -Append
+    
+    $myWMI = Get-WmiObject –class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select NumberOfCores
+    Write-Output ("HW Cores: {0}" -f $myWMI.NumberOfCores )| out-file $fullFileName -Encoding ascii -Append
+
 }
 catch
 {
@@ -520,7 +527,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
@@ -620,14 +627,14 @@ $ErrorActionPreference = $old_ErrorActionPreference
 
 # Footer
 $mystring5 =  "`r`nSQL Build reference: http://sqlserverbuilds.blogspot.com/ "
-$mystring5 | out-file $fullFileName -Encoding ascii -Append
+$mystring5| out-file $fullFileName -Encoding ascii -Append
 
 $mystring5 =  "`r`nSQL Build reference: http://sqlserverupdates.com/ "
-$mystring5 | out-file $fullFileName -Encoding ascii -Append
+$mystring5| out-file $fullFileName -Encoding ascii -Append
 
 
 $mystring5 = "`r`nMore Detailed Diagnostic Queries here:`r`nhttp://www.sqlskills.com/blogs/glenn/sql-server-diagnostic-information-queries-for-september-2015"
-$mystring5 | out-file $fullFileName -Encoding ascii -Append
+$mystring5| out-file $fullFileName -Encoding ascii -Append
 
 
 
