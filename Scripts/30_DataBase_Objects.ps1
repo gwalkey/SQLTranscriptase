@@ -261,17 +261,21 @@ $RunTime = Get-date
 $mySQLquery = 
 "
 SELECT 
-    DB_NAME([database_id]) AS [Database_Name],
-    [file_id],
-    name as 'Name',
-    physical_name as 'FileName',
-    type_desc as 'Type',
-    state_desc as 'State',
-	case when is_percent_growth=1 then '%' else 'MB' end as 'Growth',
-	case when is_percent_growth=1 then growth else CONVERT(float, growth/128.0) end AS [Growth_in_MB],
-    CONVERT(float, size/128.0) AS [DB_Size_in_MB]
-FROM sys.master_files WITH (NOLOCK)
-ORDER BY DB_NAME([database_id]) OPTION (RECOMPILE);
+    DB_NAME(m.[database_id]) AS [Database_Name],
+    m.[file_id],
+    m.name as 'Name',
+    m.physical_name as 'FileName',
+    m.type_desc as 'Type',
+    m.state_desc as 'State',
+	case when m.is_percent_growth=1 then '%' else 'MB' end as 'Growth',
+	case when m.is_percent_growth=1 then growth else CONVERT(float, m.growth/128.0) end AS [Growth_in_MB],
+    CONVERT(float, m.size/128.0) AS [DB_Size_in_MB],
+	D.collation_name,
+	D.compatibility_level
+FROM sys.master_files M WITH (NOLOCK)
+inner join sys.databases D
+ON M.database_id = D.database_id
+ORDER BY DB_NAME(m.[database_id]) OPTION (RECOMPILE);
 "
 
 #Run SQL
