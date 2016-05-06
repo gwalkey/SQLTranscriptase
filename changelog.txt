@@ -1,5 +1,12 @@
 Changelog
 
+May 6, 2016
+=Changes=
+Fixed WMI Calls in 01_Server_Appliance
+
+=Added=
+CompatibilityMode and Collation to 30_Database_Objects Database_Summary.html
+
 March 31, 2016
 =Changes=
 01_Server_Storage & 01_Server_Shares
