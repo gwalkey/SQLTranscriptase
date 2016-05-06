@@ -413,12 +413,6 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $mystring =  "SQL Browser Start Mode: " +$srv.BrowserStartMode
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
-<#
-$mystring =  "SQL Information: " + ($srv.Information.Properties | select name, value | format-table | out-string)
-$mystring | out-file $fullFileName -Encoding ascii -Append
-
-#>
-
 $mystring =  "SQL Protocols: " + ($srv.endpoints | select Parent, Name, Endpointtype, EndpointState, ProtocolType |format-table| out-string)
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
@@ -443,28 +437,15 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 try
 {
 
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem  -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+
     Write-Output ("OS Host Name: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue  | select BuildNumber
     Write-Output ("OS BuildNumber: {0}" -f $myWMI.BuildNumber )| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select BuildType
     Write-Output ("OS Buildtype: {0}" -f $myWMI.BuildType )| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select CurrentTimeZone
     Write-Output ("OS CurrentTimeZone: {0}" -f $myWMI.CurrentTimeZone)| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select InstallDate
     Write-Output ("OS InstallDate: {0}" -f $myWMI.InstallDate)| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select SystemDrive
     Write-Output ("OS SystemDrive: {0}" -f $myWMI.SystemDrive)| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select SystemDevice
     Write-Output ("OS SystemDevice: {0}" -f $myWMI.SystemDevice)| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select SystemDirectory
     Write-Output ("OS SystemDirectory:{0}" -f $myWMI.SystemDirectory)| out-file $fullFileName -Encoding ascii -Append
 
 }
@@ -498,14 +479,9 @@ catch
 try
 {
 
-
-    $myWMI = Get-WmiObject -class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name
+    $myWMI = Get-WmiObject –class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, NumberOfLogicalProcessors, NumberOfCores
     Write-Output ("HW Processor: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue  | select NumberOfLogicalProcessors
     Write-Output ("HW CPUs: {0}" -f $myWMI.NumberOfLogicalProcessors )| out-file $fullFileName -Encoding ascii -Append
-    
-    $myWMI = Get-WmiObject -class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select NumberOfCores
     Write-Output ("HW Cores: {0}" -f $myWMI.NumberOfCores )| out-file $fullFileName -Encoding ascii -Append
 
 }
@@ -523,7 +499,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
