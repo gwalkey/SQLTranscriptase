@@ -499,7 +499,7 @@ catch
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" –class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
+$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
 
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference
