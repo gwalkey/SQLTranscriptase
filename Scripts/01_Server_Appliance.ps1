@@ -437,7 +437,7 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 try
 {
 
-    $myWMI = Get-WmiObject –class Win32_OperatingSystem  -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+    $myWMI = Get-WmiObject -class Win32_OperatingSystem  -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
 
     Write-Output ("OS Host Name: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
     Write-Output ("OS BuildNumber: {0}" -f $myWMI.BuildNumber )| out-file $fullFileName -Encoding ascii -Append
@@ -464,7 +464,7 @@ catch
 # Turn off default Error Handler for WMI
 try
 {
-    $myWMI = Get-WmiObject  -class Win32_Computersystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select manufacturer
+    $myWMI = Get-WmiObject -class Win32_Computersystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select manufacturer
     Write-Output ("HW Manufacturer: {0}" -f $myWMI.Manufacturer ) | out-file $fullFileName -Encoding ascii -Append
 
 }
@@ -479,7 +479,7 @@ catch
 try
 {
 
-    $myWMI = Get-WmiObject –class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, NumberOfLogicalProcessors, NumberOfCores
+    $myWMI = Get-WmiObject -class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, NumberOfLogicalProcessors, NumberOfCores
     Write-Output ("HW Processor: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
     Write-Output ("HW CPUs: {0}" -f $myWMI.NumberOfLogicalProcessors )| out-file $fullFileName -Encoding ascii -Append
     Write-Output ("HW Cores: {0}" -f $myWMI.NumberOfCores )| out-file $fullFileName -Encoding ascii -Append
