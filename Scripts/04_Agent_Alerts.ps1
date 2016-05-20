@@ -309,7 +309,7 @@ else
 	$Connection = New-Object System.Data.SqlClient.SqlConnection
 	$Connection.ConnectionString = $SQLConnectionString
 	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sql1
+	$SqlCmd.CommandText = $sql2
 	$SqlCmd.Connection = $Connection
 	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 	$SqlAdapter.SelectCommand = $SqlCmd
