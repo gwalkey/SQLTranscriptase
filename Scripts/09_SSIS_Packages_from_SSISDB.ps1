@@ -58,6 +58,17 @@ if ($SQLInstance.Length -eq 0)
 Write-Output "Server $SQLInstance"
 
 
+# Test for Existence of BCP.EXE in the system path
+try
+{
+    $BcpFound = bcp.exe
+}
+catch
+{
+    Write-Warning "BCP.EXE not in PATH"
+    exit
+}
+
 # Server connection check
 try
 {
