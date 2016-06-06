@@ -404,7 +404,7 @@ $scripter.Options.ToFileOnly 			= $true
 $scripter.Options.Triggers              = $true
 
 # WithDependencies create one huge file for all tables in the order needed to maintain RefIntegrity
-$scripter.Options.WithDependencies		= $false # Leave OFF - creates issues - Jan 2016 we script out the DRO Tabel Order in a separate file now
+$scripter.Options.WithDependencies		= $false # Leave OFF - creates issues - Jan 2016 we script out the DRI Table Order down below
 $scripter.Options.XmlIndexes            = $true
 
 # Set scripter options to ensure only schema is scripted
@@ -457,6 +457,7 @@ foreach($sqlDatabase in $srv.databases)
     $Filegroups_path             = "$output_path\Filegroups\"
     $Sequences_path              = "$output_path\Sequences\"
     $Synonyms_path               = "$output_path\Synonyms\"
+    $DBScoped_Configs_path       = "$output_path\DBScopedConfigs\"
     $DBScoped_Creds_path         = "$output_path\DBScopedCredentials\"
     $QueryStore_path             = "$output_path\QueryStore\"
     $DBEDS_path                  = "$output_path\ExternalDataSources\"
@@ -490,6 +491,24 @@ foreach($sqlDatabase in $srv.databases)
 		Write-Output "$fixedDBName - Database Scoped Credentials"
 		$DBScopedCreds = $db.DatabaseScopedCredentials 
 		CopyObjectsToFiles $DBScopedCreds $DBScoped_Creds_path
+
+        # Database Scoped Configs
+        Write-Output "$fixedDBName - Database Scoped Configs"
+        if(!(test-path -path $DBScoped_Configs_path))
+		{
+			mkdir $DBScoped_Configs_path | Out-Null	
+		}
+        $myDBScopedOutfile =$DBScoped_Configs_path+"\DBScopedConfigs.sql"
+        "Use "+$DB.Name+"; `r`n" | Out-File -filepath $myDBScopedOutfile -encoding ascii -force
+        "ALTER DATABASE SCOPED CONFIGURATION SET MAXDOP = "+$Db.Maxdop | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET MAXDOP = " +$db.MaxDopForSecondary | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION SET LEGACY_CARDINALITY_ESTIMATION = "+$db.LegacyCardinalityEstimation | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET LEGACY_CARDINALITY_ESTIMATION = "+$db.LegacyCardinalityEstimationForSecondary | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION SET PARAMETER_SNIFFING = "+$db.ParameterSniffing | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET PARAMETER_SNIFFING = "+$db.ParameterSniffingForSecondary | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION SET QUERY_OPTIMIZER_HOTFIXES = "+$db.QueryOptimizerHotfixes | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+        "ALTER DATABASE SCOPED CONFIGURATION FOR SECONDARY SET QUERY_OPTIMIZER_HOTFIXES = "+$db.QueryOptimizerHotfixesForSecondary | Out-File -filepath $myDBScopedOutfile -encoding ascii -Append
+
 
 		# QueryStore Options
 		Write-Output "$fixedDBName - Query Store Options"
