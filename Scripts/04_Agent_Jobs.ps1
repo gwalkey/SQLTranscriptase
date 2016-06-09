@@ -230,13 +230,22 @@ else
 
 $jobs = $server.JobServer.Jobs 
  
-$fullfolderPath = "$BaseFolder\$sqlinstance\04 - Agent Jobs"
-if(!(test-path -path $fullfolderPath))
+# Create Output Folders
+$fullfolderPathEn = "$BaseFolder\$sqlinstance\04 - Agent Jobs\Enabled"
+if(!(test-path -path $fullfolderPathEn))
 {
-	mkdir $fullfolderPath | Out-Null
+	mkdir $fullfolderPathEn | Out-Null
 }
+
+$fullfolderPathDis = "$BaseFolder\$sqlinstance\04 - Agent Jobs\Disabled"
+if(!(test-path -path $fullfolderPathDis))
+{
+	mkdir $fullfolderPathDis | Out-Null
+}
+
  
  # Export with filename fixups
+ # Enabled Jobs First
 if ($jobs -ne $null)
 {
     Write-Output "Exporting Agent Jobs:"
@@ -251,7 +260,15 @@ if ($jobs -ne $null)
         $myjobname = $myjobname.replace('[','(')
         $myjobname = $myjobname.replace(']',')')
         
-        $FileName = "$fullfolderPath\$myjobname.sql"
+        if ($job.Isenabled)
+        {
+            $FileName = "$fullfolderPathEn\$myjobname.sql"
+        }
+        else
+        {
+            $FileName = "$fullfolderPathDis\$myjobname.sql"
+        }
+
         $job.Script() | Out-File -filepath $FileName
         $myjobname
     }
