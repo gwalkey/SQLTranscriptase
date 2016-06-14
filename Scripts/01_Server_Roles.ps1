@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the SQL Server Roles on the target server
 	
@@ -84,7 +84,6 @@ try
 		$SqlAdapter.Fill($DataSet) | out-null
 
 		# Close connection to sql server
-		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
         $serverauth="sql"
@@ -108,7 +107,6 @@ try
 		$SqlAdapter.Fill($DataSet) | out-null
 
 		# Close connection to sql server
-		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
 
         $serverauth = "win"
@@ -128,6 +126,10 @@ catch
     Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
     Set-Location $BaseFolder
 	exit
+}
+finally
+{
+	$Connection.Close()
 }
 
 
@@ -269,7 +271,7 @@ else
 
 }
 
-# Write out rows
+# Write out HTML summary
 $RunTime = Get-date
 
 $myoutputfile4 = $FullFolderPath+"\Server_Role_Members.html"
@@ -277,6 +279,78 @@ $myHtml1 = $results | select security_type, security_entity, principal_type, pri
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Roles</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Server Roles"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
+# Script out actual Server Role Create statements
+
+$sql2 = 
+"
+SELECT  
+'EXEC master..sp_addsrvrolemember @rolename = N''' + SR.name + ''', @loginame = N''' + SL.name + '''' 
+FROM master.sys.server_role_members SRM
+	JOIN master.sys.server_principals SR ON SR.principal_id = SRM.role_principal_id
+	JOIN master.sys.server_principals SL ON SL.principal_id = SRM.member_principal_id
+WHERE SL.type IN ('S','G','U')
+		AND SL.name NOT LIKE '##%##'
+		AND SL.name NOT LIKE 'NT AUTHORITY%'
+		AND SL.name NOT LIKE 'NT SERVICE%'
+		AND SL.name <> ('sa')
+ORDER by SR.Name, SL.Name;
+
+"
+
+if ($serverauth -eq "sql") 
+{
+	Write-Output "Using Sql Auth"
+	# .NET Method
+	# Open connection and Execute sql against server
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $sql2
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+	# Close connection to sql server
+	$Connection.Close()
+    $results2 = $DataSet.Tables[0].Rows
+
+}
+else
+{
+	Write-Output "Using Windows Auth"	
+		
+    # .NET Method
+	# Open connection and Execute sql against server using Windows Auth
+	$DataSet = New-Object System.Data.DataSet
+	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
+	$Connection = New-Object System.Data.SqlClient.SqlConnection
+	$Connection.ConnectionString = $SQLConnectionString
+	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
+	$SqlCmd.CommandText = $sql2
+	$SqlCmd.Connection = $Connection
+	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
+	$SqlAdapter.SelectCommand = $SqlCmd
+    
+	# Insert results into Dataset table
+	$SqlAdapter.Fill($DataSet) | out-null
+
+	# Close connection to sql server
+	$Connection.Close()
+	$results2 = $DataSet.Tables[0].Rows
+
+}
+
+$myoutputfile5 = $FullFolderPath+"\Server_Role_Members.sql"
+
+foreach($rolemember in $results2)
+{
+    $rolemember.Column1 | out-file $myoutputfile5 -Append -encoding ascii
+}
 
 
 # Return To Base
