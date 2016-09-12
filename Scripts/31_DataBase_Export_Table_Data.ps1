@@ -206,6 +206,14 @@ foreach($sqlDatabase in $srv.databases)
     foreach ($DBTable in $db.tables)
     {
 
+        # Check for Single Table requested in cmd line parameter
+        $mytable
+        $DBTable.Name
+
+        if ($myTable.Length -gt 0 -and $mytable -eq $DBTable.name)
+        {
+
+
         # Breakout TableName   
         $tblSchema = ($DBTable -split {$_ -eq "."})[0]
         $tblTable = ($DBTable -split {$_ -eq "."})[1]
@@ -275,6 +283,11 @@ foreach($sqlDatabase in $srv.databases)
 
             set-location $BaseFolder
         }
+
+
+
+        } # If
+
     } # Next Table
 
     set-location $DB_Path
