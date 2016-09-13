@@ -12,7 +12,7 @@ Upcoming Presentations:
 
 Previous Presentations:
 
-St Louis, MO - Sept 10, 2016
+St Louis, MO - Sept 10, 2016<br>
 http://www.sqlsaturday.com/542/EventHome.aspx
 
 Microsoft - Redmond, WA - April 2, 2016<br>
