@@ -161,7 +161,7 @@ if(!(test-path -path $FullFolderPath))
 
 if ($myDatabase.Length -gt 0)
 {
-    Write-Output ("Only for entire Database {0}"-f $myDatabase)
+    Write-Output ("Database: {0}"-f $myDatabase)
 }
 
 # -----------------------
@@ -199,7 +199,7 @@ foreach($sqlDatabase in $srv.databases)
         mkdir $DB_Path | Out-Null
     }
 
-    Write-Output ("Processing {0}" -f $FixedDBName)
+    
     # --------------------------------
     # Start Exporting Table Data
     # --------------------------------
@@ -207,12 +207,9 @@ foreach($sqlDatabase in $srv.databases)
     {
 
         # Check for Single Table requested in cmd line parameter
-        $mytable
-        $DBTable.Name
+        if ($myTable.Length -gt 0 -and $mytable -ne $DBTable.name) {continue}
 
-        if ($myTable.Length -gt 0 -and $mytable -eq $DBTable.name)
-        {
-
+        Write-Output ("Table: {0}" -f $DBTable.name)
 
         # Breakout TableName   
         $tblSchema = ($DBTable -split {$_ -eq "."})[0]
@@ -236,8 +233,8 @@ foreach($sqlDatabase in $srv.databases)
         {
             # Create Batch files to run the export itself, and call those
             # Data
-            $myoutstring = "@echo off `n bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" out "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
-            $myoutstring
+            $myoutstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" out "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
+            #$myoutstring
             $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
             # Format File
@@ -247,7 +244,7 @@ foreach($sqlDatabase in $srv.databases)
 
             # Import ETL
             $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
-            $myImportETL
+            #$myImportETL
             $myImportETL | out-file -FilePath "$DB_Path\BCPTableImport.cmd" -append -Encoding ascii
 
             set-location $DB_Path
@@ -286,7 +283,6 @@ foreach($sqlDatabase in $srv.databases)
 
 
 
-        } # If
 
     } # Next Table
 
