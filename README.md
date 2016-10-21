@@ -10,7 +10,6 @@ http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disast
 Upcoming Presentations:
 
 Oct 22, Richmond VA - ECPI Glen Allen Campus
-
 http://rvacodecamp.org/rva-code-camp-schedule/
 
 
