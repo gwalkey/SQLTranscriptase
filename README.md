@@ -9,7 +9,7 @@ http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disast
 
 Upcoming Presentations:
 
-Raleigh, NC - March 3, 2017
+Raleigh, NC - March 3, 2017<br>
 http://www.sqlsaturday.com/592/Sessions/Schedule.aspx
 
 Previous Presentations:
