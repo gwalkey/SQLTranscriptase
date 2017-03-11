@@ -24,7 +24,18 @@
 
 	
 .NOTES
-
+     # Types include
+     # 1 - Folder 
+     # 2 - Report
+     # 3 - File/Resource
+     # 4 - Linked Report
+     # 5 - DataSource
+     # 6 - Model
+     # 7 - Report Part
+     # 8 - Shared Dataset
+     # 9 - Report Part
+     # 11 - KPI
+     # 12 - Mobile Report
 	
 .LINK
 	https://github.com/gwalkey
@@ -89,6 +100,7 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
+        $myver = $results.Column1
 
         $serverauth="sql"
     }
@@ -113,6 +125,7 @@ try
 		# Close connection to sql server
 		$Connection.Close()
 		$results = $DataSet.Tables[0].Rows[0]
+        $myver = $results.Column1
 
         $serverauth = "win"
     }
@@ -179,32 +192,44 @@ if(!(test-path -path $folderPath))
 
 $mySQL = 
 "
-    --The first CTE gets the content as a varbinary(max)
+     --The first CTE gets the content as a varbinary(max)
     --as well as the other important columns for all reports,
     --data sources and shared datasets.
     WITH ItemContentBinaries AS
     (
       SELECT
+		 Path,
          ItemID,
          ParentID,
          Name,
          [Type],
          CASE Type
+		   WHEN 1 THEN 'Folder'
            WHEN 2 THEN 'Report'
+		   WHEN 3 THEN 'Binary'
            WHEN 5 THEN 'Data Source'
            WHEN 7 THEN 'Report Part'
            WHEN 8 THEN 'Shared Dataset'
+		   WHEN 11 THEN 'KPI'
+		   WHEN 12 THEN 'Mobile Report'
            ELSE 'Other'
          END AS TypeDescription,
-         CONVERT(varbinary(max),Content) AS Content
+         CONVERT(varbinary(max),Content) AS Content,
+		 case Type
+			when 11 then convert(xml,Property)
+			else null
+		 end as KPIDefinition
       FROM ReportServer.dbo.Catalog
-      WHERE Type IN (2,5,7,8)
+      WHERE Type IN (1,2,3,5,7,8,11,12)
+	  and [Name]<>'System Resources'
+	  and ParentID is not null
     ),
 
     --The second CTE strips off the BOM if it exists...
     ItemContentNoBOM AS
     (
       SELECT
+		 Path,
          ItemID,
          ParentID,
          Name,
@@ -215,28 +240,29 @@ $mySQL =
              THEN CONVERT(varbinary(max),SUBSTRING(Content,4,LEN(Content)))
            ELSE
              Content
-         END AS Content
+         END AS Content,
+		 KPIDefinition
       FROM ItemContentBinaries
     )
 
     --The outer query gets the content in its varbinary, varchar and xml representations...
     SELECT
+	   Path,
        ItemID,
        ParentID,
        Name,
        [Type],
        TypeDescription,
        Content, --varbinary
-       CONVERT(varchar(max),Content) AS ContentVarchar, --varchar
-       CONVERT(xml,Content) AS ContentXML --xml
+       CONVERT(varchar(max),Content) AS ContentVarchar,
+	   case 
+		when type = 3 THEN null
+		else Convert(xml,Content) 
+		END AS ContentXML,
+	   KPIDefinition
     FROM ItemContentNoBOM
-    order by 2
-"
+    order by 1,5
 
-$sqlToplevelfolders = "
-SELECT [ItemId],[ParentID],[Path]
-  FROM [ReportServer].[dbo].[Catalog]
-  where Parentid is not null and [Type] = 1  
 "
 
 
@@ -290,28 +316,7 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 
 	# Close connection to sql server
 	$Connection.Close()
-	$Packages = $DataSet.Tables[0].Rows
-
-
-    # .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlToplevelfolders
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$toplevelfolders = $DataSet.Tables[0].Rows
-    
+	$Packages = $DataSet.Tables[0].Rows   
 }
 else
 {
@@ -353,25 +358,6 @@ else
 	$Connection.Close()
 	$Packages = $DataSet.Tables[0].Rows
 
-   	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlToplevelfolders
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$toplevelfolders = $DataSet.Tables[0].Rows
-
 }
 
 # Create output folders
@@ -381,6 +367,9 @@ $fullfolderPathRDL = "$BaseFolder\$sqlinstance\11 - SSRS\RDL"
 $fullfolderPathSUB = "$BaseFolder\$sqlinstance\11 - SSRS\Timed Subscriptions"
 $fullfolderPathKey = "$BaseFolder\$sqlinstance\11 - SSRS\Encryption Key"
 $fullfolderPathSecurity = "$BaseFolder\$sqlinstance\11 - SSRS\Folder Permissions"
+#$fullfolderPathKPI = "$BaseFolder\$sqlinstance\11 - SSRS\KPIs"
+#$fullfolderPathMobile = "$BaseFolder\$sqlinstance\11 - SSRS\Mobile Reports"
+
 
 if(!(test-path -path $fullfolderPath))
 {
@@ -406,85 +395,120 @@ if(!(test-path -path $fullfolderPathSecurity))
 {
     mkdir $fullfolderPathSecurity | Out-Null
 }
+
+<#
+if(!(test-path -path $fullfolderPathKPI))
+{
+    mkdir $fullfolderPathKPI | Out-Null
+}
+
+if(!(test-path -path $fullfolderPathMobile))
+{
+    mkdir $fullfolderPathMobile | Out-Null
+}
+#>
+
 	
 # --------
 # 1) RDL
 # --------
-Write-Output "Writing RDL.."
+Write-Output "Writing Out System Objects..."
 
-# Create Output Folder Structure to mirror the SSRS ReportServer Catalog and dump the RDL into the respective folders
-foreach ($tlfolder in $toplevelfolders)
-{
-    # Only Script out the Items for this Folder
-    # Create Folder Structure
-    $myNewStruct = $fullfolderPathRDL+$tlfolder.Path
-    # Fixup forward slashes
-    $myNewStruct = $myNewStruct.replace('/','\')
-    if(!(test-path -path $myNewStruct))
-    {
-        mkdir $myNewStruct | Out-Null
-    }
 
-    # Only Script out the Reports in this Folder
-    $myParentID = $tlfolder.ItemID
+    # Process Each Item
     Foreach ($pkg in $Packages)
     {
-        if ($pkg.ParentID -eq $myParentID)
+
+        # Build Object Path
+        $myNewStruct = $fullfolderPathRDL+$pkg.Path
+        $myNewStruct = $myNewStruct.replace('/','\')
+
+        Write-Output("Name: {0}, Type: {1}, RSPath: {2}, FSPath: {3}" -f $pkg.Name, $pkg.Type, $pkg.Path, $myNewStruct)
+
+        $pkgName = $pkg.name
+
+        # Folder    
+        if ($pkg.Type -eq 1)
         {
-
-            # Get the Report ID, Name
-            $myItemID = $pkg.ItemID
-            $pkgName = $Pkg.name
-
-            # Report RDL
-            if ($pkg.Type -eq 2)
-            {    
-                #Export                
-                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.rdl"
+            if(!(test-path -path $myNewStruct))
+            {
+                mkdir $myNewStruct | Out-Null
             }
+        }
 
-            # Data Source
-            if ($pkg.Type -eq 5)
-            {    
+        # RDL
+        if ($pkg.Type -eq 2)
+        {
+            $exportFileName = "$myNewStruct"+".rdl"
+            $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath $exportFileName
+        }
 
-                # Export
-                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.dsrc.txt"
-            }
-
-            # Shared Dataset
-            if ($pkg.Type -eq 8)
-            {    
-
-                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.shdset.txt"
-            }
-
-            # Other Types include
-            # 3 - File/Resource
-            # 4 - Linked Report
-            # 6 - Model
-            # 7 - 
-            # 9 - 
-
+        # Binary
+        if ($pkg.Type -eq 3)
+        {
+            $filetype = ".txt"
+            if ($pkg.name.Contains("Definition")) {$filetype='.xml'}
+            if ($pkg.name.Contains(".json")) {$filetype='.json'}
+            if ($pkg.ContentVarchar.Substring(1,3) -eq "PNG") {$filetype='.png'}
+            if ($pkg.name.Contains(".colors")) {$filetype='.json'}
+            if ($pkg.ContentVarchar.Substring(0,2) -eq "PK") {$filetype='.zip'}
+            if ($pkg.name.Contains(".rsmobile")) {$filetype='.zip'}
             
+            
+            $exportFileName = $myNewStruct+$filetype
+            [io.file]::WriteAllBytes($exportFileName,$pkg.Content)
+            #$pkg.ContentXML | Out-File -Force -encoding ascii -FilePath $exportFileName
+        }
 
-        } # Parent
+
+        # Data Source
+        if ($pkg.Type -eq 5)
+        {    
+            $exportFileName = "$myNewStruct"+".dsrc.txt" 
+            $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath $exportFileName
+        }
+
+        # Shared Dataset
+        if ($pkg.Type -eq 8)
+        {   
+            $exportFileName = "$myNewStruct"+".shdset.txt" 
+            $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath $exportFileName
+        }
+
+        # KPI
+        if ($pkg.Type -eq 11)
+        {   
+            $exportFileName = "$myNewStruct"+".KPI.xml"
+            $pkg.KPIDefinition | Out-File -Force -encoding ascii -FilePath $exportFileName
+        }
+
+        # Mobile Report
+        if ($pkg.Type -eq 12)
+        {    
+            $exportFileName = "$myNewStruct"+".Mobile.json"
+            $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath $exportFileName
+        }
+
+      
     } # Items in this folder
-
-
-}
 
 
 # ------------------------
 # 2) SSRS Configuration
 # ------------------------
-Write-Output "Writing SSRS Settings to file..."
+# https://msdn.microsoft.com/en-us/library/ms152836.aspx
+# https://technet.microsoft.com/en-us/library/ms154070(v=sql.110).aspx
+
+Write-Output "Using WMI to write SSRS Settings to file..."
+
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
 [int]$wmi1 = 0
+# 2008
 try 
 {
-    $junk = get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v10\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
+    $junk = get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\RS_MSSQLSERVER\v10\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
     if ($?)
     {
         $wmi1 = 10
@@ -500,12 +524,12 @@ catch
     #Write-Output "NOT v10"
 }
 
-
+# 2012
 if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v11\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
+        $junk = get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v11\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
         if ($?)
         {
             $wmi1 = 11
@@ -522,11 +546,12 @@ if ($wmi1 -eq 0)
     }
 }
 
+# 2014
 if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v12\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
+        $junk = get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v12\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
         if ($?)
         {
             $wmi1 = 12
@@ -542,6 +567,35 @@ if ($wmi1 -eq 0)
         #Write-Output "NOT v12"
     }
 }
+
+# 2016
+if ($wmi1 -eq 0)
+{
+    try 
+    {       
+        $junk  = get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\RS_MSSQLSERVER\v13\Admin" -class MSREportServer_ConfigurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
+        if ($?)
+        {
+            $wmi1 = 13
+            Write-Output "Found SSRS v13 (2016)"
+        }
+        else
+        {
+            #Write-Output "NOT v12"
+        }
+    }
+    catch
+    {
+        #Write-Output "NOT v12"
+    }
+}
+
+
+if ($myver -like "9.0*") {$wmi1 = 9}
+if ($myver -like "10.0*") {$wmi1 = 10}
+if ($myver -like "11.0*") {$wmi1 = 11}
+if ($myver -like "12.0*") {$wmi1 = 12}
+if ($myver -like "13.0*") {$wmi1 = 13}
 
 # Reset default PS error handler - for WMI error trapping
 $ErrorActionPreference = $old_ErrorActionPreference 
@@ -569,6 +623,11 @@ copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS11.MSSQLSERV
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS12.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
 copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS12.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
+# 2016
+$copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS13.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS13.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+
+
 # -----------------------
 # 4) Database Encryption Key
 # -----------------------
@@ -577,12 +636,12 @@ Write-Output ("WMI found SSRS version {0}" -f $wmi1)
 
 if ($wmi1 -eq 10)
 {
-    Write-Output "SSRS 2008 - cant access Encryption key from WMI. Please use rskeymgmt.exe on server to export the key"
+    Write-Output "SSRS 2008 - cant access Encryption key from WMI. Please use the rskeymgmt.exe utility on the server to export the key"
     New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
-    Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
+    Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
 }
 
-# We use WMI against 2012/2014 SSRS Servers
+# We use WMI against 2012/2014/2016 SSRS Servers
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
@@ -602,14 +661,14 @@ if ($wmi1 -eq 11)
         else
         {
             New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
-            Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
+            Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
             Write-Output "Error Connecting to WMI for config file (v11)"
         }
     }
     catch
     {
         New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
-        Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii        
+        Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii        
         Write-Output "Error Connecting to WMI for config file (v11) 2"
     }
 }
@@ -619,7 +678,7 @@ if ($wmi1 -eq 12)
 {
     try
     {
-        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\rs_mssqlserver\v12\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\rs_mssqlserver\v12\admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance
         if ($?)
         {
             $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
@@ -630,17 +689,46 @@ if ($wmi1 -eq 12)
         else
         {
             New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
-            Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii            
+            Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii            
             Write-Output "Error Connecting to WMI for config file (v12)"
         }
     }
     catch
     {
         New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
-        Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
+        Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
         Write-Output "Error Connecting to WMI for config file (v12) 2"
     }
 }
+
+# 2016
+if ($wmi1 -eq 13)
+{
+    try
+    {
+        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\rs_mssqlserver\v13\admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance
+        if ($?)
+        {
+            $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
+            $stream = [System.IO.File]::Create("$fullfolderPathKey\ssrs_master_key.snk", $result.KeyFile.Length);
+            $stream.Write($result.KeyFile, 0, $result.KeyFile.Length);
+            $stream.Close();
+        }
+        else
+        {
+            New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
+            Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii            
+            Write-Output "Error Connecting to WMI for config file (v13)"
+        }
+    }
+    catch
+    {
+        New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
+        Add-Content -Value "Use the rskeymgmt.exe utility on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
+        Write-Output "Error Connecting to WMI for config file (v13) 2"
+    }
+}
+
 
 # Reset default PS error handler - cause WMI error trapping sucks
 $ErrorActionPreference = $old_ErrorActionPreference 
@@ -727,12 +815,10 @@ inner join
 	[ReportServer].[dbo].[ReportSchedule]  I
 on 
 	S.ScheduleID = I.ScheduleID
-
 inner join 
 	[ReportServer].[dbo].[Catalog] c
 on 
 	I.reportID = C.ItemID
-						
 order by DATEPART(hh,s.StartDate), 3, 4
 "
 
@@ -795,7 +881,6 @@ Write-Output "Visual Timed Subscriptions..."
 $RunTime = Get-date
 
 $HTMLFileName = "$fullfolderPathSUB\Visual_Subscription_Schedule.html"
-
 
 $Skeds | select Folder, Report, State, RecurrenceType, RunTime, Weeks_Interval, Minutes_Interval, `
 Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec, `
@@ -984,7 +1069,6 @@ else
 
 # Reset default PS error handler - for WMI error trapping
 $ErrorActionPreference = $old_ErrorActionPreference 
-
 
 
 $myCSS | out-file "$fullfolderPathSecurity\HTMLReport.css" -Encoding ascii
