@@ -9,10 +9,13 @@ http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disast
 
 Upcoming Presentations:
 
-Raleigh, NC - March 11, 2017<br>
-http://www.sqlsaturday.com/592/Sessions/Schedule.aspx
+Baltimore, MD May 6, 2017
+http://www.sqlsaturday.com/615/eventhome.aspx
 
 Previous Presentations:
+
+Raleigh, NC - March 11, 2017<br>
+http://www.sqlsaturday.com/592/Sessions/Schedule.aspx
 
 Oct 22, Richmond VA - ECPI Glen Allen Campus<br>
 http://rvacodecamp.org/rva-code-camp-schedule/
