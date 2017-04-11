@@ -9,7 +9,7 @@ http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disast
 
 Upcoming Presentations:
 
-Baltimore, MD May 6, 2017
+Baltimore, MD May 6, 2017<br>
 http://www.sqlsaturday.com/615/eventhome.aspx
 
 Previous Presentations:
