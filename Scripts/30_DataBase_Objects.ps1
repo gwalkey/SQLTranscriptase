@@ -428,7 +428,8 @@ foreach($sqlDatabase in $srv.databases)
 	}
 
     # Skip System Databases
-    if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB','distribution') {continue}
+    #if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB','distribution') {continue}
+    if ($sqlDatabase.Name -in 'Model','MSDB','TempDB','SSISDB','distribution','Master') {continue}
 
     # Skip Offline Databases (SMO still enumerates them, but cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
@@ -466,6 +467,7 @@ foreach($sqlDatabase in $srv.databases)
     $XMLSC_path                  = "$output_path\XMLSchemaCollections\"
     $DBColumnEncryptionKey_path  = "$output_path\ColumnEncryptionKeys\"
     $DBColumnMasterKey_path      = "$output_path\ColumnMasterKeys\"
+    $DBRole_path                 = "$output_path\DBRoles\"
      
 
     # --------------------------------
@@ -485,7 +487,7 @@ foreach($sqlDatabase in $srv.databases)
     $MainDB.Script() | out-file -FilePath $myoutputfile -encoding ascii -Force
 
 	# 2016+ Only Features
-	if ($myver -like "13.0*")
+	if ($myver -like "13.0*" -or $myver -like "14.0*")
 	{
 		# Database Scoped Credentials
 		Write-Output "$fixedDBName - Database Scoped Credentials"
@@ -574,6 +576,48 @@ foreach($sqlDatabase in $srv.databases)
     
     #$mySettings | sort-object Name | select Name, Value | ConvertTo-Html  -CSSUri "$DBSettingsPath\HTMLReport.css"| Set-Content "$DBSettingsPath\HtmlReport.html"
        
+    # DBRoles
+    Write-Output "$fixedDBName - Roles"
+
+    # Create Output Sub Folder
+    if(!(test-path -path $DBRole_path))
+    {
+        mkdir $DBRole_path | Out-Null	
+    }
+
+    # Get Role Properties and Members
+    foreach ($role in $db.Roles)
+    {
+        # Create Role File
+        $RoleFile = $DBRole_path+$role.name+".sql"
+        $RoleName = $role.Name
+        "Use "+$db.name | out-file $RoleFile -Encoding ascii -Append
+        "GO " | out-file $RoleFile -Encoding ascii -Append
+        " " | out-file $RoleFile -Encoding ascii -Append
+        "CREATE ROLE "+$RoleName | out-file $RoleFile -Encoding ascii -Append
+        " " | out-file $RoleFile -Encoding ascii -Append
+
+        foreach ($Roleproperty in $role.Properties)
+        {
+            "--- Role Property {0}={1}" -f $RoleProperty.name,$RoleProperty.value  | out-file $RoleFile -Encoding ascii -Append
+        }
+        " " | out-file $RoleFile -Encoding ascii -Append
+
+        $RolePermissions = $role.EnumObjectPermissions()
+        foreach ($RolePermission in $RolePermissions)
+        {
+            "Role Permission {0}={1}" -f $RoleProperty.name,$RoleProperty.value  | out-file $RoleFile -Encoding ascii -Append
+        }
+
+        "---Members:" | out-file $RoleFile -Encoding ascii -Append
+        $members = $role.EnumMembers()
+        
+        foreach ($member in $members)
+        {
+            "EXEC sp_addrolemember '$RoleName','$member'"  | out-file $RoleFile -Encoding ascii -Append
+        }
+    }
+
     # Tables
     Write-Output "$fixedDBName - Tables"
 
