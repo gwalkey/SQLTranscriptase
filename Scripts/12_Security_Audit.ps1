@@ -321,7 +321,7 @@ OPEN db_cursor
 FETCH NEXT FROM db_cursor INTO @Database_Name
 WHILE (@@fetch_status =0)
 BEGIN
-	set @sqlcmd = 'Use '+@Database_Name+'; '
+	set @sqlcmd = 'Use ['+@Database_Name+']; '
 	set @sqlcmd=@sqlcmd + '
 	insert into #Login2UserMapping
 	SELECT 
