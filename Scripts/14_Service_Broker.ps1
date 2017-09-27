@@ -11,6 +11,8 @@
    Queues   
    Services
    Routes
+   Endpoints
+   Remote Service Bindings
    
 .EXAMPLE
     14_Service_Broker.ps1 localhost
@@ -208,6 +210,20 @@ if(!(test-path -path $output_path))
         mkdir $output_path | Out-Null
     }
 
+
+# Export Endpoints (Not part of the Database/Servce Broker Setup, but the Server Object, AKA Endpoint is a TCP Listener)
+foreach ($Endpoint in $srv.Endpoints)
+{
+    # Skip System Endpoints
+    if ($Endpoint.id -lt 65535) {continue}
+
+    $strmyFixedEndPointName = $Endpoint.Name.Replace('/','-')
+    $strmyBrokerObjName = "Broker_Endpoint_"+$strmyFixedEndPointName+".sql"    
+    $strmyBObj = $Endpoint.script()
+    $output_path = "$BaseFolder\$SQLInstance\14 - Service Broker\"+$strmyBrokerObjName
+    $strmyBObj | out-file $output_path -Force -encoding ascii
+}
+
 # -----------------------
 # iterate over each DB
 # -----------------------
@@ -240,7 +256,8 @@ foreach($sqlDatabase in $srv.databases)
     {
         # Script out objects for each DB
         $strmyBrokerMsgTypeName = $MsgType1.Name
-        $strmyBrokerMsgType = $fixedDBName+"_Broker_MsgType_"+$strmyBrokerMsgTypeName+".sql"
+        $fixedObjName = $strmyBrokerMsgTypeName.replace('/','-')
+        $strmyBrokerMsgType = $fixedDBName+"_Broker_MsgType_"+$fixedObjName+".sql"
         $strmyBObj = $MsgType1.script()
         $output_path = $DB_Broker_output_path+"\"+$strmyBrokerMsgType
 
@@ -263,7 +280,8 @@ foreach($sqlDatabase in $srv.databases)
     {
         # Script out objects for each DB
         $strmyBrokerMsgTypeName = $MsgType2.Name
-        $strmyBrokerMsgType = $fixedDBName+"_Broker_Contract_"+$strmyBrokerMsgTypeName+".sql"
+        $fixedObjName = $strmyBrokerMsgTypeName.replace('/','-')
+        $strmyBrokerMsgType = $fixedDBName+"_Broker_Contract_"+$fixedObjName+".sql"
         $strmyBObj = $MsgType2.script()
         $output_path = $DB_Broker_output_path+"\"+$strmyBrokerMsgType
 
@@ -286,7 +304,8 @@ foreach($sqlDatabase in $srv.databases)
     {
         # Script out objects for each DB
         $strmyBrokerMsgTypeName = $MsgType3.Name
-        $strmyBrokerMsgType = $fixedDBName+"_Broker_Queue_"+$strmyBrokerMsgTypeName+".sql"
+        $fixedObjName = $strmyBrokerMsgTypeName.replace('/','-')
+        $strmyBrokerMsgType = $fixedDBName+"_Broker_Queue_"+$fixedObjName+".sql"
         try
         {
             $strmyBObj = $MsgType3.script()
@@ -317,7 +336,8 @@ foreach($sqlDatabase in $srv.databases)
     {
         # Script out objects for each DB
         $strmyBrokerMsgTypeName = $MsgType4.Name
-        $strmyBrokerMsgType = $fixedDBName+"_Broker_Service_"+$strmyBrokerMsgTypeName+".sql"
+        $fixedObjName = $strmyBrokerMsgTypeName.replace('/','-')
+        $strmyBrokerMsgType = $fixedDBName+"_Broker_Service_"+$fixedObjName+".sql"
         $strmyBObj = $MsgType4.script()
         $output_path = $DB_Broker_output_path+"\"+$strmyBrokerMsgType
 
@@ -340,7 +360,8 @@ foreach($sqlDatabase in $srv.databases)
     {
         # Script out objects for each DB
         $strmyBrokerMsgTypeName = $MsgType5.Name
-        $strmyBrokerMsgType = $fixedDBName+"_Broker_Route_"+$strmyBrokerMsgTypeName+".sql"
+        $fixedObjName = $strmyBrokerMsgTypeName.replace('/','-')
+        $strmyBrokerMsgType = $fixedDBName+"_Broker_Route_"+$fixedObjName+".sql"
         $strmyBObj = $MsgType5.script()
         $output_path = $DB_Broker_output_path+"\"+$strmyBrokerMsgType
 
@@ -359,6 +380,35 @@ foreach($sqlDatabase in $srv.databases)
         }
         
     }
+
+
+    # 6)
+    # Remote Service Bindings
+    foreach($MsgType6 in $db.ServiceBroker.RemoteServiceBindings)
+    {
+        # Script out objects for each DB
+        $strmyBrokerMsgTypeName = $MsgType6.Name
+        $fixedObjName = $strmyBrokerMsgTypeName.replace('/','-')
+        $strmyBrokerMsgType = $fixedDBName+"_Broker_Remote_Service_Binding_"+$fixedObjName+".sql"
+        $strmyBObj = $MsgType6.script()
+        $output_path = $DB_Broker_output_path+"\"+$strmyBrokerMsgType
+
+        
+        # Not system Objects
+        
+        if ($MsgType6.Name -ne "AutoCreatedLocal")
+        {
+            # Only create path if something to write
+            if(!(test-path -path $DB_Broker_output_path))
+            {
+                mkdir $DB_Broker_output_path | Out-Null
+            }
+            $strmyBObj | out-file $output_path -Force -encoding ascii
+            $anyfound = $true
+        }
+        
+    }
+
 
 if ($anyfound-eq $true)
 {
