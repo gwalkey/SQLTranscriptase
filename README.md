@@ -8,6 +8,7 @@ Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
 Upcoming Presentations:
+
 Charlotte, NC October 14, 2017<br>
 http://www.sqlsaturday.com/683/Sessions/Schedule.aspx
 
