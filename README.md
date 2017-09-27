@@ -1,5 +1,5 @@
 # SQLTranscriptase 
-SQL Server Documentation in Powershell<br>
+<h2>SQL Server Documentation in Powershell</h2><br>
 Check the Wiki for Installation instructions
 
 Shoot me an email at dev@insyncva.com with suggestions
