@@ -12,6 +12,9 @@ http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disast
 
 <h2>Version History</h2>
 
+<h3>April 2, 2018</h3>
+Will refactor to use functions, modules and emit objects 
+
 <h3>Jan 26, 2018</h3>
 Added 50_Security_Tree<br>
 Exports All SQL Logins and their explicit permissions in Each Database
