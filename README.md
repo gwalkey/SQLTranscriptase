@@ -1,5 +1,5 @@
 # SQLTranscriptase 
-<h2>SQL Server Documentation in Powershell</h2><br>
+<h2>SQL Server Documentation in Powershell</h2>
 
 <h3>I will be refactoring these this spring, as I originally wrote these being new to Powershell</h3>
 
