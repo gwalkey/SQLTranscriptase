@@ -25,7 +25,7 @@
 	https://github.com/gwalkey
 	
 #>
-
+[CmdletBinding()]
 Param(
     [parameter(Position=0,mandatory=$false,ValueFromPipeline)]
     [ValidateNotNullOrEmpty()]
@@ -40,102 +40,50 @@ Param(
     [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-# Import-Module "sqlps" -DisableNameChecking -erroraction SilentlyContinue
-Import-Module ".\LoadSQLSMO"
+# Import SQL Transscriptase Common Modules
+Import-Module ".\SQLTranscriptase.psm1"
+Import-Module ".\LoadSQLSMO.psm1"
 LoadSQLSMO
 
+Set-StrictMode -Version latest;
 
-#  Script Name
+# Save Currnt Location
+[string]$BaseFolder = (get-location).path
+
+# Splash
 Write-Host -f Yellow -b Black "01 - Server Appliance"
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./01_Server_Appliance.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
 Write-Output "Server $SQLInstance"
 
-# fix target servername if given a SQL named instance
+# Get servername if parameter contains a SQL named instance
 $WinServer = ($SQLInstance -split {$_ -eq "," -or $_ -eq "\"})[0]
-
 
 # Server connection check
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
+    $SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;connect timeout=5;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $myver = $results.Column1
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;connect timeout=5;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $myver = $results.Column1
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
@@ -149,29 +97,45 @@ if(!(test-path -path $fullfolderPath))
 }
 
 
-# Set Local Vars
-[string]$server = $SQLInstance
-
+# New UP SMO Server Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    try
+    {
+        $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
+    }
+    catch
+    {
+        Write-Output "Cannot Create an SMO Object"
+        Write-Output("Error is: {0}" -f $error[0])
+        exit
+    }
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
-    $srv.ConnectionContext.LoginSecure=$false
-    $srv.ConnectionContext.set_Login($myuser)
-    $srv.ConnectionContext.set_Password($mypass)    
+    try
+    {
+        $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
+        $srv.ConnectionContext.LoginSecure=$false
+        $srv.ConnectionContext.set_Login($myuser)
+        $srv.ConnectionContext.set_Password($mypass)    
+    }
+    catch
+    {
+        Write-Output "Cannot Create an SMO Object"
+        Write-Output("Error is: {0}" -f $error[0])
+        exit
+    }
 }
 
 
-# Dump info to output file
+# Dump Initial Server info to output file
 $fullFileName = $fullfolderPath+"\01_Server_Appliance.txt"
-New-Item $fullFileName -type file -force  |Out-Null
+New-Item $fullFileName -type file -force | Out-Null
 Add-Content -Value "Server Hardware and Software Capabilities for $SQLInstance `r`n" -Path $fullFileName -Encoding Ascii
 
 
-# Server Uptime
+# Get Server Uptime
 if ($myver -like "9.0*")
 {
     $mysql11 = 
@@ -190,71 +154,16 @@ else
 # connect correctly
 if ($serverauth -eq "win")
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQL11
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -ne 0) 
-    {
-	    $sqlresults11 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults11 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
-
+	$sqlresults11 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql11
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQL11
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -gt 0) 
-    {
-	    $sqlresults11 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults11 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
-
+    $sqlresults11 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql11 -User $myuser -Password $mypass
 }
 
 if ($sqlresults11 -ne $null)
 {
-    #Add-Content -Value "Server Uptime:" -Path $fullFileName -Encoding Ascii
-    "Engine Start Time: " + $sqlresults11.Rows[0].sqlserver_start_time+"`r`n" | out-file $fullFileName -Encoding ascii -Append  
+    "Engine Start Time: " + $sqlresults11.sqlserver_start_time+"`r`n" | out-file $fullFileName -Encoding ascii -Append  
 }
 else
 {
@@ -263,8 +172,8 @@ else
 
 
 
-# SQL
-$mySQLQuery12 = 
+# Get SQL Engine Installation Date
+$mysql12 = 
 "
 USE [master];
 
@@ -274,82 +183,21 @@ WHERE	[dbid] > 4 --not master, tempdb, model, msdb
 ;
 "
 
-# Catch SQL Errors
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
-# connect correctly
+# Connect correctly
 if ($serverauth -eq "win")
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLQuery12
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -gt 0) 
-    {
-	    $sqlresults12 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults12 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
-
+    $sqlresults12 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql12
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLQuery12
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -gt 0) 
-    {
-	    $sqlresults12 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults12 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
-
+    $sqlresults12 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql12 -User $myuser -Password $mypass
 }
-
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference 	
 
 
 if ($sqlresults12 -ne $null) {$myCreateDate = $sqlresults12.column1} else {$myCreateDate ='Unknown'}
 
 
-# Get More Config Settings
+# Get SQL Server Config Settings using SMO
 $mystring =  "SQL Server Name: " +$srv.Name 
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
@@ -437,7 +285,7 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 try
 {
 
-    $myWMI = Get-WmiObject -class Win32_OperatingSystem  -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
+    $myWMI = Get-WmiObject –class Win32_OperatingSystem  -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, BuildNumber, BuildType, CurrentTimeZone, InstallDate, SystemDrive, SystemDevice, SystemDirectory
 
     Write-Output ("OS Host Name: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
     Write-Output ("OS BuildNumber: {0}" -f $myWMI.BuildNumber )| out-file $fullFileName -Encoding ascii -Append
@@ -464,7 +312,7 @@ catch
 # Turn off default Error Handler for WMI
 try
 {
-    $myWMI = Get-WmiObject -class Win32_Computersystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select manufacturer
+    $myWMI = Get-WmiObject  -class Win32_Computersystem -ComputerName $WinServer -ErrorAction SilentlyContinue | select manufacturer
     Write-Output ("HW Manufacturer: {0}" -f $myWMI.Manufacturer ) | out-file $fullFileName -Encoding ascii -Append
 
 }
@@ -479,7 +327,7 @@ catch
 try
 {
 
-    $myWMI = Get-WmiObject -class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, NumberOfLogicalProcessors, NumberOfCores
+    $myWMI = Get-WmiObject –class Win32_processor -ComputerName $WinServer -ErrorAction SilentlyContinue | select Name, NumberOfLogicalProcessors, NumberOfCores
     Write-Output ("HW Processor: {0}" -f $myWMI.Name ) | out-file $fullFileName -Encoding ascii -Append
     Write-Output ("HW CPUs: {0}" -f $myWMI.NumberOfLogicalProcessors )| out-file $fullFileName -Encoding ascii -Append
     Write-Output ("HW Cores: {0}" -f $myWMI.NumberOfCores )| out-file $fullFileName -Encoding ascii -Append
@@ -494,44 +342,41 @@ catch
 " " | out-file $fullFileName -Encoding ascii -Append
 
 
-# PowerPlan
-# Turn off default Error Handler for WMI
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
-$mystring41 = Get-WmiObject -namespace "root\cimv2\power" -class Win32_PowerPlan -ComputerName $WinServer | where {$_.IsActive} | select ElementName
-
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference
-
+# Get PowerPlan
 try
 {
-    if ($mystring41.ElementName -ne "High performance") 
+    $mystring41 = Get-CimInstance -N root\cimv2\power -Class win32_PowerPlan -ComputerName $WinServer -ErrorAction Stop | where-object {$_.isactive -eq $true}  | Select-Object -expandproperty ElementName
+    
+    if ($mystring41 -ne "High performance") 
     {
-        Write-output ("PowerPlan: {0} *not optimal in a VM*" -f $mystring41.ElementName)| out-file $fullFileName -Encoding ascii -Append
+        Write-output ("PowerPlan: {0} *not optimal in a VM*" -f $mystring41)| out-file $fullFileName -Encoding ascii -Append
+        Write-output ("powercfg.exe /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" -f $mystring41)| out-file $fullFileName -Encoding ascii -Append
     }
     else
     {
-        Write-output ("PowerPlan: {0} " -f $mystring41.ElementName)| out-file $fullFileName -Encoding ascii -Append
+        Write-output ("PowerPlan: {0} " -f $mystring41)| out-file $fullFileName -Encoding ascii -Append
     }
-    
 }
 catch
 {
-    Write-Output "Error getting PowerPlan via WMI - WMI/Firewall issue? "| out-file $fullFileName -Encoding ascii -Append
-    Write-Output "Error getting PowerPlan via WMI - WMI/Firewall issue? "
+    Write-Output("Error getting PowerPlan via WMI - WMI/Firewall issue? ")
+    Write-Output("Error: {0}" -f $error[0])
+    Write-Output( "Error getting PowerPlan via WMI - WMI/Firewall issue? ")| out-file $fullFileName -Encoding ascii -Append
+    Write-Output("Error: {0}" -f $error[0])| out-file $fullFileName -Encoding ascii -Append
+ 
 }
+
 
 " " | out-file $fullFileName -Encoding ascii -Append
 
 
-# PowerShell Version
+# Get PowerShell Version
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
 
 if ($SQLInstance -eq 'localhost')
 {
-    $MyPSVersion = $PSVersionTable.PSVersion
+    $MyPSVersion = (Get-Host).Version
 }
 else
 {
@@ -552,132 +397,101 @@ else
 {
     $mystring =  "Powershell Version: Unknown"
 }
-$mystring | out-file $fullFileName -Encoding ascii -Append
+$mystring+"`r`n" | out-file $fullFileName -Encoding ascii -Append
 
 $ErrorActionPreference = $old_ErrorActionPreference
 
 
-# Nic Adapter Configs
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
-$myString = "`r`nNetwork Adapters:"
-$mystring | out-file $fullFileName -Encoding ascii -Append
-
+# Get Network Adapter info
 if ($SQLInstance -eq 'localhost')
 {
-    $Adapters = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -filter IPEnabled=TRUE -ComputerName .
+    try
+    {
+        $Adapters = (Get-CIMInstance Win32_NetworkAdapterConfiguration -ComputerName . -ErrorAction stop).where({$PSItem.IPEnabled})
+    }
+    catch
+    {
+        Write-Output "Error Getting NetworkAdapter Info using Get-CimInstance"
+        Write-Output "Error Getting NetworkAdapter Info using Get-CimInstance"| out-file $fullFileName -Encoding ascii -Append
+    }
 }
 else
 {
-    $Adapters = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -filter IPEnabled=TRUE -ComputerName $WinServer
+    try
+    {
+        $Adapters = (Get-CIMInstance Win32_NetworkAdapterConfiguration -ComputerName $WinServer -ErrorAction stop).where({$PSItem.IPEnabled})
+    }
+    catch
+    {
+        Write-Output "Error Getting NetworkAdapter Info using Get-CimInstance"
+        Write-Output "Error Getting NetworkAdapter Info using Get-CimInstance"| out-file $fullFileName -Encoding ascii -Append
+    }
 }
 
 foreach ($Adapter in $Adapters)
 {
-    $mystring =  "Name: "+ $Adapter.ServiceName+"`r`n"
+    # Get all Adapter Properties
+    $AdapterSettings = [PSCustomObject]@{ 
+    System = $Adapter.PSComputerName 
+    Description = $Adapter.Description 
+    IPAddress = $Adapter.IPAddress 
+    SubnetMask = $Adapter.IPSubnet 
+    DefaultGateway = $Adapter.DefaultIPGateway 
+    DNSServers = $Adapter.DNSServerSearchOrder 
+    DNSDomain = $Adapter.DNSDomain 
+    DNSSuffix = $Adapter.DNSDomainSuffixSearchOrder 
+    FullDNSREG = $Adapter.FullDNSRegistrationEnabled 
+    WINSLMHOST = $Adapter.WINSEnableLMHostsLookup 
+    WINSPRI = $Adapter.WINSPrimaryServer 
+    WINSSEC = $Adapter.WINSSecondaryServer 
+    DOMAINDNSREG = $Adapter.DomainDNSRegistrationEnabled 
+    DNSEnabledWINS = $Adapter.DNSEnabledForWINSResolution 
+    TCPNETBIOSOPTION = $Adapter.TcpipNetbiosOptions 
+    IsDHCPEnabled = $Adapter.DHCPEnabled 
+    AdapterName = $Adapter.Servicename
+    MACAddress = $Adapter.MACAddress 
+    } 
+
+    $mystring ="Network Adapter[" +[array]::IndexOf($Adapters,$Adapter)+"]`r`n"
+    $mystring+=  "Name: "+ $AdapterSettings.AdapterName+"`r`n"
     $index = 0
-    foreach ( $Address in $Adapter.IPAddress)
+    foreach ( $Address in $AdapterSettings.IPAddress)
     {
-        $mystring+= "Address["+[array]::IndexOf($Adapter.IPAddress,$Address)+ "]: "+$Address+"`r`n"
+        $mystring+= "Address["+[array]::IndexOf($AdapterSettings.IPAddress,$Address)+ "]: "+$Address+"`r`n"
     }
 
-    foreach ( $subnet in $Adapter.IPSubnet)
+    foreach ( $subnet in $AdapterSettings.SubnetMask)
     {
-        $mystring+= "Subnet["+[array]::IndexOf($Adapter.IPSubnet,$subnet)+ "]: "+$Subnet+"`r`n"
+        $mystring+= "Subnet["+[array]::IndexOf($AdapterSettings.SubnetMask,$subnet)+ "]: "+$Subnet+"`r`n"
     }
     
-    $mystring+= "Gateway: {0}" -f $Adapter.DefaultIPGateway+"`r`n"
-    $mystring+="Description: {0}" -f $Adapter.Description+"`r`n"
-
-    # Resolve
-    #$mystring+="DNS Name: {0}" -f $address | Resolve-DnsName | select server 
-
+    $mystring+= "Gateway: {0}" -f $AdapterSettings.DefaultGateway+"`r`n"
+    $mystring+="Description: {0}" -f $AdapterSettings.Description+"`r`n"
+    $mystring+="DNS Name: {0}" -f $AdapterSettings.DNSServers
+    $mystring+="`r`n" 
+    $mystring | out-file $fullFileName -Encoding ascii -Append
 }
-$mystring | out-file $fullFileName -Encoding ascii -Append
-$ErrorActionPreference = $old_ErrorActionPreference
 
-# Footer
-$mystring5 =  "`r`nSQL Build reference: http://sqlserverbuilds.blogspot.com/ "
-$mystring5| out-file $fullFileName -Encoding ascii -Append
-
-$mystring5 =  "`r`nSQL Build reference: http://sqlserverupdates.com/ "
-$mystring5| out-file $fullFileName -Encoding ascii -Append
+# Section Footer
+"`r`nSQL Build reference: http://sqlserverbuilds.blogspot.com/ " | out-file $fullFileName -Encoding ascii -Append
+"`r`nSQL Build reference: http://sqlserverupdates.com/ " | out-file $fullFileName -Encoding ascii -Append
+"`r`nMore Detailed Diagnostic Queries here:`r`nhttp://www.sqlskills.com/blogs/glenn/sql-server-diagnostic-information-queries-for-september-2015" | out-file $fullFileName -Encoding ascii -Append
 
 
-$mystring5 = "`r`nMore Detailed Diagnostic Queries here:`r`nhttp://www.sqlskills.com/blogs/glenn/sql-server-diagnostic-information-queries-for-september-2015"
-$mystring5| out-file $fullFileName -Encoding ascii -Append
-
-
-
-# Loaded DLLs
-$mySQLquery15 = "select * from sys.dm_os_loaded_modules order by description"
+# Get Loaded DLLs
+$mysql15 = "select * from sys.dm_os_loaded_modules order by description"
 
 
 # connect correctly
 if ($serverauth -eq "win")
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLQuery15
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -ne 0) 
-    {
-	    $sqlresults15 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults15 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
-
+	$sqlresults15 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql15
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLQuery15
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -gt 0) 
-    {
-	    $sqlresults15 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults15 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
+	$sqlresults15 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql15 -User $myuser -Password $mypass
 
 }
-
 
 # HTML CSS
 $head = "<style type='text/css'>"
@@ -717,83 +531,30 @@ $RunTime = Get-date
 
 $myoutputfile4 = $FullFolderPath+"\02_Loaded_Dlls.html"
 $myHtml1 = $sqlresults15 | select file_version, product_version, debug, patched, prerelease, private_build, special_build, language, company, description, name| `
-ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Loaded DLLs</h2>"
-Convertto-Html -head $head -Body "$myHtml1" -Title "Loaded DLLs"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Loaded DLLs</h2><h3>Ran on : $RunTime</h3>"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Loaded DLLs" | Set-Content -Path $myoutputfile4
 
-# Trace Flags
-$mySQLquery3= "dbcc tracestatus();"
+# Get Trace Flags
+$mysql16= "dbcc tracestatus();"
 
 # connect correctly
 if ($serverauth -eq "win")
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery3
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -ne 0) 
-    {
-	    $sqlresults3 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults3 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
-
+	$sqlresults16 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql16
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery3
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-    # Eval Return Set
-    if ($DataSet.Tables.Count -gt 0) 
-    {
-	    $sqlresults3 = $DataSet.Tables[0]
-    }
-    else
-    {
-        $sqlresults3 =$null
-    }
-
-    # Close connection to sql server
-	$Connection.Close()
+	$sqlresults16 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql16 -User $myuser -Password $mypass
 
 }
 
-if ($sqlresults3 -ne $null)
+if ($sqlresults16 -ne $null)
 {
     Write-Output ("Trace Flags Found")
     $myoutputfile4 = $FullFolderPath+"\03_Trace_Flags.html"
-    $myHtml1 = $sqlresults3 | select TraceFlag, Status, Global, Session | `
-    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Trace Flags</h2>"
-    Convertto-Html -head $head -Body "$myHtml1" -Title "Trace Flags"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4    
+    $myHtml1 = $sqlresults16 | select TraceFlag, Status, Global, Session | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Trace Flags</h2><h3>Ran on : $RunTime</h3>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Trace Flags" | Set-Content -Path $myoutputfile4    
 }
 else
 {
@@ -801,7 +562,7 @@ else
 }
 
 
-# Device Drivers
+# Get Device Drivers
 $WinServer = ($SQLInstance -split {$_ -eq "," -or $_ -eq "\"})[0]
 if ($WinServer -eq 'localhost' -or $WinServer -eq '.')
 {
@@ -822,7 +583,6 @@ else
 
 if ($ddrivers -ne  $null)
 {
- 
     $fullFileName = $fullfolderPath+"\04_Device_Drivers.txt"
     New-Item $fullFileName -type file -force  |Out-Null
     Add-Content -Value "Device Drivers for $SQLInstance" -Path $fullFileName -Encoding Ascii  
@@ -831,7 +591,7 @@ if ($ddrivers -ne  $null)
 
 
 
-# Running Processes
+# Get Running Processes
 try
 {
     if ($WinServer -eq "localhost" -or $WinServer -eq ".")
@@ -847,8 +607,8 @@ try
     {
         $myoutputfile4 = $FullFolderPath+"\05_Running_Processes.html"
         $myHtml1 = $rprocesses | select Name, Handles, VM, WS, PM, NPM | `
-        ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Running Processes</h2>"
-        Convertto-Html -head $head -Body "$myHtml1" -Title "Running Processes" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+        ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Running Processes</h2><h3>Ran on : $RunTime</h3>"
+        Convertto-Html -head $head -Body "$myHtml1" -Title "Running Processes"| Set-Content -Path $myoutputfile4
     }
 }
 catch
@@ -858,7 +618,7 @@ catch
 
 
 
-# Services
+# Get NT Services
 try
 {
     $Services = get-service -ComputerName $WinServer
@@ -867,8 +627,8 @@ try
     {
         $myoutputfile4 = $FullFolderPath+"\06_NT_Services.html"
         $myHtml1 = $Services | select Name, DisplayName, Status, StartType | `
-        ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>NT Services</h2>"
-        Convertto-Html -head $head -Body "$myHtml1" -Title "NT Services" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+        ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>NT Services</h2> <h3>Ran on : $RunTime</h3>"
+        Convertto-Html -head $head -Body "$myHtml1" -Title "NT Services" | Set-Content -Path $myoutputfile4
     }
 }
 catch
@@ -876,8 +636,6 @@ catch
     Write-Output ("NT Services: Could not connect")
 }
 
-
-# Network Protocols
 
 # Return to Base
 set-location $BaseFolder
