@@ -71,7 +71,7 @@ try
     else
     {
         Write-Output "Testing Windows Auth"
-		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
+	$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
@@ -490,7 +490,6 @@ if ($serverauth -eq "win")
 else
 {
 	$sqlresults15 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql15 -User $myuser -Password $mypass
-
 }
 
 # HTML CSS
@@ -545,7 +544,6 @@ if ($serverauth -eq "win")
 else
 {
 	$sqlresults16 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql16 -User $myuser -Password $mypass
-
 }
 
 if ($sqlresults16 -ne $null)
