@@ -5,14 +5,12 @@
 
 Shoot me an email at dev@insyncva.com with suggestions/bugs
 
-These scripts use three main SQL Server tech
+These scripts use three main SQL Server technologies
 * TSQL
 * WMI
 * SMO
 
-SQLTranscriptase is a termed coined from Molecular Biology meaning the exporting of information,
-
-as when Jesus coded your DNA using proteins. 
+<em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information, as when Jesus coded your DNA using proteins. 
 
 Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
