@@ -1,4 +1,4 @@
-<h2>Changelog</h2>
+Changelog
 
 April 23, 2018
 =Changes=
