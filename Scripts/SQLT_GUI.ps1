@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Runs all or selected Posh scripts based on user input
+    Runs all or selected Scripts based on chosen checkboxes
 
 	
 .DESCRIPTION
@@ -25,21 +25,21 @@
 #>
 
 
-Add-Type -AssemblyName "System.Windows.Forms"
-Add-Type -AssemblyName "System.Drawing"
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 
 
 # Create the form
-$form = New-Object Windows.Forms.Form
-$form.Name = "SQLTranscriptase"
-$form.text = "SQLTranscriptase - SQL Server Documentation in Powershell"
-$form.Size = New-Object Drawing.Size @(500,680)
-$form.StartPosition = "CenterScreen"
-$form.FormBorderStyle = 'FixedDialog'
-$form.AutoSize = $false
+$Form = New-Object Windows.Forms.Form
+$Form.Name = "SQLTranscriptase"
+$Form.text = "SQLTranscriptase - SQL Server Documentation in Powershell"
+$Form.Size = New-Object Drawing.Size @(500,680)
+$Form.StartPosition = "CenterScreen"
+$Form.FormBorderStyle = 'FixedDialog'
+$Form.AutoSize = $false
 $Form.MaximizeBox = $False
 $Form.WindowState = "Normal"
 $Form.SizeGripStyle = "Hide"
@@ -70,7 +70,7 @@ $label1.text = "SQL Server\Instance and Credentials"
 # Username
 # TextBox
 $myServerText = New-Object Windows.Forms.TextBox
-$myServerText.Location = New-Object Drawing.Point 20,80
+$myServerText.Location = New-Object Drawing.Point 50,80
 $myServerText.Size = New-Object Drawing.Point 200,30
 $myServerText.Text = "localhost"
 $myServerText.TabIndex = 0
@@ -78,13 +78,13 @@ $myServerText.TabIndex = 0
 # label
 $label2 = New-Object Windows.Forms.Label
 $label2.Location = New-Object Drawing.Point 5,83
-$label2.Size = New-Object Drawing.Point 12,12
-$label2.text = "S"
+$label2.Size = New-Object Drawing.Point 40,12
+$label2.text = "Server"
 
 # Username
 # TextBox
 $myUserText = New-Object Windows.Forms.TextBox
-$myUserText.Location = New-Object Drawing.Point 20,100
+$myUserText.Location = New-Object Drawing.Point 50,100
 $myUserText.Size = New-Object Drawing.Point 200,30
 $myUserText.Text = ""
 $myUserText.TabIndex = 2
@@ -92,13 +92,13 @@ $myUserText.TabIndex = 2
 # Label
 $label3 = New-Object Windows.Forms.Label
 $label3.Location = New-Object Drawing.Point 5,103
-$label3.Size = New-Object Drawing.Point 12,12
-$label3.text = "U"
+$label3.Size = New-Object Drawing.Point 40,12
+$label3.text = "User"
 
 # Password
 # Create TextBox and set text, size and location
 $myPassText = New-Object Windows.Forms.TextBox
-$myPassText.Location = New-Object Drawing.Point 20,120
+$myPassText.Location = New-Object Drawing.Point 50,120
 $myPassText.Size = New-Object Drawing.Point 200,30
 $myPassText.Text = ""
 $myPassText.TabIndex = 3
@@ -106,8 +106,8 @@ $myPassText.TabIndex = 3
 # Create the label control and set text, size and location
 $label4 = New-Object Windows.Forms.Label
 $label4.Location = New-Object Drawing.Point 5,123
-$label4.Size = New-Object Drawing.Point 12,12
-$label4.text = "P"
+$label4.Size = New-Object Drawing.Point 40,12
+$label4.text = "Pwd"
 
 
 # Create GO button
@@ -186,6 +186,7 @@ $cb_AllScripts.Add_CheckStateChanged({
         $checkbox41.Checked = $false
         $checkbox42.Checked = $false
         $checkbox43.Checked = $false
+        $checkbox44.Checked = $false
     }
 })
 
@@ -755,10 +756,21 @@ $checkbox43.Add_CheckStateChanged({
     }
 })
 
+$checkbox44 = New-Object System.Windows.Forms.CheckBox
+$checkbox44.AutoSize = $True
+$checkbox44.Location = New-Object System.Drawing.Point(225, 545)
+$checkbox44.Name = "checkbox44"
+$checkbox44.TabIndex = 47
+$checkbox44.Text = "50_Security_Tree"
+$checkbox44.Add_CheckStateChanged({
+    if ($checkbox44.Checked) {
+        $cb_AllScripts.Checked = $false
+    }
+})
 
 
 # Add the controls to the Form
-$form.controls.add($pictureBox)
+$Form.controls.add($pictureBox)
 $Form.Controls.Add($Label1)
 $Form.Controls.Add($Label2)
 $Form.Controls.Add($Label3)
@@ -810,6 +822,7 @@ $Form.Controls.Add($checkbox40)
 $Form.Controls.Add($checkbox41)
 $Form.Controls.Add($checkbox42)
 $Form.Controls.Add($checkbox43)
+$Form.Controls.Add($checkbox44)
 
 $Form.Controls.Add($myServerText)
 $Form.Controls.Add($GoButton)
@@ -818,7 +831,7 @@ $Form.Controls.Add($CancelButton)
 
 
 # Display the dialog
-$form.ShowDialog()
+$Form.ShowDialog()
 
 # Return To Base
 set-location $BaseFolder
@@ -836,11 +849,11 @@ if($cb_AllScripts.Checked)
 		
         If ($auth -eq "sql")
         {
-            & .\00_RunAllScripts.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\00_RunAllScripts.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\00_RunAllScripts.ps1 $myServerText.Text
+            Invoke-Expression ".\00_RunAllScripts.ps1 $($myServerText.Text)"
         }
 	}
 
@@ -848,11 +861,11 @@ if($checkbox1.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Appliance.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Appliance.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Appliance.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Appliance.ps1 $($myServerText.Text)"
         }
         
     }
@@ -861,11 +874,11 @@ if($checkbox2.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Credentials.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Credentials.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Credentials.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Credentials.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -874,11 +887,11 @@ if($checkbox3.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Logins.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Logins.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Logins.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Logins.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -887,11 +900,11 @@ if($checkbox4.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Resource_Governor.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Resource_Governor.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Resource_Governor.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Resource_Governor.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -900,11 +913,11 @@ if($checkbox5.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Roles.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Roles.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Roles.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Roles.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -913,11 +926,11 @@ if($checkbox6.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Settings.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Settings.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Settings.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Settings.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -926,11 +939,11 @@ if($checkbox7.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Shares.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Shares.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Shares.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Shares.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -940,11 +953,11 @@ if($checkbox8.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Startup_Procs.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Startup_Procs.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Startup_Procs.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Startup_Procs.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -954,11 +967,11 @@ if($checkbox9.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Storage.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Storage.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Storage.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Storage.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -967,11 +980,11 @@ if($checkbox10.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\01_Server_Triggers.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\01_Server_Triggers.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\01_Server_Triggers.ps1 $myServerText.Text
+            Invoke-Expression ".\01_Server_Triggers.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -980,11 +993,11 @@ if($checkbox11.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\02_Linked_Servers.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\02_Linked_Servers.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\02_Linked_Servers.ps1 $myServerText.Text
+            Invoke-Expression ".\02_Linked_Servers.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -994,11 +1007,11 @@ if($checkbox12.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\03_NET_Assemblies.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\03_NET_Assemblies.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\03_NET_Assemblies.ps1 $myServerText.Text
+            Invoke-Expression ".\03_NET_Assemblies.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1007,11 +1020,11 @@ if($checkbox13.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\04_Agent_Alerts.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\04_Agent_Alerts.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\04_Agent_Alerts.ps1 $myServerText.Text
+            Invoke-Expression ".\04_Agent_Alerts.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1020,11 +1033,11 @@ if($checkbox14.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\04_Agent_Jobs.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\04_Agent_Jobs.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\04_Agent_Jobs.ps1 $myServerText.Text
+            Invoke-Expression ".\04_Agent_Jobs.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1033,11 +1046,11 @@ if($checkbox15.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\04_Agent_Operators.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\04_Agent_Operators.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\04_Agent_Operators.ps1 $myServerText.Text
+            Invoke-Expression ".\04_Agent_Operators.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1047,11 +1060,11 @@ if($checkbox16.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\04_Agent_Proxies.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\04_Agent_Proxies.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\04_Agent_Proxies.ps1 $myServerText.Text
+            Invoke-Expression ".\04_Agent_Proxies.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1061,11 +1074,11 @@ if($checkbox17.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\04_Agent_Schedules.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\04_Agent_Schedules.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\04_Agent_Schedules.ps1 $myServerText.Text
+            Invoke-Expression ".\04_Agent_Schedules.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1075,11 +1088,11 @@ if($checkbox18.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\05_DBMail_Accounts.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\05_DBMail_Accounts.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\05_DBMail_Accounts.ps1 $myServerText.Text
+            Invoke-Expression ".\05_DBMail_Accounts.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1089,11 +1102,11 @@ if($checkbox19.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\05_DBMail_Profiles.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\05_DBMail_Profiles.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\05_DBMail_Profiles.ps1 $myServerText.Text
+            Invoke-Expression ".\05_DBMail_Profiles.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1102,11 +1115,11 @@ if($checkbox20.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\06_Query_Plan_Cache.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\06_Query_Plan_Cache.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\06_Query_Plan_Cache.ps1 $myServerText.Text
+            Invoke-Expression ".\06_Query_Plan_Cache.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1116,11 +1129,11 @@ if($checkbox21.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\06_Top_25_Worst_Queries.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\06_Top_25_Worst_Queries.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\06_Top_25_Worst_Queries.ps1 $myServerText.Text
+            Invoke-Expression ".\06_Top_25_Worst_Queries.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1130,11 +1143,11 @@ if($checkbox22.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\07_Service_Creds.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\07_Service_Creds.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\07_Service_Creds.ps1 $myServerText.Text
+            Invoke-Expression ".\07_Service_Creds.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1145,11 +1158,11 @@ if($checkbox23.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\09_SSIS_Packages_from_MSDB.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\09_SSIS_Packages_from_MSDB.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\09_SSIS_Packages_from_MSDB.ps1 $myServerText.Text
+            Invoke-Expression ".\09_SSIS_Packages_from_MSDB.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1159,11 +1172,11 @@ if($checkbox24.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\09_SSIS_Packages_from_SSISDB.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\09_SSIS_Packages_from_SSISDB.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\09_SSIS_Packages_from_SSISDB.ps1 $myServerText.Text
+            Invoke-Expression ".\09_SSIS_Packages_from_SSISDB.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1172,11 +1185,11 @@ if($checkbox25.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\10_SSAS_Objects.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\10_SSAS_Objects.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\10_SSAS_Objects.ps1 $myServerText.Text
+            Invoke-Expression ".\10_SSAS_Objects.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1186,11 +1199,11 @@ if($checkbox26.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\11_SSRS_Objects.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\11_SSRS_Objects.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\11_SSRS_Objects.ps1 $myServerText.Text
+            Invoke-Expression ".\11_SSRS_Objects.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1200,11 +1213,11 @@ if($checkbox27.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\12_Security_Audit.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\12_Security_Audit.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\12_Security_Audit.ps1 $myServerText.Text
+            Invoke-Expression ".\12_Security_Audit.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1215,11 +1228,11 @@ if($checkbox28.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\13_PKI.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\13_PKI.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\13_PKI.ps1 $myServerText.Text
+            Invoke-Expression ".\13_PKI.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1230,11 +1243,11 @@ if($checkbox29.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\14_Service_Broker.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\14_Service_Broker.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\14_Service_Broker.ps1 $myServerText.Text
+            Invoke-Expression ".\14_Service_Broker.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1243,11 +1256,11 @@ if($checkbox30.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\15_Extended_Events.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\15_Extended_Events.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\15_Extended_Events.ps1 $myServerText.Text
+            Invoke-Expression ".\15_Extended_Events.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1258,11 +1271,11 @@ if($checkbox31.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\16_Audits.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\16_Audits.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\16_Audits.ps1 $myServerText.Text
+            Invoke-Expression ".\16_Audits.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1273,11 +1286,11 @@ if($checkbox32.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\17_Managed_Backups.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\17_Managed_Backups.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\17_Managed_Backups.ps1 $myServerText.Text
+            Invoke-Expression ".\17_Managed_Backups.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1288,11 +1301,11 @@ if($checkbox33.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\18_Replication.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\18_Replication.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\18_Replication.ps1 $myServerText.Text
+            Invoke-Expression ".\18_Replication.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1302,11 +1315,11 @@ if($checkbox34.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\19_AlwaysOn.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\19_AlwaysOn.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\19_AlwaysOn.ps1 $myServerText.Text
+            Invoke-Expression ".\19_AlwaysOn.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1316,11 +1329,11 @@ if($checkbox35.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\21_Dac_Packages.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\21_Dac_Packages.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\21_Dac_Packages.ps1 $myServerText.Text
+            Invoke-Expression ".\21_Dac_Packages.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1330,11 +1343,11 @@ if($checkbox36.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\22_Policy_Based_Mgmt.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\22_Policy_Based_Mgmt.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\22_Policy_Based_Mgmt.ps1 $myServerText.Text
+            Invoke-Expression ".\22_Policy_Based_Mgmt.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1344,11 +1357,11 @@ if($checkbox37.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\23_Database_Diagrams.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\23_Database_Diagrams.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\23_Database_Diagrams.ps1 $myServerText.Text
+            Invoke-Expression ".\23_Database_Diagrams.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1358,11 +1371,11 @@ if($checkbox38.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\24_Plan_Guides.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\24_Plan_Guides.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\24_Plan_Guides.ps1 $myServerText.Text
+            Invoke-Expression ".\24_Plan_Guides.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1372,11 +1385,11 @@ if($checkbox39.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\30_DataBase_Objects.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\30_DataBase_Objects.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\30_DataBase_Objects.ps1 $myServerText.Text
+            Invoke-Expression ".\30_DataBase_Objects.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1386,11 +1399,11 @@ if($checkbox40.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\31_DataBase_Export_Table_Data.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\31_DataBase_Export_Table_Data.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\31_DataBase_Export_Table_Data.ps1 $myServerText.Text
+            Invoke-Expression ".\31_DataBase_Export_Table_Data.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1400,11 +1413,11 @@ if($checkbox41.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\32_Database_Recovery_Models.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\32_Database_Recovery_Models.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\32_Database_Recovery_Models.ps1 $myServerText.Text
+            Invoke-Expression ".\32_Database_Recovery_Models.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1414,11 +1427,11 @@ if($checkbox42.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\33_VLF_Count.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            Invoke-Expression ".\33_VLF_Count.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\33_VLF_Count.ps1 $myServerText.Text
+            Invoke-Expression ".\33_VLF_Count.ps1 $($myServerText.Text)"
         }
         
     }	
@@ -1427,17 +1440,26 @@ if($checkbox43.Checked)
 	{
         if ($Auth -eq "sql")
         {
-            & .\34_User_Objects_in_Master.ps1 $myServerText.Text $myUserText.Text $myPassText.Text
+            invoke-expression ".\34_User_Objects_in_Master.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
         }
         else
         {
-            & .\34_User_Objects_in_Master.ps1 $myServerText.Text
+            invoke-expression ".\34_User_Objects_in_Master.ps1 $($myServerText.Text)"
+        }
+        
+    }	
+
+if($checkbox44.Checked)
+	{
+        if ($Auth -eq "sql")
+        {
+            invoke-expression ".\50_Security_Tree.ps1 $($myServerText.Text) $($myUserText.Text) $($myPassText.Text)"
+        }
+        else
+        {
+            invoke-expression ".\50_Security_Tree.ps1 $($myServerText.Text)"
         }
         
     }	
 
 exit
-
-# Isn't GUI Programming tedious?
-# Hard on the Programmer, easy for the user
-# 1443 Lines....sheesh!
