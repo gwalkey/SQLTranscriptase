@@ -1,5 +1,13 @@
 Changelog
 
+April 23, 2018
+=Changes=
+Refactored all scripts
+
+=Added=
+50_Security_Tree
+SQLTranscriptase.psm1 Shared Function Module
+
 May 6, 2016
 =Changes=
 Fixed WMI Calls in 01_Server_Appliance
