@@ -1,9 +1,7 @@
 # SQLTranscriptase 
 <h2>SQL Server Documentation in Powershell</h2>
 
-<h3>I will be refactoring these this spring, as I originally wrote these being new to Powershell</h3>
-
-Check the Wiki for Installation instructions
+<h3>Check the Wiki for Installation instructions</h3
 
 Shoot me an email at dev@insyncva.com with suggestions
 
