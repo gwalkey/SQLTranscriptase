@@ -3,6 +3,7 @@ Changelog
 April 23, 2018
 =Changes=
 Refactored all scripts
+Swapped all SQL .NET Data Adapter code with calls to functions in main module SQLTranscriptase.psm1
 
 =Added=
 50_Security_Tree
