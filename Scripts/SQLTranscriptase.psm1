@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Provides Common functions for the action scripts
 	
@@ -38,6 +38,7 @@ function ConnectWinAuth
 		$SqlCmd.Connection = $Connection
 		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
 		$SqlAdapter.SelectCommand = $SqlCmd
+        $SqlCmd.CommandTimeout=0
     
 		# Insert results into Dataset table
 		$SqlAdapter.Fill($DataSet) |out-null
@@ -97,6 +98,9 @@ function ConnectSQLAuth
         Write-Output $sqlresults
     }
 }
+
+
+
 
 export-modulemember -function ConnectWinAuth
 export-modulemember -function ConnectSQLAuth
