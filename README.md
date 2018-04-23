@@ -10,9 +10,10 @@ These scripts use three main SQL Server technologies
 * WMI
 * SMO
 
-<em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information, as when Jesus coded your DNA using proteins. 
+<em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information, 
+just like when Jesus coded your DNA using proteins. https://www.youtube.com/watch?v=TVkdQhNdzHU
 
-Video Here:<br>
+Teaching Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
 <h2>Version History</h2>
