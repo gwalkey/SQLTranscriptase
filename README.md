@@ -3,7 +3,7 @@
 
 <h3>Check the Wiki for Installation instructions</h3
 
-Shoot me an email at dev@insyncva.com with suggestions
+Shoot me an email at dev@insyncva.com with suggestions/bugs
 
 Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
