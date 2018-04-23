@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets SQL Server Security Information from the target server
 	
@@ -26,121 +26,63 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-#  Script Name
-Write-Host  -f Yellow -b Black "12 - Security Audit"
-
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow -b black "Usage: ./12_Security_Audit.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "12 - Security Audit"
 Write-Output "Server $SQLInstance"
 
-
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Trying SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
-        Write-Output "Trying Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing Windows Auth"
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline"
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
 
-
 # Set Local Vars
-$server = $SQLInstance
-
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -193,7 +135,7 @@ $head+="</style>"
 # Export Security Information:
 # 1) SQL Logins
 
-$sql1 = 
+$sqlCMD1 = 
 "
 --- Server Logins
 --- Q1 Logins, Default DB,  Auth Type, and FixedServerRole Memberships
@@ -242,66 +184,28 @@ drop table #syslogins
 
 # Run Query 1
 Write-Output "Server Logins..."
-if ($serverauth -ne "win")
+if ($serverauth -eq "win")
 {
-    # .NET Method
-	# Open connection and Execute sql against server using SQL Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sql1
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results = $DataSet.Tables[0].Rows
-
+	$sqlresults1 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD1
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sql1
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results = $DataSet.Tables[0].Rows
-
+    $sqlresults1 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD1 -User $myuser -Password $mypass
 }
 
-# Write out rows
+# Script out Logins
 $RunTime = Get-date
-
 $myoutputfile4 = $FullFolderPath+"\1_Server_Logins.html"
-$myHtml1 = $results | select Login, DefaultDB, language, IsDenied, IsWinAuthentication, IsWinGroup, CreateDate, UpdateDate, ServerRoles, IsSysAdmin | `
+$myHtml1 = $sqlresults1 | select Login, DefaultDB, language, IsDenied, IsWinAuthentication, IsWinGroup, CreateDate, UpdateDate, ServerRoles, IsSysAdmin | `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Logins</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Server Logins" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 
-# ----------------------------------------------------
-# Server Login to Database User Global Mapping Listing
-# ----------------------------------------------------
+
+# 2) Server Login to Database User Global Mapping Listing
 Write-Output "Server Login to Database User Global Mapping Listing..."
 
-$mySQL2 = "
+$SQLCMD2 = "
 
 
 create table #Login2UserMapping (
@@ -333,6 +237,7 @@ BEGIN
     sys.database_principals dp 
     INNER JOIN sys.server_principals sp 
     ON dp.sid = sp.sid 
+    WHERE sp.is_disabled<>1
     ORDER BY 
     sp.name, 
     dp.name;
@@ -351,55 +256,19 @@ drop table #Login2UserMapping
 "
 
 # Run Query 2
-if ($serverauth -ne "win")
+if ($serverauth -eq "win")
 {
-    # .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQL2
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+	$sqlresults2 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQL2
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+    $sqlresults2 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass
 }
-
 
 # Write Out Rows
 $RunTime = Get-date
-
 $myoutputfile4 = $FullFolderPath+"\2_Server_Logins_to_Database_User_Mappings.html"
-$myHtml1 = $results2 | select  Login_Name, Database_Name, Database_User, Default_Schema | `
+$myHtml1 = $sqlresults2 | select  Login_Name, Database_Name, Database_User, Default_Schema | `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Login to Database User Mapping</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Server Login to Database User Mapping" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
@@ -433,13 +302,42 @@ foreach($sqlDatabase in $srv.databases)
     }
 
     $sqlDatabase.Name
-    
-	# ==============
-    # Run Query 2   
-	# ==============	
-    # 2) Login_to_User_Mappings
+    $dbName = $sqlDatabase.Name
 
-    $sql2 = "
+    # 1) Orphaned Users
+    $sqlCMD3 = 
+    "
+    use $dbname;
+
+    SELECT  u.name , u.type_desc, u.type
+    FROM  sys.database_principals u 
+    LEFT JOIN  sys.server_principals l ON u.sid = l.sid 
+    WHERE l.sid IS NULL 
+    AND u.type NOT IN ('A', 'R', 'C') -- not a db./app. role or certificate
+    AND u.principal_id > 4 -- not dbo, guest or INFORMATION_SCHEMA
+    AND u.name NOT LIKE '%DataCollector%' 
+    AND u.name NOT LIKE 'mdw%'
+    ORDER by 1
+    "
+
+    # Run SQL
+    if ($serverauth -eq "win")
+    {
+	    $sqlresults3 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3
+    }
+    else
+    {
+        $sqlresults3 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3 -User $myuser -Password $mypass
+    }
+
+    $myoutputfile4 = $output_path+"\1_Orphaned Users.html"
+    $myHtml1 = $sqlresults3 | select  Name, Type_desc, type | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Orphaned Users in [$dbname]</h2>"
+    Convertto-Html -head $head -Body "$myHtml1" -Title "Orphaned Users in $dbname" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+
+    
+    # 2) Login_to_User_Mappings
+    $sqlCMD4 = "
     Use ["+ $sqlDatabase.Name + "];"+
     "
     SELECT 
@@ -457,61 +355,22 @@ foreach($sqlDatabase in $srv.databases)
     # Run SQL
     if ($serverauth -eq "win")
     {
-    	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql2
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results2 = $DataSet.Tables[0].Rows
+	    $sqlresults4 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD4
     }
     else
     {
-
-        # .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql2
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results2 = $DataSet.Tables[0].Rows
+        $sqlresults4 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD4 -User $myuser -Password $mypass
     }
-
     $myoutputfile4 = $output_path+"\2_Login_to_User_Mapping.html"
-    $myHtml1 = $results2 | select  Login, User | `
-    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Login-to-User Mappings</h2>"
+    $myHtml1 = $sqlresults4 | select  Login, User | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Login-to-User Mappings in [$dbname]</h2>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "Login-to-User Mappings" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
     set-location $BaseFolder
 
-    # ==============
-    # Run Query 3
-    # ==============
-    # 3) Roles per User
 
-    $sql3 = "
+    # 3) Roles per User
+    $sqlCMD5 = "
     Use ["+ $sqlDatabase.Name + "];"+
     "
     SELECT 
@@ -528,64 +387,24 @@ foreach($sqlDatabase in $srv.databases)
     	1,2
     "
     
-    # Run SQL
     if ($serverauth -eq "win")
     {
-    	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql3
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results3 = $DataSet.Tables[0].Rows
+	    $sqlresults5 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD5
     }
     else
     {
-
-        # .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql3
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results3 = $DataSet.Tables[0].Rows
+        $sqlresults5 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD5 -User $myuser -Password $mypass
     }
-
-    
+        
     $myoutputfile4 = $output_path+"\3_Roles_Per_User.html"
-    $myHtml1 = $results3 | select User_Name,Role_Name | `
-    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Roles Per User</h2>"
+    $myHtml1 = $sqlresults5 | select User_Name,Role_Name | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Roles Per User in [$dbname]</h2>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "Roles Per User" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
     set-location $BaseFolder
 
-    # =============
-    # Run Query 4
-    # =============
     # 4) Database-Level Permissions
-    $sql4 = "
+    $sqlCMD6 = "
     Use ["+ $sqlDatabase.Name + "];"+
     "
     SELECT 
@@ -607,61 +426,21 @@ foreach($sqlDatabase in $srv.databases)
     # Run SQL
     if ($serverauth -eq "win")
     {
-    	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql4
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results4 = $DataSet.Tables[0].Rows
+	    $sqlresults6 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD6
     }
     else
     {
-
-        # .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql4
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results4 = $DataSet.Tables[0].Rows
+        $sqlresults6 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD6 -User $myuser -Password $mypass
     }
 
     $myoutputfile4 = $output_path+"\4_DB-Level_Permissions.html"
-    $myHtml1 = $results4 | select User, Operation, permission_name, IsGrantOption | `
-    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>DataBase-Level Permissions</h2>"
+    $myHtml1 = $sqlresults6 | select User, Operation, permission_name, IsGrantOption | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>DataBase-Level Permissions in [$dbname]</h2>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "DataBase-Level Permissions" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
-
-
     set-location $BaseFolder
 
-	# ===============
-    # Run Query 5
-	# ===============
     # 5) Individual Database-Level Object Permissions
-    $sql5 = "
+    $sqlCMD7 = "
     Use ["+ $sqlDatabase.Name + "];"+
     "
     SELECT 
@@ -696,51 +475,16 @@ foreach($sqlDatabase in $srv.databases)
 	# Run SQL
     if ($serverauth -eq "win")
     {
-    	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql5
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results5 = $DataSet.Tables[0].Rows
+	    $sqlresults7 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD7
     }
     else
     {
-
-        # .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql5
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $results5 = $DataSet.Tables[0].Rows
+        $sqlresults7 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD7 -User $myuser -Password $mypass
     }
 
     $myoutputfile4 = $output_path+"\5_Object_Permissions.html"
-    $myHtml1 = $results5 | select User, PermType, permission_name, SchemaName, ObjectName, ObjectType, ColumnName, IsGrantOption | `
-    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Object-Level Permissions</h2>"
+    $myHtml1 = $sqlresults7 | select User, PermType, permission_name, SchemaName, ObjectName, ObjectType, ColumnName, IsGrantOption | `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Object-Level Permissions in [$dbname]</h2>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "Object-Level Permissions" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4    
 
     set-location $BaseFolder

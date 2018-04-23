@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the SQL Service Broker Objects on the target server
 	
@@ -11,8 +11,6 @@
    Queues   
    Services
    Routes
-   Endpoints
-   Remote Service Bindings
    
 .EXAMPLE
     14_Service_Broker.ps1 localhost
@@ -35,108 +33,54 @@
 	
 #>
 
-
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "14 - Service Broker"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./14_Service_Broker.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "14 - Service Broker"
 Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
-
 
 function CopyObjectsToFiles($objects, $outDir) {
 	
@@ -162,16 +106,14 @@ function CopyObjectsToFiles($objects, $outDir) {
 
 
 # Set Local Vars
-$server = $SQLInstance
-
 if ($serverauth -eq "win")
 {
-    $srv   = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
-    $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($server)
+    $srv   = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
+    $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($SQLInstance)
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -249,8 +191,6 @@ foreach($sqlDatabase in $srv.databases)
     # Init Counter
     $anyfound = $false
          
-                
-    # 1) 
     # Message Types
     foreach($MsgType1 in $db.ServiceBroker.MessageTypes)
     {
@@ -274,7 +214,6 @@ foreach($sqlDatabase in $srv.databases)
         }
     }
 
-    # 2) 
     # Contracts
     foreach($MsgType2 in $db.ServiceBroker.ServiceContracts)
     {
@@ -298,7 +237,6 @@ foreach($sqlDatabase in $srv.databases)
         }
     }
 
-    # 3)
     # Queues
     foreach($MsgType3 in $db.ServiceBroker.Queues)
     {
@@ -330,7 +268,6 @@ foreach($sqlDatabase in $srv.databases)
         }
     }
 
-    # 4)
     # Services
     foreach($MsgType4 in $db.ServiceBroker.Services)
     {
@@ -354,7 +291,6 @@ foreach($sqlDatabase in $srv.databases)
         }
     }
 
-    # 5)
     # Routes
     foreach($MsgType5 in $db.ServiceBroker.Routes)
     {
@@ -382,7 +318,6 @@ foreach($sqlDatabase in $srv.databases)
     }
 
 
-    # 6)
     # Remote Service Bindings
     foreach($MsgType6 in $db.ServiceBroker.RemoteServiceBindings)
     {
@@ -410,10 +345,10 @@ foreach($sqlDatabase in $srv.databases)
     }
 
 
-if ($anyfound-eq $true)
-{
-    Write-Output "Broker Objects written for $fixedDBName"
-}
+    if ($anyfound-eq $true)
+    {
+        Write-Output "Broker Objects written for $fixedDBName"
+    }
 
 
 # Process Next Database
@@ -423,4 +358,3 @@ if ($anyfound-eq $true)
 
 # Return To Base
 set-location $BaseFolder
-

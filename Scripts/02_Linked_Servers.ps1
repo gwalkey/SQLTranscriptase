@@ -26,35 +26,23 @@
 
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
 
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-
-#  Script Name
-Write-Host  -f Yellow -b Black "02 - Linked Servers"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./02_Linked_Servers.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-      Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "02 - Linked Servers"
 Write-Output "Server $SQLInstance"
 
 
@@ -99,7 +87,7 @@ if(test-path -path "$BaseFolder\$SQLInstance\02 - No Linked Servers Found.txt")
 $server = $SQLInstance
 $LinkedServers_path	= $fullfolderPath+"\Linked_Servers.sql"
 
-# Test for Username/Password needed to connect - else assume WinAuth passthrough
+# New UP SMO Object 
 if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
 {
 	Write-Output "Using Sql Auth"

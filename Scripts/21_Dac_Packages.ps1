@@ -33,6 +33,7 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
@@ -40,29 +41,15 @@ Param(
   [int]$registerDAC=0
 )
 
-
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "21 - DAC Packages"
-
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./21_Dac_Packages.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
-Write-Output "Server $SQLInstance"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "21 - DAC Packages"
 
 # Load Additional Assemblies
 $dacver = $null;
@@ -93,6 +80,12 @@ if((test-path -path $dacdll))
     $dacver = 2016
     add-type -path "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\Microsoft.SqlServer.Dac.dll"
 }
+$dacdll = "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\Microsoft.SqlServer.Dac.dll"
+if((test-path -path $dacdll))
+{
+    $dacver = 2017
+    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\Microsoft.SqlServer.Dac.dll"
+}
 
 If (!($dacver))
 {
@@ -102,100 +95,67 @@ If (!($dacver))
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $sqlver = $results.column1
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $sqlver = $results.column1
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
+# Get Version Integer
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
 
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+}
 
 # Skip if server not 2008 R2+
-if (!($sqlver -like "10.5*") -and !($sqlver -like "11.0*") -and !($sqlver -like "12.0*") -and !($sqlver -like "13.0*"))
+if ($ver -lt 10)
 {
-    Write-Output "Dac Packages only supported on SQL Server 2008 R2 or higher"
+    Write-Output "Dac Packages only supported on SQL Server 2008 or higher"
     set-location $BaseFolder
     exit
 }
 
 
-# Set Local Vars
-$server = $SQLInstance
-
-
+# New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -219,6 +179,8 @@ if(!(test-path -path $DriftOutput_path))
 
 
 # Check for existence of SqlPackage.exe and get latest version
+Write-Output("Check for existence of SqlPackage.exe and get latest version")
+
 $pkgver = $null;
 
 $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\100\DAC\bin\sqlpackage.exe"
@@ -245,13 +207,18 @@ if((test-path -path $pkgexe))
     $pkgver = $pkgexe
 }
 
+$pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\sqlpackage.exe"
+if((test-path -path $pkgexe))
+{
+    $pkgver = $pkgexe
+}
+
 If (!($pkgver))
 {
     Write-Output "SQLPackage.exe not found, exiting"
     exit
 }
 
-# 
 Write-Output "Exporting Dac Packages..."
 
 # Create Batch file to run below
@@ -259,9 +226,10 @@ $myoutstring = "@ECHO OFF`n" | out-file -FilePath "$Output_path\DacExtract.cmd" 
 
 foreach($sqlDatabase in $srv.databases)
 {
+    Write-Output("Database: [{0}] " -f $sqlDatabase.Name)
 
     # Skip System Databases
-    if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB') {continue}
+    if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB','ReportServer','ReportServerTempDB') {continue}
 
     # Strip brackets from DBname
     $db = $sqlDatabase
@@ -298,10 +266,10 @@ foreach($sqlDatabase in $srv.databases)
     }
     $myoutstring | out-file -FilePath "$Output_path\DacExtract.cmd" -Encoding ascii -append
 
-    # Register the Database as a Data Tier Application - if command-line parameter is set true
+    # Register the Database as a Data Tier Application - if command-line parameter was set True
     if ($registerDAC -eq 1)
     {
-        ## Specify the DAC metadata.
+        # Specify the DAC metadata before Registration
         $applicationname = $fixedDBName
         [system.version]$version = '1.0.0.0'
         $description = "Registered during DacPac Script-Out pass on "+(Get-Date).ToString()
@@ -338,28 +306,25 @@ foreach($sqlDatabase in $srv.databases)
     # ---------------------
     # Script out BACPACs
     # ---------------------
-    if ($serverauth -eq "win")
-    {
-        $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac `n"
-    }
-    else
-    {
-        $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac /sourceuser:$myuser /sourcepassword:$mypass `n"
-    }
-    $myoutstring | out-file -FilePath "$Output_path\BacExport.cmd" -Encoding ascii -append
-
-
+    #if ($serverauth -eq "win")
+    #{
+    #    $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac `n"
+    #}
+    #else
+    #{
+    #    $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac /sourceuser:$myuser /sourcepassword:$mypass `n"
+    #}
+    #$myoutstring | out-file -FilePath "$Output_path\BacExport.cmd" -Encoding ascii -append
 
 }
 
 # Run the SQLPACKAGE batch files
-.\DacExtract.cmd
-.\BacExport.cmd
+invoke-expression ".\DacExtract.cmd"
+#invoke-expression ".\BacExport.cmd"
 
 # Remember to run the Drift Report batch files in the DriftReports folder
-
 remove-item -Path "$Output_path\DacExtract.cmd" -Force -ErrorAction SilentlyContinue
-remove-item -Path "$Output_path\BacExport.cmd" -Force -ErrorAction SilentlyContinue
+#remove-item -Path "$Output_path\BacExport.cmd" -Force -ErrorAction SilentlyContinue
 
 # Return to Base
 set-location $BaseFolder

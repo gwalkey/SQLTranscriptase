@@ -25,105 +25,24 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
 
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "01 - Server Startup Stored Procedures"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./01_Server_Startup_Procs.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "01 - Server Startup Stored Procedures"
 Write-Output "Server $SQLInstance"
-
-
-# Server connection check
-try
-{
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
-    {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
-        $serverauth="sql"
-    }
-    else
-    {
-        Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
-        $serverauth = "win"
-    }
-
-    if($results -ne $null)
-    {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
-    }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
-
-}
-catch
-{
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
-    Set-Location $BaseFolder
-	exit
-}
 
 
 function CopyObjectsToFiles($objects, $outDir) {
@@ -150,19 +69,45 @@ function CopyObjectsToFiles($objects, $outDir) {
 }
 
 
+# Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
+try
+{
+    if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
+    {
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
+        $serverauth="sql"
+    }
+    else
+    {
+        Write-Output "Testing Windows Auth"
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
+        $serverauth = "win"
+    }
 
+    if($myver -ne $null)
+    {
+        Write-Output ("SQL Version: {0}" -f $myver)
+    }
 
-# Set Local Vars
-$server = $SQLInstance
+}
+catch
+{
+    Write-Host -f red "$SQLInstance appears offline."
+    Set-Location $BaseFolder
+	exit
+}
 
+# New Up SMO Object
 if ($serverauth -eq "win")
 {
-    $srv        = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
-    $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($server)
+    $srv        = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
+    $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($SQLInstance)
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -225,6 +170,7 @@ $output_path = "$BaseFolder\$SQLInstance\01 - Server Startup Procs\"
 Write-Output "$fixedDBName - Stored Procs"
 $storedProcs = $db.StoredProcedures | Where-object  {-not $_.IsSystemObject  }
 CopyObjectsToFiles $storedProcs $output_path
+Write-Output ("{0} Startup Stored Procs Exported" -f @($storedProcs).count)
 
 # Return To Base
 set-location $BaseFolder

@@ -25,111 +25,53 @@
 
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-
-#  Script Name
-Write-Host  -f Yellow -b Black "09 - SSIS Packages from MSDB"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./09_SSIS_Packages_from_MSDB.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "09 - SSIS Packages from MSDB"
 Write-Output "Server $SQLInstance"
 
-	
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $myver = $results.Column1
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $myver = $results.Column1
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
-
 
 
 # Create output folder
@@ -144,10 +86,10 @@ $fullfolderPath = "$BaseFolder\$sqlinstance\09 - SSIS_MSDB"
 if ($myver -like "9.0*")
 {
 
-    Write-Output "SSIS is 2005"
+    Write-Output "SSIS version is 2005"
 
     $Packages = @()
-    $sql1 = "
+    $sqlCMD2 = "
     with ChildFolders
         as
         (
@@ -179,56 +121,28 @@ if ($myver -like "9.0*")
         order by F.FullPath asc, P.name asc;
         "
 
-    # SQL Auth
-    if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
+    # Run Query
+    if ($serverauth -eq "win")
+    {
+        try
         {
-        Write-Output "Using SQL Auth"
-
-        
-        # .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql1
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-    	# Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-        # Close connection to sql server
-	    $Connection.Close()
-	    $Packages += $DataSet.Tables[0].Rows
-    
+            $Packages = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -ErrorAction Stop
+        }
+        catch
+        {
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
     else
     {
-        Write-Output "Using Windows Auth"
-        
-        
-      	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql1
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $Packages += $DataSet.Tables[0].Rows
-
+    try
+        {
+            $Packages = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass -ErrorAction Stop
+        }
+        catch
+        {
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
 
     #Save
@@ -252,7 +166,7 @@ else
     Write-Output "SSIS is 2008+"
 	
     $Packages = @()
-    $sql2 = "
+    $sqlCMD2 = "
         with ChildFolders
         as
         (
@@ -284,55 +198,28 @@ else
         order by F.FullPath asc, P.name asc;
         "
 
-    if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
+    # Run Query
+    if ($serverauth -eq "win")
+    {
+        try
         {
-        Write-Output "Using SQL Auth"
-
-        
-        # .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql2
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-    	# Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-        # Close connection to sql server
-	    $Connection.Close()
-	    $Packages += $DataSet.Tables[0].Rows
-        
+            $Packages = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -ErrorAction Stop
+        }
+        catch
+        {
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
     else
     {
-        Write-Output "Using Windows Auth"
-
-        
-        # .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $sql2
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $Packages += $DataSet.Tables[0].Rows
-        
+    try
+        {
+            $Packages = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass -ErrorAction Stop
+        }
+        catch
+        {
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
 
 
@@ -353,7 +240,7 @@ else
     }
 
 
-    Write-Output ("{0} SSIS MSDB Packages Exported" -f $packages.count)
+    Write-Output ("{0} SSIS MSDB Packages Exported" -f @($packages).count)
 }
 
 # Return To Base

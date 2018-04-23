@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Windows Volumes on the target server
 	
@@ -27,29 +27,22 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
+Import-Module ".\LoadSQLSmo.psm1"
+LoadSQLSMO
+
+# Init
 Set-StrictMode -Version latest;
-
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
 Write-Host  -f Yellow -b Black "01 - Server Storage"
-
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./01_Server_Storage.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
 Write-Output "Server $SQLInstance"
 
 # Output folder
@@ -73,7 +66,6 @@ $ErrorActionPreference = 'SilentlyContinue'
 
 try
 {
-    #$VolumeArray = Get-WmiObject -Computer $WinServer Win32_Volume | Where-Object {$_.FileSystem -eq "NTFS"} | sort-object name 
 	$VolumeArray = Get-WmiObject -Computer $WinServer Win32_Volume | sort-object name 
     if ($?)
     {
@@ -87,9 +79,9 @@ try
             mkdir $fullfolderPath | Out-Null
         }
         echo null > "$fullfolderpath\01 - Server Storage - WMI Could not connect.txt"
-        Write-Output "WMI Could not connect"        
+        Write-Output "WMI Could not connect"
         Set-Location $BaseFolder
-        exit
+        Throw("WMI Could not connect")
   
     }
 }
@@ -103,7 +95,7 @@ catch
     echo null > "$fullfolderpath\01 - Server Storage - WMI Could not connect.txt"
     Write-Output "WMI Could not connect"        
     Set-Location $BaseFolder
-    exit
+    Throw("WMI Could not connect")
 }
 
 # Reset default PS error handler - WMI error trapping

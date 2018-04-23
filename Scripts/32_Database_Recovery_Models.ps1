@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Tranaasaction Log Recovery Mode for all non-system databases
 	
@@ -24,121 +24,64 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-#  Script Name
-Write-Host  -f Yellow -b Black "32 - Database Recovery Models"
-
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow -b black "Usage: ./32_Database_Recovery_Models.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "32 - Database Recovery Models"
 Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Trying SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
-        Write-Output "Trying Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing Windows Auth"
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Warning "$SQLInstance appears offline"
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
 
-
-# Set Local Vars
-$server = $SQLInstance
-
+# New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -148,13 +91,13 @@ else
 # Create output folder
 $output_path = "$BaseFolder\$SQLInstance\32 - DB Recovery Models\"
 if(!(test-path -path $output_path))
-    {
-        mkdir $output_path | Out-Null
-    }
+{
+    mkdir $output_path | Out-Null
+}
 
 	
-# SQL
-$sql1 = 
+# Get Recovery Models
+$sqlCMD1 = 
 "
 SELECT  @@SERVERNAME AS Server ,
         d.name AS DBName ,
@@ -164,62 +107,24 @@ SELECT  @@SERVERNAME AS Server ,
         d.create_date ,
         d.state_desc
 FROM    sys.databases d
-where d.name not in ('master','tempdb','msdb','model','SSISDB','distribution')
+where d.name not in ('master','tempdb','msdb','model','distribution')
 ORDER BY 2;
 "
 
-
-# Run Query 1
-Write-Output "Running SQL.."
-if ($serverauth -ne "win")
+if ($serverauth -eq "win")
 {
-    # .NET Method
-	# Open connection and Execute sql against server using SQL Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sql1
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results = $DataSet.Tables[0].Rows
-
+	$sqlresults1 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD1
 }
 else
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sql1
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results = $DataSet.Tables[0].Rows
-
+    $sqlresults1 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD1 -User $myuser -Password $mypass
 }
+
 $RunTime = Get-date
 
 # Write out rows to CSV
 $myoutputfile = $output_path+"Recovery_Models.csv"
-$results | select Server, DBName, SizeMB, RecoveryModel, CompatibilityLevel, create_date, state_Desc | ConvertTo-csv| Set-Content $myoutputfile
+$sqlresults1 | select Server, DBName, SizeMB, RecoveryModel, CompatibilityLevel, create_date, state_Desc | ConvertTo-csv| Set-Content $myoutputfile
 
 # Use HTML Fragments for multiple tables and inline CSS
 $head = "<style type='text/css'>"
@@ -259,7 +164,7 @@ $RunTime = Get-date
 
 $myoutputfile3 = $output_path+"Recovery_Models.html"
 
-$myHTML1 = $results | select Server, DBName, SizeMB, RecoveryModel, CompatibilityLevel, create_date, state_Desc | ConvertTo-Html  -fragment -as Table -PreContent "<h3>Database Recovery Models on $SQLInstance</h3>"
+$myHTML1 = $sqlresults1 | select Server, DBName, SizeMB, RecoveryModel, CompatibilityLevel, create_date, state_Desc | ConvertTo-Html  -fragment -as Table -PreContent "<h3>Database Recovery Models on $SQLInstance</h3>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Database Recovery Models"  -PostContent "<h3>Ran on : $RunTime</h3>" |Set-Content -Path $myoutputfile3
 
 set-location $BaseFolder

@@ -25,6 +25,7 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
     [parameter(Position=0,mandatory=$false,ValueFromPipeline)]
     [ValidateNotNullOrEmpty()]
@@ -39,193 +40,76 @@ Param(
     [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-#  Script Name
-Write-Host -f Yellow -b Black "15 - Extended Events"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./15_Extended_Events.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host -f Yellow -b Black "15 - Extended Events"
 Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $myver = $results.Column1
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-        $myver = $results.Column1
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
-
 # SQL Version check
-if (!($myver -like "11.0*") -and !($myver -like "12.0*") -and !($myver -like "13.0*"))
+if (!($myver -like "11.0*") -and !($myver -like "12.0*") -and !($myver -like "13.0*") -and !($myver -like "14.0*"))
 {
     Write-Output "Extended Events supported only on SQL Server 2012 or higher"
     exit
 }
 
-#  Any to do?
-$sqlES = 
+# Any to do?
+$sqlCMD2 = 
 " 
 select [event_session_id],[name] from sys.server_event_sessions
 "
 
-# Connect Correctly
-if ($serverauth -eq "sql") 
+if ($serverauth -eq "win")
 {
-	Write-Output "Using Sql Auth"	
-
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    # .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlES
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$EvtSessions = $DataSet.Tables[0].Rows
-
-    if ($EvtSessions -eq $null)
-    {
-        Write-Output "No Extended Event Sessions found on $SQLInstance"        
-        echo null > "$BaseFolder\$SQLInstance\15 - No Extended Event Sessions found.txt"
-        Set-Location $BaseFolder
-        exit
-    }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 
-
-    $serverauth="sql"
+	$sqlresults2 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2
 }
 else
 {
-	Write-Output "Using Windows Auth"	
+    $sqlresults2 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass
+}
 
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    # .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlES
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$EvtSessions = $DataSet.Tables[0].Rows
-
-    if ($EvtSessions -eq $null)
-    {
-        Write-Output "No Extended Event Sessions found on $SQLInstance"        
-        echo null > "$BaseFolder\$SQLInstance\15 - No Extended Event Sessions found.txt"
-        Set-Location $BaseFolder
-        exit
-    }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 
+if ($sqlresults2 -eq $null)
+{
+    Write-Output "No Extended Event Sessions found on $SQLInstance"        
+    echo null > "$BaseFolder\$SQLInstance\15 - No Extended Event Sessions found.txt"
+    Set-Location $BaseFolder
+    exit
 }
 
 # Create Output folder
@@ -241,11 +125,6 @@ if(!(test-path -path $fullfolderPath))
 # Jonathan Kehayias for the following code, including the correct DLLs, order of things and the use of 'System.Data.SqlClient.SqlConnectionStringBuilder'
 # https://www.sqlskills.com/blogs/jonathan/
 # http://sqlperformance.com/author/jonathansqlskills-com
-# 
-# Load SMO Assemblies
-Import-Module ".\LoadSQLSmo.psm1"
-LoadSQLSMO
-
 $conBuild = New-Object System.Data.SqlClient.SqlConnectionStringBuilder;
 $conBuild.psbase.DataSource = $SQLInstance
 $conBuild.psbase.InitialCatalog = "master";
@@ -261,16 +140,14 @@ else
     $conbuild.psbase.Password = $mypass
 }
 
-# Connect
+# SQL Connection
 $sqlconn = New-Object System.Data.SqlClient.SqlConnection $conBuild.ConnectionString.ToString();
 
-# Server
+# SQL Store Connection
 $Server = New-Object Microsoft.SqlServer.Management.Sdk.Sfc.SqlStoreConnection $sqlconn
 
-# XE Sessions
+# XE Session Store
 $XEStore = New-Object Microsoft.SqlServer.Management.XEvent.XEStore $Server
-
-$ScrapSession = $XEStore.Sessions["system_health"];
 
 foreach($XESession in $XEStore.Sessions)
 {    
@@ -282,7 +159,7 @@ foreach($XESession in $XEStore.Sessions)
     $script | out-file  $output_path -Force -encoding ascii
 }
 
-Write-Output ("{0} Extended Event Sessions Exported" -f $XEStore.Sessions.Count)
+Write-Output ("{0} Extended Event Sessions Exported" -f @($XEStore.Sessions).Count)
 
 # Return To Base
 set-location $BaseFolder

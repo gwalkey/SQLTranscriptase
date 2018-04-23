@@ -43,6 +43,7 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
     [string]$SQLInstance = "localhost",
     [string]$myuser,
@@ -52,24 +53,15 @@ Param(
 
 )
 
-Set-StrictMode -Version latest;
-
-$DebugPreference = "Stop"
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "30 - DataBase Objects"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./30_DataBase_Objects.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    exit
-}
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "30 - DataBase Objects"
 
 # Parameter check: Table needs matching Database parameter
 if ($myTable.Length -gt 0 -and $myDatabase.Length -eq 0)
@@ -78,81 +70,39 @@ if ($myTable.Length -gt 0 -and $myDatabase.Length -eq 0)
     exit
 }
 
-# Working
 Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-		
-		$serverauth="sql"
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
+        $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-		$myver = $results.Column1
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Warning "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
+
 
 function CopyObjectsToFiles($objects, $outDir) {
 	
@@ -194,29 +144,20 @@ function CopyObjectsToFiles($objects, $outDir) {
 }
 
 
-# Set Local Vars
-$server = $SQLInstance
-
+# New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
-    $srv        = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
-    $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($server)
+    $srv        = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
+    $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($SQLInstance)
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
     $scripter = New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($srv)
 }
-
-# Db and Table Objects
-#$db 	= New-Object ("Microsoft.SqlServer.Management.SMO.Database")
-#$tbl	= New-Object ("Microsoft.SqlServer.Management.SMO.Table")
-
-# Set Speed=On trick - doesnt work on Scripting - But thanks for the tip MVP Ben Miller
-# $tbl.SetDefaultInitFields([Microsoft.SqlServer.Management.SMO.Table], "CreateDate")
 
 # Find/Inspect other Server-Level Objects here
 Write-Output "Looking for Objects..."
@@ -258,7 +199,7 @@ $head+="</style>"
 $RunTime = Get-date
 
 # Create Database Summary Listing
-$mySQLquery = 
+$sqlCMD2 = 
 "
 SELECT 
     DB_NAME(m.[database_id]) AS [Database_Name],
@@ -278,50 +219,13 @@ ON M.database_id = D.database_id
 ORDER BY DB_NAME(m.[database_id]) OPTION (RECOMPILE);
 "
 
-#Run SQL
 if ($serverauth -eq "win")
 {
-    # .Net Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) |out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$sqlresultsX = $DataSet.Tables[0].Rows
-
+	$sqlresults1 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2
 }
 else
 {
-    # .Net Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) |out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$sqlresultsX = $DataSet.Tables[0].Rows
-
+    $sqlresults1 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass
 }
 
 $RunTime = Get-date
@@ -332,7 +236,7 @@ if(!(test-path -path $FullFolderPath))
 }
 
 $myoutputfile4 = $FullFolderPath+"\Database_Summary.html"
-$myHtml1 = $sqlresultsX | select Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
+$myHtml1 = $sqlresults1 | select Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Database Summary"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Create Database Object Reconstruction Order Hints File
@@ -403,7 +307,7 @@ $scripter.Options.SchemaQualifyForeignKeysReferences = $true
 $scripter.Options.ToFileOnly 			= $true
 $scripter.Options.Triggers              = $true
 
-# WithDependencies create one huge file for all tables in the order needed to maintain RefIntegrity
+# WithDependencies creates one huge file for all tables in the order needed to maintain Referential Integrity - but REALLY HARD TO READ
 $scripter.Options.WithDependencies		= $false # Leave OFF - creates issues - Jan 2016 we script out the DRI Table Order down below
 $scripter.Options.XmlIndexes            = $true
 
@@ -413,7 +317,7 @@ $scripter.Options.ScriptData 	= $false;
 
 if ($myDatabase.Length -gt 0)
 {
-    Write-Output ("Only for Database {0}"-f $myDatabase)
+    Write-Output ("Only scripting Database {0}"-f $myDatabase)
 }
 
 # -----------------------
@@ -428,8 +332,7 @@ foreach($sqlDatabase in $srv.databases)
 	}
 
     # Skip System Databases
-    #if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB','distribution') {continue}
-    if ($sqlDatabase.Name -in 'Model','MSDB','TempDB','SSISDB','distribution','Master') {continue}
+    if ($sqlDatabase.Name -in ('Model','MSDB','TempDB','SSISDB','distribution','Master')) {continue}
 
     # Skip Offline Databases (SMO still enumerates them, but cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
@@ -574,8 +477,6 @@ foreach($sqlDatabase in $srv.databases)
     $myHtml1 = $mySettings | sort-object Name | select Name, Value | ConvertTo-Html -Fragment -as table -PreContent "<h3>Database Settings for: $SQLInstance </h3>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "Database Settings"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
     
-    #$mySettings | sort-object Name | select Name, Value | ConvertTo-Html  -CSSUri "$DBSettingsPath\HTMLReport.css"| Set-Content "$DBSettingsPath\HtmlReport.html"
-       
     # DBRoles
     Write-Output "$fixedDBName - Roles"
 
@@ -684,7 +585,6 @@ foreach($sqlDatabase in $srv.databases)
     Write-Output "$fixedDBName - FileGroups"
 
     # Process FileGroups
-    # Create output folder
     $myoutputfile = $Filegroups_path+"Filegroups.txt"
     if(!(test-path -path $Filegroups_path))
     {
@@ -696,7 +596,7 @@ foreach($sqlDatabase in $srv.databases)
     Add-Content -path $myoutputfile -value "FileGroupName:          DatabaseFileName:           FilePath:"
 
     # Prep SQL for Filegroups
-    $mySQLquery = "USE $db; SELECT `
+    $sqlCMD3 = "USE $db; SELECT `
     cast(sysFG.name as char(24)) AS FileGroupName,
     cast(dbfile.name as char(28)) AS DatabaseFileName,
     dbfile.physical_name AS DatabaseFilePath
@@ -709,54 +609,18 @@ foreach($sqlDatabase in $srv.databases)
     order by dbfile.file_id
     "
 
-    #Run SQL
+    # Run SQL
     if ($serverauth -eq "win")
     {
-        # .Net Method
-	    # Open connection and Execute sql against server using Windows Auth
-    	$DataSet = New-Object System.Data.DataSet
-    	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-    	$Connection = New-Object System.Data.SqlClient.SqlConnection
-    	$Connection.ConnectionString = $SQLConnectionString
-    	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-    	$SqlCmd.CommandText = $mySQLquery
-    	$SqlCmd.Connection = $Connection
-    	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-    	$SqlAdapter.SelectCommand = $SqlCmd
-    
-    	# Insert results into Dataset table
-    	$SqlAdapter.Fill($DataSet) |out-null
-
-    	# Close connection to sql server
-    	$Connection.Close()
-	    $sqlresults2 = $DataSet.Tables[0].Rows   		
-
+    	$sqlresults3 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3
     }
     else
     {
-        # .Net Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) |out-null
-
-    	# Close connection to sql server
-    	$Connection.Close()
-    	$sqlresults2 = $DataSet.Tables[0].Rows        
-
+        $sqlresults3 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3 -User $myuser -Password $mypass
     }
 
     # Script Out
-    foreach ($FG in $sqlresults2)
+    foreach ($FG in $sqlresults3)
     {
         $myoutputstring = $FG.FileGroupName+$FG.DatabaseFileName+$FG.DatabaseFilePath
         $myoutputstring | out-file -FilePath $myoutputfile -append -encoding ascii -width 500
@@ -767,7 +631,7 @@ foreach($sqlDatabase in $srv.databases)
     Write-Output "$fixedDBName - DRI Create Table Order"
 
     # Create Database Summary Listing
-    $mySQLquery4 = 
+    $sqlCMD4 = 
     "
     use $fixedDBName;
     
@@ -852,60 +716,16 @@ foreach($sqlDatabase in $srv.databases)
 
  "
 
-    # DataAdapter returns null for strange DB Names (Sharepoint etc) so trap them
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    #Run SQL
+    # Run SQL
     if ($serverauth -eq "win")
     {
-        # .Net Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery4
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-        $SqlAdapter.SelectCommand.CommandTimeout=300;
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) |out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $sqlresults4 = $DataSet.Tables[0].Rows
-
+    	$sqlresults4 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD4
     }
     else
     {
-        # .Net Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand        
-	    $SqlCmd.CommandText = $mySQLquery4
-	    $SqlCmd.Connection = $Connection   
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-        $SqlAdapter.SelectCommand.CommandTimeout=300;
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) |out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-	    $sqlresults4 = $DataSet.Tables[0].Rows
-
+        $sqlresults4 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD4 -User $myuser -Password $mypass
     }
 
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference
 
     $RunTime = Get-date
     $FullFolderPath = "$BaseFolder\$SQLInstance\30 - DataBase Objects\"
@@ -938,39 +758,9 @@ foreach($sqlDatabase in $srv.databases)
     $Schemas = $null
     $Sequences = $null
     $Synonyms = $null
-
-    <#    
-    Remove-Variable $tbl
-    Remove-Variable $storedProcs
-    Remove-Variable $views
-    Remove-Variable $udfs
-    Remove-Variable $udtts
-    Remove-Variable $catalog
-    Remove-Variable $DBTriggers
-    Remove-Variable $TableTriggers
-    Remove-Variable $Schemas
-    Remove-Variable $Sequences
-    Remove-Variable $Synonyms 
-    #>
-    
+ 
     [System.GC]::Collect()
-
-    <#
-    Write-Output "Ending Memory: $db"
-    [System.gc]::gettotalmemory("forcefullcollection") /1MB
-
-    ps powershell* | Select *memory* | ft -auto `
-    @{Name='VirtualMemMB';Expression={($_.VirtualMemorySize64)/1MB}}, `
-    @{Name='PrivateMemMB';Expression={($_.PrivateMemorySize64)/1MB}}
-    #>
-
-    # Process Other Objecs    
-
-    # Process Next Database
 }
-
-
-
 
 # Return To Base
 set-location $BaseFolder

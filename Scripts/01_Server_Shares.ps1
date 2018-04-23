@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Windows SMB Shares on the target server
 	
@@ -23,32 +23,26 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
   [string]$mypass
 )
 
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
+Import-Module ".\LoadSQLSmo.psm1"
+LoadSQLSMO
+
+# Init
 Set-StrictMode -Version latest;
-
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
 Write-Host  -f Yellow -b Black "01 - Server Shares"
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -b black -f yellow "Usage: ./01_Server_Shares.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
 Write-Output "Server $SQLInstance"
 
 # Shares go here
-$ShareArray = @()
+$ShareArray = [System.Collections.ArrayList]@()
 
 # WMI connects to the Windows Server Name, not the SQL Server Named Instance
 $WinServer = ($SQLInstance -split {$_ -eq "," -or $_ -eq "\"})[0]

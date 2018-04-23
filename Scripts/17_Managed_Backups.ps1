@@ -28,106 +28,51 @@
     
 #>
 
-
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "17 - Managed Backups"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./17_Managed_Backups.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "17 - Managed Backups"
 Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-		$myver = $results.Column1
-		
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-		$myver = $results.Column1
-		
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
@@ -136,39 +81,16 @@ catch
 # Bail out if not 2014 or greater
 [int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
 
-IF ( $ver -eq "7" )
+switch ($ver)
 {
-   Write-Output "SQL Server 7"
-}
-
-IF ( $ver -eq "8" )
-{
-   Write-Output "SQL Server 2000"
-}
-
-IF ( $ver -eq "9" )
-{
-   Write-Output "SQL Server 2005"
-}
-
-IF ( $ver -eq "10" )
-{
-   Write-Output "SQL Server 2008/R2"
-}
-
-IF ( $ver -eq "11" )
-{
-   Write-Output "SQL Server 2012"
-}
-
-IF ( $ver -eq "12" )
-{
-   Write-Output "SQL Server 2014"
-}
-
-IF ( $ver -eq "13" )
-{
-   Write-Output "SQL Server 2016"
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
 }
 
 # Bail if not 2014 or greater
@@ -181,16 +103,14 @@ if ($ver -lt 12)
 }
 
 
-# Set Local Vars
-$server = $SQLInstance
-
+# New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -204,9 +124,10 @@ if(!(test-path -path $output_path))
         mkdir $output_path | Out-Null
     }
 
-# Bail if Managed Backups not setup yet, nothing to do
+# Bail out if Managed Backups not setup yet, nothing to do
 if ($srv.smartadmin.backupenabled -eq "false")
 {
+    Write-Output ("Managed Backups not setup yet, see https://docs.microsoft.com/en-us/sql/relational-databases/backup-restore/sql-server-managed-backup-to-microsoft-azure?view=sql-server-2017:")
     set-location $BaseFolder
     exit
 }
@@ -214,7 +135,7 @@ if ($srv.smartadmin.backupenabled -eq "false")
 # Export Server-Level Settings
 New-Item "$output_path\Managed_Backups_Server_Settings.sql" -type file -force  |Out-Null
 
-# MB Master Switch
+# Managed Backups Master ON Switch
 Add-Content -Value "--- Managed Backups Configuration for $SQLInstance `r`n" -Path "$output_path\Managed_Backups_Server_Settings.sql" -Encoding Ascii
 Add-Content -Value "--- Master Switch `r`n" -Path "$output_path\Managed_Backups_Server_Settings.sql" -Encoding Ascii
 if ($srv.SmartAdmin.MasterSwitch -eq "true")
@@ -251,7 +172,7 @@ $strEXEC += " ,@encryptor_name= N'"       + $srv.smartadmin.EncryptorName+"'; `r
 # push out concatenated string
 Add-Content $strEXEC -Path "$output_path\Managed_Backups_Server_Settings.sql" -Encoding Ascii
 
-$mySQLquery = "USE msdb; SELECT `
+$sqlCMD2 = "USE msdb; SELECT `
 distinct db_name, 
 is_managed_backup_enabled, 
 storage_url, 
@@ -266,58 +187,20 @@ order by 1
 "
 
 
-# connect correctly
 if ($serverauth -eq "win")
 {
-
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$sqlresults = $DataSet.Tables[0].Rows
-
+	$sqlresults2 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2
 }
 else
 {
-
-	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$sqlresults = $DataSet.Tables[0].Rows
-
+    $sqlresults2 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass
 }
+
 
 # Script out
 [int]$countproperty = 0;
 
-foreach ($MB in $sqlresults)
+foreach ($MB in $sqlresults2)
 {    
     $db = $MB.db_name
     $fixedDBName = $db.replace('[','')

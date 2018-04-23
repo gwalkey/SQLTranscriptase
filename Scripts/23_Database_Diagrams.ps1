@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Database Diagrams from the target server
 	
@@ -25,118 +25,63 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "23 - Database Diagrams"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-Host -f yellow "Usage: ./23_Database_Diagrams.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "23 - Database Diagrams"
 Write-Output "Server $SQLInstance"
 
-
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
 
-
-# Set Local Vars
-$server = $SQLInstance
-
+# New UP SMO Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -157,7 +102,7 @@ if(!(test-path -path $output_path))
 foreach($sqlDatabase in $srv.databases) 
 {
 
-    # Skip System Databases - unless you actually installed SOME DLLs here!- bad monkey
+    # Skip System Databases - unless you actually installed some USER Tables here- bad monkey
     if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB') {continue}
 
 
@@ -168,7 +113,7 @@ foreach($sqlDatabase in $srv.databases)
     $output_path = "$BaseFolder\$SQLInstance\23 - Database Diagrams\$fixedDBname"
                
     # Get Diagrams
-    $mySQLquery = 
+    $sqlCMD2 = 
     "
     USE $fixedDBName;
     
@@ -179,80 +124,17 @@ foreach($sqlDatabase in $srv.databases)
 
     "
 
-    # Catch Errors
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    # Run SQL
-    $results = @()
     if ($serverauth -eq "win")
     {
-       	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
-        {
-            $results = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-	        $Connection.Close()
-        }
-        else
-        {
-            # Close connection to sql server
-            $results = $null
-	        $Connection.Close()
-            continue
-        }
-
+    	$sqlresults2 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2
     }
     else
     {
-    	# .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
-        {
-            $results = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-	        $Connection.Close()
-            
-        }
-        else
-        {
-            # Close connection to sql server
-            $results = $null
-	        $Connection.Close()
-            continue
-        }     
-        
+        $sqlresults2 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass
     }
 
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference
-
-    if (!$results) {continue}
+    # None found? Skip
+    if (!$sqlresults2) {continue}
 
     Write-Output ("Scripting out Database Diagrams for: {0}" -f $fixedDBName)
     
@@ -264,11 +146,11 @@ foreach($sqlDatabase in $srv.databases)
     }
 
 
-    foreach ($diagram in $results)
+    foreach ($diagram in $sqlresults2)
     {        
         $DName = $diagram.name
 
-        $dquery = "`
+        $sqlCMD3 = "`
         Use "+$sqlDatabase.Name+";"+
         "
 
@@ -286,18 +168,17 @@ foreach($sqlDatabase in $srv.databases)
         # Dump Diagrams
         if ($serverauth -eq "win")
         {
-            $dresults = Invoke-Sqlcmd -MaxCharLength 100000000 -ServerInstance $SQLInstance -Query $dquery 
+            $sqlresults3 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3
         }
         else
         {     
-            $dresults = Invoke-Sqlcmd -MaxCharLength 100000000 -ServerInstance $SQLInstance -Query $dquery -Username $myuser -Password $mypass
+            $sqlresults3 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3 -User $myuser -Password $mypass
         }
         # Write Out
         $myoutputfile = $output_path+"\"+$DName+".sql"
-        $dresults.column1 | out-file -FilePath $myoutputfile -append -encoding ascii -width 10000000
+        $sqlresults3.column1 | out-file -FilePath $myoutputfile -append -encoding ascii -width 10000000
         
     } 
-            
 
 }
 

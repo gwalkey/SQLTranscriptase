@@ -25,123 +25,57 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-
-#  Script Name
-Write-Host  -f Yellow -b Black "09 - SSIS Packages from SSISDB"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./09_SSIS_Packages_from_SSISDB.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "09 - SSIS Packages from SSISDB"
 Write-Output "Server $SQLInstance"
 
 
-# Test for Existence of BCP.EXE in the system path
-try
-{
-    $BcpFound = bcp.exe
-}
-catch
-{
-    Write-Warning "BCP.EXE not in PATH"
-    exit
-}
-
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
 # Get Folder Structure 
-$mySQLquery = 
+$sqlCMD2 = 
 "
 SELECT 
     f.name as 'Folder',
@@ -197,33 +131,15 @@ if ($serverauth -eq "sql")
         exit
     }
  
-
-    # .NET Method
-    # Open connection and Execute sql against server
-    $DataSet = New-Object System.Data.DataSet
-    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-    $Connection = New-Object System.Data.SqlClient.SqlConnection
-    $Connection.ConnectionString = $SQLConnectionString
-    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-    $SqlCmd.CommandText = $mySQLquery
-    $SqlCmd.Connection = $Connection
-    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-    $SqlAdapter.SelectCommand = $SqlCmd
-    
-    # Insert results into Dataset table
-    $SqlAdapter.Fill($DataSet) | out-null
-    if ($DataSet.tables[0].Rows.count -gt 0)
+    # Get folders
+    try
     {
-        $Folders = $DataSet.Tables[0].Rows
-        # Close connection to sql server
-        $Connection.Close()           
+        $Folders = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass -ErrorAction Stop
     }
-    else
+    catch
     {
-        # Close connection to sql server
-        $Folders = $null
-        $Connection.Close()
-    }  
+        Throw("Error Connecting to SQL: {0}" -f $error[0])
+    }
 
 }
 else
@@ -263,31 +179,14 @@ else
     }
  
 
-    # .NET Method
-    # Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-    if ($DataSet.tables[0].Rows.count -gt 0)
+    # Get folders
+    try
     {
-        $Folders = $DataSet.Tables[0].Rows
-        # Close connection to sql server
-	    $Connection.Close()
+        $Folders = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -ErrorAction Stop
     }
-    else
+    catch
     {
-        # Close connection to sql server
-        $Folders = $null
-	    $Connection.Close()
+        Throw("Error Connecting to SQL: {0}" -f $error[0])
     }
 
 }
@@ -313,8 +212,28 @@ Foreach ($folder in $Folders)
         mkdir $SSISFolderPath | Out-Null
     }
 	
-    # Script out ISPAC using BCP and a format file
-    bcp "exec [ssisdb].[catalog].[get_project] '$foldername','$prjname'" queryout "$SSISFolderPath\$prjname.ispac" -S $SQLInstance -T -f "$BaseFolder\ssisdb.fmt" | Out-Null
+	# Create Outfolder for Each Project under the Folder
+	$SSISProjectPath = $SSISFolderPath +"\$prjname"
+	if(!(test-path -path $SSISProjectPath))
+    {
+        mkdir $SSISProjectPath | Out-Null
+    }
+	
+    # Script out the ISPAC using BCP and a format file
+    bcp "exec [ssisdb].[catalog].[get_project] '$foldername','$prjname'" queryout "$SSISProjectPath\$prjname.ispac" -S $SQLInstance -T -f "$BaseFolder\ssisdb.fmt" | Out-Null
+
+    # ----------------------
+	# Create Deploy Script
+    # ----------------------
+	$SSISProjectPathDeploy = $SSISProjectPath+"\Redeploy_Script.sql"
+	$DeploySQL = "
+	DECLARE @ProjectBinary as varbinary(max)
+	DECLARE @operation_id as bigint
+	Set @ProjectBinary = (SELECT * FROM OPENROWSET(BULK '$SSISProjectPath\$prjname.ispac', SINGLE_BLOB) as BinaryData)
+	Exec [SSISDB].[catalog].[deploy_project] @folder_name = '$foldername', @project_name = '$prjname', @Project_Stream = @ProjectBinary, @operation_id = @operation_id out;
+    "
+	
+	$DeploySQL | out-file -FilePath $SSISProjectPathDeploy -encoding ascii -force
 
 }
 
@@ -326,67 +245,28 @@ Write-Output "Writing out Folder Environments..."
 # Get the Folder Structure
 $fquery = "select [name] FROM [SSISDB].[catalog].[Folders]"
 
+# Get folder structure
 if ($serverauth -eq "win")
 {
-    # .NET Method
-    # Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $fquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-    if ($DataSet.tables[0].Rows.count -gt 0)
+    try
     {
-        $fresults = $DataSet.Tables[0].Rows
-        # Close connection to sql server
-	    $Connection.Close()
+        $fresults = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $fquery -ErrorAction Stop
     }
-    else
+    catch
     {
-        # Close connection to sql server
-        $fresults = $null
-	    $Connection.Close()
+        Throw("Error Connecting to SQL: {0}" -f $error[0])
     }
-
 }
 else
 {
-
-
-    # .NET Method
-    # Open connection and Execute sql against server
-    $DataSet = New-Object System.Data.DataSet
-    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-    $Connection = New-Object System.Data.SqlClient.SqlConnection
-    $Connection.ConnectionString = $SQLConnectionString
-    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-    $SqlCmd.CommandText = $fquery
-    $SqlCmd.Connection = $Connection
-    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-    $SqlAdapter.SelectCommand = $SqlCmd
-    
-    # Insert results into Dataset table
-    $SqlAdapter.Fill($DataSet) | out-null
-    if ($DataSet.tables[0].Rows.count -gt 0)
+try
     {
-        $fresults = $DataSet.Tables[0].Rows
-        # Close connection to sql server
-        $Connection.Close()           
+        $fresults = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $fquery -User $myuser -Password $mypass -ErrorAction Stop
     }
-    else
+    catch
     {
-        # Close connection to sql server
-        $fresults = $null
-        $Connection.Close()
-    }  
-
+        Throw("Error Connecting to SQL: {0}" -f $error[0])
+    }
 }
 
 
@@ -429,66 +309,27 @@ foreach ($folder in $fresults)
     # Get Environments
     if ($serverauth -eq "win")
     {
-
-        # .NET Method
-        # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $envquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-        
-    	# Insert results into Dataset table
-    	$SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
+        try
         {
-            $envresults = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-	        $Connection.Close()
+            $envresults = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $envquery -ErrorAction Stop
         }
-        else
+        catch
         {
-            # Close connection to sql server
-            $envresults = $null
-	        $Connection.Close()
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
         }
-
     }
     else
-    {    
-     
-        # .NET Method
-        # Open connection and Execute sql against server
-        $DataSet = New-Object System.Data.DataSet
-        $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-        $Connection = New-Object System.Data.SqlClient.SqlConnection
-        $Connection.ConnectionString = $SQLConnectionString
-        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-        $SqlCmd.CommandText = $envquery
-        $SqlCmd.Connection = $Connection
-        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-        $SqlAdapter.SelectCommand = $SqlCmd
-        
-        # Insert results into Dataset table
-        $SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
+    {
+    try
         {
-            $envresults = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-            $Connection.Close()           
+            $envresults = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $envquery -User $myuser -Password $mypass -ErrorAction Stop
         }
-        else
+        catch
         {
-            # Close connection to sql server
-            $envresults = $null
-            $Connection.Close()
-        }  
-
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
+
 
     # Write Out
     foreach ($env in $envresults)
@@ -550,66 +391,27 @@ foreach ($folder in $fresults)
     # Get Vars
     if ($serverauth -eq "win")
     {
-
-        # .NET Method
-        # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $envVquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-        
-    	# Insert results into Dataset table
-    	$SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
+        try
         {
-            $envVresults = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-	        $Connection.Close()
+            $envVresults = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $envVquery -ErrorAction Stop
         }
-        else
+        catch
         {
-            # Close connection to sql server
-            $envVresults = $null
-	        $Connection.Close()
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
         }
-
     }
     else
     {
-        # .NET Method
-        # Open connection and Execute sql against server
-        $DataSet = New-Object System.Data.DataSet
-        $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-        $Connection = New-Object System.Data.SqlClient.SqlConnection
-        $Connection.ConnectionString = $SQLConnectionString
-        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-        $SqlCmd.CommandText = $envVquery
-        $SqlCmd.Connection = $Connection
-        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-        $SqlAdapter.SelectCommand = $SqlCmd
-        
-        # Insert results into Dataset table
-        $SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
+    try
         {
-            $envVresults = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-            $Connection.Close()           
+            $envVresults = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $envVquery -User $myuser -Password $mypass -ErrorAction Stop
         }
-        else
+        catch
         {
-            # Close connection to sql server
-            $envVresults = $null
-            $Connection.Close()
-
-        } 
-
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
+
     # Write Out
     foreach ($envV in $envVresults)
     {
@@ -629,6 +431,7 @@ Write-Output "Writing out Key File..."
 $myquery =  " use SSISDB; "+
             " backup master key to file = '$destfile'"+
             " encryption by password = 'Brf7d5XtWc5gJiTBU8uW'"
+
 
 # Turn off Default Error Handling if this backup command fails on the remote server
 $old_ErrorActionPreference = $ErrorActionPreference
@@ -668,7 +471,6 @@ else
 	$Connection.Close()
 
 }
-
 # Reset default PS error handler
 $ErrorActionPreference = $old_ErrorActionPreference 
 

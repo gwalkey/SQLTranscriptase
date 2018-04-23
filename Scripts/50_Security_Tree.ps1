@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets all Server and Database Permissions for all Logins
 	
@@ -25,7 +25,7 @@
 	
 #>
 
-
+[CmdletBinding()]
 Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
@@ -33,95 +33,17 @@ Param(
 )
 
 
-# ----------------
-# - Initializing 
-# ----------------
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
+Import-Module ".\LoadSQLSmo.psm1"
+LoadSQLSMO
+
+# Init
 Set-StrictMode -Version latest;
-
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-# Splash
 Write-Host  -f Yellow -b Black "50 - Security Tree"
 Write-Output "Server $SQLInstance"
 
-# Functions
-function ConnectWinAuth
-{   
-    [CmdletBinding()]
-    Param([String]$SQLExec,
-          [String]$SQLInstance,
-          [String]$Database)
-
-    Process
-    {
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Initial Catalog=$Database;Integrated Security=SSPI;" 
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = $SQLExec
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) |out-null
-        if ($DataSet.Tables.Count -ne 0) 
-        {
-            $sqlresults = $DataSet.Tables[0]
-        }
-        else
-        {
-            $sqlresults =$null
-        }
-
-		# Close connection to sql server
-		$Connection.Close()		    
-
-        Write-Output $sqlresults
-    }
-}
-
-function ConnectSQLAuth
-{   
-[CmdletBinding()]
-    Param([String]$SQLExec,
-          [String]$SQLInstance,
-          [String]$Database,
-          [String]$User,
-          [String]$Password)
-
-    Process
-    {
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Initial Catalog=$Database;User ID=$User;Password=$Password" 
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = $SQLExec
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) |out-null
-        if ($DataSet.Tables.Count -ne 0) 
-        {
-            $sqlresults = $DataSet.Tables[0]
-        }
-        else
-        {
-            $sqlresults =$null
-        }
-
-		# Close connection to sql server
-		$Connection.Close()		    
-
-        Write-Output $sqlresults
-    }
-}
 
 # --------
 # Startup
@@ -164,13 +86,13 @@ if(!(test-path -path $output_path))
 }
 
 
-# ---------------------------
-# Get Public FSR Permissions
-# ---------------------------
+# ----------------------------------------
+# Get Public Fixed Server Role Permissions
+# ----------------------------------------
 $myPFSRfile = $output_path+"Public_Fixed_Server_Role.txt"
 "`r`nPublic Fixed Server Role permissions:" | out-file $myPFSRfile -Append
 
-$sql5=
+$sqlCMD1=
 "
 SELECT 
     sp.state_desc, 
@@ -190,15 +112,15 @@ WHERE l.name = 'public';
 
 if ($serverauth -eq "win")
 {
-    $PublicPerms = ConnectWinAuth -SQLExec $sql5 -SQLInstance $SQLInstance -Database "master"
+    $ServerPerms = ConnectWinAuth -SQLExec $sqlCMD1 -SQLInstance $SQLInstance -Database "master"
 }
 else
 {
-    $PublicPerms = ConnectSQLAuth -SQLExec $sql5 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
+    $ServerPerms = ConnectSQLAuth -SQLExec $sqlCMD1 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
 }
     
 $statement =''
-foreach ($perm in $PublicPerms)
+foreach ($perm in $ServerPerms)
 {
     if ($perm.class_desc -eq 'ENDPOINT')
     {
@@ -213,7 +135,7 @@ foreach ($perm in $PublicPerms)
 }
 
 # Get all online databases
-$sql1 = 
+$sqlCMD2 = 
 "
 SELECT
 	*
@@ -227,15 +149,15 @@ order by
 
 if ($serverauth -eq "win")
 {
-    $Databases = ConnectWinAuth $sql1 -SQLInstance $SQLInstance -Database "master"
+    $Databases = ConnectWinAuth $sqlCMD2 -SQLInstance $SQLInstance -Database "master"
 }
 else
 {
-    $Databases = ConnectSQLAuth $sql1 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
+    $Databases = ConnectSQLAuth $sqlCMD2 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
 }
 
 # Get Logins to Process
-$sql2=
+$sqlCMD3=
 "
 SELECT 
 	[NAME],
@@ -256,11 +178,11 @@ ORDER BY
 
 if ($serverauth -eq "win")
 {
-    $logins = ConnectWinAuth -SQLExec $sql2 -SQLInstance $SQLInstance -Database "master"
+    $logins = ConnectWinAuth -SQLExec $sqlCMD3 -SQLInstance $SQLInstance -Database "master"
 }
 else
 {
-    $logins = ConnectSQLAuth -SQLExec $sql2 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
+    $logins = ConnectSQLAuth -SQLExec $sqlCMD3 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
 }
 
 
@@ -277,16 +199,14 @@ foreach($myLogin in $logins)
         Write-Output("Login is disabled") | out-file $myoutputfile -Append
     }
     
-
     $login = $myLogin.name
-
 
     # --------------------------------------
     # Get Explicit Server-Level Permissions
     # --------------------------------------
     "`r`nServer-Level Permissions:" | out-file $myoutputfile -Append
 
-    $sql3 = 
+    $sqlCMD4 = 
     "
     SELECT 
     	x.[name],
@@ -307,11 +227,11 @@ foreach($myLogin in $logins)
 
     if ($serverauth -eq "win")
     {
-        $ServerPerms = ConnectWinAuth -SQLExec $sql3 -SQLInstance $SQLInstance -Database "master"
+        $ServerPerms = ConnectWinAuth -SQLExec $sqlCMD4 -SQLInstance $SQLInstance -Database "master"
     }
     else
     {
-        $ServerPerms = ConnectSQLAuth -SQLExec $sql3 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
+        $ServerPerms = ConnectSQLAuth -SQLExec $sqlCMD4 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
     }
 
     foreach ($perm in $ServerPerms)
@@ -327,7 +247,7 @@ foreach($myLogin in $logins)
     # ---------------------------------
     "`r`nFixed Server Role Permissions:" | out-file $myoutputfile -Append
 
-    $sql4=
+    $sqlCMD5=
     "
     SELECT 	
 	    sRole.name AS [Server_Role_Name]
@@ -342,11 +262,11 @@ foreach($myLogin in $logins)
     
     if ($serverauth -eq "win")
     {
-        $FSRPerms = ConnectWinAuth -SQLExec $sql4 -SQLInstance $SQLInstance -Database "master"
+        $FSRPerms = ConnectWinAuth -SQLExec $sqlCMD5 -SQLInstance $SQLInstance -Database "master"
     }
     else
     {
-        $FSRPerms = ConnectSQLAuth -SQLExec $sql4 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
+        $FSRPerms = ConnectSQLAuth -SQLExec $sqlCMD5 -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass
     }
 
     $statement=''
@@ -381,7 +301,7 @@ foreach($myLogin in $logins)
         $DBName = $database.name
 
         # Get the Login-to-User mapping first
-        $sqll2u=
+        $sqlCMD6=
         "
         SELECT 
 	        susers.[name] AS [ServerLogin],
@@ -398,11 +318,11 @@ foreach($myLogin in $logins)
 
         if ($serverauth -eq "win")
         {
-            $LoginToUserMap = ConnectWinAuth -SQLExec $sqll2u -SQLInstance $SQLInstance -Database $DBName
+            $LoginToUserMap = ConnectWinAuth -SQLExec $sqlCMD6 -SQLInstance $SQLInstance -Database $DBName
         }
         else
         {
-            $LoginToUserMap = ConnectSQLAuth -SQLExec $sqll2u -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
+            $LoginToUserMap = ConnectSQLAuth -SQLExec $sqlCMD6 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
         }
 
         # Skip the Database if there is no Login to User Mapping
@@ -417,7 +337,7 @@ foreach($myLogin in $logins)
         # Get database-scoped permissions at database level
         #"Database-scoped permissions at the database level:" | out-file $myoutputfile -Append
 
-        $sql6=
+        $sqlCMD7=
         "
         SELECT
             perms.class_desc as [PermissionClass],
@@ -437,11 +357,11 @@ foreach($myLogin in $logins)
         "
         if ($serverauth -eq "win")
         {
-            $DBScopedPerms = ConnectWinAuth -SQLExec $sql6 -SQLInstance $SQLInstance -Database $DBName
+            $DBScopedPerms = ConnectWinAuth -SQLExec $sqlCMD7 -SQLInstance $SQLInstance -Database $DBName
         }
         else
         {
-            $DBScopedPerms = ConnectSQLAuth -SQLExec $sql6 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
+            $DBScopedPerms = ConnectSQLAuth -SQLExec $sqlCMD7 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
         }
         
         # Script out
@@ -457,7 +377,7 @@ foreach($myLogin in $logins)
 
         # Get high impact database-scoped permissions at object level
         #"Database-scoped permissions at the object level:" | out-file $myoutputfile -Append
-        $sql7=
+        $sqlCMD8=
         "
         SELECT 
 	        perms.class_desc as [PermissionClass], 
@@ -480,11 +400,11 @@ foreach($myLogin in $logins)
 
         if ($serverauth -eq "win")
         {
-            $DBObjectPerms = ConnectWinAuth -SQLExec $sql7 -SQLInstance $SQLInstance -Database $DBName
+            $DBObjectPerms = ConnectWinAuth -SQLExec $sqlCMD8 -SQLInstance $SQLInstance -Database $DBName
         }
         else
         {
-            $DBObjectPerms = ConnectSQLAuth -SQLExec $sql7 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
+            $DBObjectPerms = ConnectSQLAuth -SQLExec $sqlCMD8 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
         }
 
         $statement =''
@@ -497,7 +417,7 @@ foreach($myLogin in $logins)
         
         # Get Database Role Membership
         #"`r`nFixed Database Role Memberships:" | out-file $myoutputfile -Append
-        $sql8=
+        $sqlCMD9=
         "
         SELECT 
 	        dRole.name AS [DBRole]	
@@ -517,11 +437,11 @@ foreach($myLogin in $logins)
     
         if ($serverauth -eq "win")
         {
-            $DBRoleMemberships = ConnectWinAuth -SQLExec $sql8 -SQLInstance $SQLInstance -Database $DBName
+            $DBRoleMemberships = ConnectWinAuth -SQLExec $sqlCMD9 -SQLInstance $SQLInstance -Database $DBName
         }
         else
         {
-            $DBRoleMemberships = ConnectSQLAuth -SQLExec $sql8 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
+            $DBRoleMemberships = ConnectSQLAuth -SQLExec $sqlCMD9 -SQLInstance $SQLInstance -Database $DBName -User $myuser -Password $mypass
         }
 
         $statement=''

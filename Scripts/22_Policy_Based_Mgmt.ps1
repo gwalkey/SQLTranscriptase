@@ -26,164 +26,134 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
 
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "22 - Policy Based Mgmt Objects"
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./22_Policy_Based_Mgmt.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
-Write-Output "Server $SQLInstance"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "22 - Policy Based Mgmt Objects"
+Write-Output "Server $SQLInstance"
 
-# Load Additional Assemblies
+# Load DMF Assemblies
 $dmfver = $null;
-$dmfdll = "C:\Program Files (x86)\Microsoft SQL Server\100\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-if((test-path -path $dmfdll))
+
+try 
 {
-    $dmfver = 2008
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\100\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
+  # 2017
+  $dmfver = 14
+  Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+  Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+}
+catch 
+{
+    try 
+    {
+        # 2016
+        $dmfver = 13
+	    Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	    Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+    }
+    catch 
+    {
+	    try 
+        {
+	        # 2014
+            $dmfver = 12
+	        Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	        Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	    }
+	    catch 
+        {
+  	        try 
+            {
+		        # 2012
+                $dmfver = 11
+		        Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+		        Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	        }
+	        catch 
+            {
+        	    try 
+                {
+		            # 2008
+                    $dmfver = 10
+		            Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+		            Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+		        }
+		        catch 
+                {
+		            Write-Warning 'SMO components not installed'
+		            throw('SMO components not installed')
+		        }
+	        }
+	    }
+    }
 }
 
-$dmfdll = "C:\Program Files (x86)\Microsoft SQL Server\110\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-if((test-path -path $dmfdll))
-{
-    $dmfver = 2012
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\110\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-}
-
-$dmfdll = "C:\Program Files (x86)\Microsoft SQL Server\120\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-if((test-path -path $dmfdll))
-{
-    $dmfver = 2014
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\120\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-}
-
-$dmfdll = "C:\Program Files (x86)\Microsoft SQL Server\130\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-if((test-path -path $dmfdll))
-{
-    $dmfver = 2016
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\130\SDK\Assemblies\Microsoft.SqlServer.Dmf.dll"
-}
 
 If (!($dmfver))
 {
-    Write-Output "Microsoft.SqlServer.Dmf.dll not found, exiting"
+    Write-Output "'Microsoft.SqlServer.Dmf.dll' or 'Microsoft.SqlServer.Management.Sdk.Sfc.dll' not found, exiting"
     exit
 }
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
 
-
-# Set Local Vars
-$server = $SQLInstance
-
-# Connect
+# New UP SFC Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
-    $conn = New-Object Microsoft.SQlServer.Management.Sdk.Sfc.SqlStoreConnection("server='$sqlinstance';Trusted_Connection=true")
+    $conn = New-Object Microsoft.SqlServer.Management.Sdk.Sfc.SqlStoreConnection("server=$SQLInstance;Trusted_Connection=true")
+    $PolicyStore = New-Object Microsoft.SqlServer.Management.DMF.PolicyStore($conn)
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
-    $srv.ConnectionContext.LoginSecure=$false
-    $srv.ConnectionContext.set_Login($myuser)
-    $srv.ConnectionContext.set_Password($mypass)
-    $conn = New-Object Microsoft.SQlServer.Management.Sdk.Sfc.SqlStoreConnection("server='$sqlinstance';Trusted_Connection=false; User Id=$myuser; Password=$mypass")
+    $conn = New-Object Microsoft.SqlServer.Management.Sdk.Sfc.SqlStoreConnection("server='$SQLInstance';Trusted_Connection=false; User Id=$myuser; Password=$mypass")
+    $PolicyStore = New-Object Microsoft.SqlServer.Management.DMF.PolicyStore($conn)
 }
 
 
-# Prep Output Folder
+# Prep Output Folders
 Write-Output "$SQLInstance - PBM"
 $Output_path  = "$BaseFolder\$SQLInstance\22 - PBM\"
 if(!(test-path -path $Output_path))
@@ -205,80 +175,55 @@ if(!(test-path -path $COutput_path))
     mkdir $COutput_path | Out-Null
 }
 
-# Scripter function
-function CopyObjectsToFiles($objects, $outDir) {
-	
-	if (-not (Test-Path $outDir)) {
-		[System.IO.Directory]::CreateDirectory($outDir) | out-null
-	}
-	
-	foreach ($o in $objects) { 
-	
-		if ($o -ne $null) {
-			
-			$schemaPrefix = ""
-			
-			if ($o.Schema -ne $null -and $o.Schema -ne "") {
-				$schemaPrefix = $o.Schema + "."
-			}
-		
-			$fixedOName = $o.name.replace('\','_')			
-			$scripter.Options.FileName = $outDir + $schemaPrefix + $fixedOName + ".sql"
-            try
-            {                
-                $urn = new-object Microsoft.SQlserver.Management.sdk.sfc.urn($o.Urn);
-                $scripter.Script($urn)
-            }
-            catch
-            {
-                $msg = "Cannot script this element:"+$o
-                Write-Output $msg
-            }
-		}
-	}
-}
+Write-Output "Writing Out..."
 
-
-Write-Output "Exporting PBM Policies and Conditions..."
-
-# Script Out Policies
-$PolicyStore = New-Object Microsoft.SqlServer.Management.DMF.PolicyStore($conn)
-$MyP = $PolicyStore.Policies | Where-Object { -not $_.IsSystemObject }
-
-foreach($policy in $MyP)
+# Script Out
+if ($PolicyStore -ne $null)
 {
-    $myPName = $Policy.Name
-    $myfixedName = $myPName.replace('\','_')
-    $myfixedName = $myfixedName.replace('!','_')
-    $myfixedName = $myfixedName.replace('/','_')
-    $myfixedName = $myfixedName.replace('%','_')
-    $Outfilename = $POutput_path+"$myfixedName.xml"
-	# Log to Console
-    "Policy: $myfixedName"
-    $xmlWriter = [System.Xml.XmlWriter]::Create($Outfilename)
-    $policy.Serialize($xmlWriter)
-    $xmlWriter.Close()
+    # New UP Policy Store Object
+    Write-Output "Exporting PBM Policies and Conditions..."
+    $PolicyStore = New-Object Microsoft.SqlServer.Management.DMF.PolicyStore($conn)    
+
+    # Script out Policies
+    $Policies = $PolicyStore.Policies | Where-Object { -not $_.IsSystemObject }
+    foreach($policy in $Policies)
+    {
+        $myPName = $Policy.Name
+        $myfixedName = $myPName.replace('\','_')
+        $myfixedName = $myfixedName.replace('!','_')
+        $myfixedName = $myfixedName.replace('/','_')
+        $myfixedName = $myfixedName.replace('%','_')
+        $Outfilename = $POutput_path+"$myfixedName.xml"
+
+        Write-Output("Policy: {0}" -f $myfixedName)
+        $xmlWriter = [System.Xml.XmlWriter]::Create($Outfilename)
+        $policy.Serialize($xmlWriter)
+        $xmlWriter.Close()
+    }
+
+
+    # Script out Conditions
+    $myConditions = $PolicyStore.Conditions | Where-Object { -not $_.IsSystemObject }    
+    foreach($Condition in $myConditions)
+    {
+        $myCName = $Condition.Name
+        $myfixedName = $myCName.replace('\','_')
+        $myfixedName = $myfixedName.replace('!','_')
+        $myfixedName = $myfixedName.replace('/','_')
+        $myfixedName = $myfixedName.replace('%','_')
+        $Outfilename = $COutput_path+"$myfixedName.xml"
+
+        Write-Output("Condition: {0}" -f $myfixedName)
+        $xmlWriter = [System.Xml.XmlWriter]::Create($Outfilename)
+        $Condition.Serialize($xmlWriter)
+        $xmlWriter.Close()
+    }
 }
-
-
-# Script out Conditions
-#$Cond_Store=New-Object Microsoft.SqlServer.Management.Dmf.PolicyCondition ($PolicyStore,'TheConditions')
-$myC = $PolicyStore.Conditions | Where-Object { -not $_.IsSystemObject }
-
-foreach($Condition in $myC)
+else
 {
-    $myCName = $Condition.Name
-    $myfixedName = $myCName.replace('\','_')
-    $myfixedName = $myfixedName.replace('!','_')
-    $myfixedName = $myfixedName.replace('/','_')
-    $myfixedName = $myfixedName.replace('%','_')
-    $Outfilename = $COutput_path+"$myfixedName.xml"
-	# Log to Console
-    "Condition: $myfixedName"
-    $xmlWriter = [System.Xml.XmlWriter]::Create($Outfilename)
-    $Condition.Serialize($xmlWriter)
-    $xmlWriter.Close()
+    Write-Output "Could Not Connect to PolicyStore"
 }
+
 
 # Return to Base
 set-location $BaseFolder

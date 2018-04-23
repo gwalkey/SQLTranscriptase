@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the .NET Assemblies registered on the target server
 	
@@ -28,118 +28,64 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "03 - .NET Assemblies"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-Host -f yellow "Usage: ./03_NET_Assemblies.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "03 - .NET Assemblies"
 Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
 
-
-# Set Local Vars
-$server 	= $SQLInstance
-
+# New UP SMO Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -150,9 +96,9 @@ else
 # Create output folder
 $output_path = "$BaseFolder\$SQLInstance\03 - NET Assemblies\"
 if(!(test-path -path $output_path))
-    {
-        mkdir $output_path | Out-Null
-    }
+{
+    mkdir $output_path | Out-Null
+}
 
 # -----------------------
 # iterate over each DB
@@ -162,14 +108,14 @@ foreach($sqlDatabase in $srv.databases)
 
     # Skip System Databases - unless you actually installed some DLLs in those!- bad monkey
     if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB') {continue}
-
+    
     # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
     {
         Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
         continue
     }
-    
+
     # Strip brackets from DBname
     $db = $sqlDatabase
     $fixedDBName = $db.name.replace('[','')
@@ -178,7 +124,7 @@ foreach($sqlDatabase in $srv.databases)
     
                
     # Get Assemblies
-    $mySQLquery = 
+    $SQLCMD2 = 
     "
     USE $fixedDBName
 
@@ -198,71 +144,39 @@ foreach($sqlDatabase in $srv.databases)
     WHERE a.name <> 'Microsoft.SqlServer.Types' 
     "
 
-    # Run SQL
-    $results = @()
+    # Run Query
     if ($serverauth -eq "win")
     {
-        
-    	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-
-        # Insert results into Dataset table
         try
         {
-            $SqlAdapter.Fill($DataSet) | out-null
-            $results = $DataSet.Tables[0].Rows
+            $sqlresults = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD2 -ErrorAction Stop
         }
-        catch{}
-
-        # Close connection to sql server
-        $Connection.Close()
-
-        
+        catch
+        {
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
     else
     {
-
-        
-    	# .NET Method
-	    # Open connection and Execute sql against server
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-	    # Insert results into Dataset table
-	    $SqlAdapter.Fill($DataSet) | out-null
-
-	    # Close connection to sql server
-	    $Connection.Close()
-        $results = $DataSet.Tables[0].Rows
-        
+    try
+        {
+            $sqlresults = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD2 -User $myuser -Password $mypass -ErrorAction Stop
+        }
+        catch
+        {
+            Throw("Error Connecting to SQL: {0}" -f $error[0])
+        }
     }
 
     # Any results?
     try
     {
-        if ($results.count -gt 0)
+        if ($sqlresults.count -gt 0)
         {
-            Write-Output "Scripting out .NET Assemblies for: "$fixedDBName
+            Write-Output ("Processing: {0}" -f $fixedDBName)
         }
 
-        foreach ($assembly in $results)
+        foreach ($assembly in $sqlresults)
         {        
             # One Sub for each DB
             if(!(test-path -path $output_path))

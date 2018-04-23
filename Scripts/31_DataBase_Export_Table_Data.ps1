@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Dumps Table Data to BCP Native Format files
 
@@ -14,7 +14,6 @@
 .Inputs
     ServerName, [SQLAuthUser], [SQLAuthPassword], [myDatabase], [myTable]
 
-
 .Outputs
 
 .NOTES
@@ -24,6 +23,7 @@
 	
 #>
 
+[CmdletBinding()]
 Param(
     [string]$SQLInstance = "localhost",
     [string]$myuser,
@@ -32,24 +32,15 @@ Param(
 	[string]$mytable
 )
 
-Set-StrictMode -Version latest;
-
-$DebugPreference = "Stop"
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "31 - DataBase Export Table Data"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-host -f yellow "Usage: ./31_DataBase_Export_Table_Data.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ machine)"
-    exit
-}
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "31 - DataBase Export Table Data"
 
 # Parameter check: Table needs matching Database parameter
 if ($myTable.Length -gt 0 -and $myDatabase.Length -eq 0)
@@ -63,90 +54,43 @@ Write-Output "Server $SQLInstance"
 
 
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-		
-		$serverauth="sql"
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
+        $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-		$myver = $results.Column1
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Warning "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
-
-
-# Create SMO Object
-$server = $SQLInstance
-
+# New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
 }
 else
 {
-    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $server
+    $srv = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
@@ -158,7 +102,6 @@ if(!(test-path -path $FullFolderPath))
 {
     mkdir $FullFolderPath | Out-Null
 }
-
 
 if ($myDatabase.Length -gt 0)
 {
@@ -185,6 +128,8 @@ foreach($sqlDatabase in $srv.databases)
         Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
         continue
     }
+
+    Write-Output ("Database: {0}" -f $sqlDatabase.name)
 
     # Script out objects for each DB
     $db = $sqlDatabase
@@ -229,19 +174,20 @@ foreach($sqlDatabase in $srv.databases)
         $FileFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".dat"
         $FileFormatFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".fmt"
 
+        # Create Batch files that run the BCP OUT command itself, and call those
         # Windows Auth
         if ($serverauth -eq "win")
         {
-            # Create Batch files to run the export itself, and call those
+            
             # Data
             $myoutstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" out "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
             #$myoutstring
             $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
             # Format File
-            #$myformatstring = "@echo off `n bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
+            $myformatstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
             #$myformatstring
-            #$myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
+            $myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
 
             # Import ETL
             $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
@@ -250,8 +196,8 @@ foreach($sqlDatabase in $srv.databases)
 
             set-location $DB_Path
 
-            .\BCPTableDump.cmd
-            #.\BCPTableFormat.cmd
+            Invoke-Expression ".\BCPTableFormat.cmd"
+            Invoke-Expression ".\BCPTableDump.cmd"            
 
             set-location $BaseFolder
 
@@ -265,8 +211,8 @@ foreach($sqlDatabase in $srv.databases)
             $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
             # Format File
-            #$myformatstring = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34 + " -U "+$myUser + " -P "+ $myPass
-            #$myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
+            $myformatstring = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34 + " -U "+$myUser + " -P "+ $myPass
+            $myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
 
             # Import ETL
             $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + " -U "+$myUser + " -P "+ $myPass + "`n"
@@ -276,8 +222,8 @@ foreach($sqlDatabase in $srv.databases)
 
             set-location $DB_Path
 
-            .\BCPTableDump.cmd | Out-Null
-            #.\BCPTableFormat.cmd | out-null
+            Invoke-Expression ".\BCPTableFormat.cmd"
+            Invoke-Expression ".\BCPTableDump.cmd"
 
             set-location $BaseFolder
         }

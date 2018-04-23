@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Public Key Infrastructure Objects on the target server
 
@@ -36,108 +36,55 @@
 	https://github.com/gwalkey
 #>
 
+[CmdletBinding()]
 Param(
   [string]$SQLInstance='localhost',
   [string]$myuser,
   [string]$mypass
 )
 
-Set-StrictMode -Version latest;
-
-[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
-
-Write-Host  -f Yellow -b Black "13 - PKI (Master keys, Asym Keys, Sym Keys, Certificates)"
-
-# Load SMO Assemblies
+# Load Common Modules and .NET Assemblies
+Import-Module ".\SQLTranscriptase.psm1"
 Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
-
-# Usage Check
-if ($SQLInstance.Length -eq 0) 
-{
-    Write-Host -f yellow "Usage: ./13_PKI.ps1 `"SQLServerName`" ([`"Username`"] [`"Password`"] if DMZ/SQL Auth machine)"
-    Set-Location $BaseFolder
-    exit
-}
-
-
-# Working
+# Init
+Set-StrictMode -Version latest;
+[string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
+Write-Host  -f Yellow -b Black "13 - PKI (Master keys, Asym Keys, Sym Keys, Certificates)"
 Write-Output "Server $SQLInstance"
 
-
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"
-		# .NET Method
-		# Open connection and Execute sql against server
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
         Write-Output "Testing Windows Auth"
-		# .NET Method
-		# Open connection and Execute sql against server using Windows Auth
-		$DataSet = New-Object System.Data.DataSet
-		$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-		$Connection = New-Object System.Data.SqlClient.SqlConnection
-		$Connection.ConnectionString = $SQLConnectionString
-		$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-		$SqlCmd.CommandText = "select serverproperty('productversion')"
-		$SqlCmd.Connection = $Connection
-		$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-		$SqlAdapter.SelectCommand = $SqlCmd
-    
-		# Insert results into Dataset table
-		$SqlAdapter.Fill($DataSet) | out-null
-
-		# Close connection to sql server
-		$Connection.Close()
-		$results = $DataSet.Tables[0].Rows[0]
-
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
 }
 catch
 {
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
 }
 
-
+# New Up SMO Object
 if ($serverauth -eq "win")
 {
     $srv = New-Object ('Microsoft.SqlServer.Management.Smo.Server') $SQLInstance
@@ -152,7 +99,7 @@ else
     $backupfolder = $srv.Settings.BackupDirectory
 }
 
-# if a UNC path, use it 
+# if the Server's Backup Path is a UNC path, use it 
 $unc = 0
 if ($backupfolder -like "*\\*")
 {
@@ -172,58 +119,42 @@ Write-Output "Backup folder is $backupfolder"
 # -------------------------------------
 # 1) Service Master Key - Server Level
 # -------------------------------------
-Write-Output "Saving Service Master Key..."
+Write-Output "`r`nSaving Service Master Key..."
 
-$mySQLquery = "
+$SQLCMD1 = "
 backup service master key to file = N'$backupfolder\Service_Master_Key.txt'
 encryption by password = 'SomeNewSecurePassword$!'
 "
 
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
-# Run SQL on Server
+# Run SQL
 if ($serverauth -eq "win")
 {
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-    $Connection.Open()
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$sqlCmd.ExecuteNonQuery() | out-null
-	$Connection.Close()
-
+    try
+    {
+        Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
+    }
+    catch
+    {
+        Write-Output ("Error Doing Backup of Master Key: Error:[{0}]" -f $_.Exception.Message)
+    }
 }
 else
 {
-
-    # .NET Method
-	# Open connection and Execute sql against server using SQL Auth
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-    $Connection.Open()
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$sqlCmd.ExecuteNonQuery() | out-null
-	$Connection.Close()
-
+    try
+    {
+        Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
+    }
+    catch
+    {
+       Write-Output ("Error Doing Backup of Master Key: Error:[{0}]" -f $_.Exception.Message)
+    }
 }
 
 
-# Reset default PS error handler
-$ErrorActionPreference = $old_ErrorActionPreference 	
-
 # Copy files down
-# copy-item fails if your powershell "location" is SQLSERVER:
 set-location $BaseFolder
 
-#Get Windows Server name separate from the SQL instance
+# Split out Windows Server name from the SQL instance
 if ($SQLInstance.IndexOf('\') -gt 0)
 {
     $SQLInstance2 = $SQLInstance.Substring(0,$sqlinstance.IndexOf('\'))
@@ -263,35 +194,30 @@ else
         $src = "\\$sqlinstance2\$sourcefolder\Service_Master_Key.txt"
     }
     
-	$old_ErrorActionPreference = $ErrorActionPreference
-	$ErrorActionPreference = 'SilentlyContinue'
-
-    if (!(test-path $src))
+    try
+    {
+        copy-item $src "$PKI_Path" -ErrorAction stop
+        remove-item $src -ErrorAction Stop
+    }
+    catch
     {
         Write-Output "Cant connect to $src"
     }
-    else
-    {
-        copy-item $src "$PKI_Path"
-        # Leave no trace on server
-        remove-item $src -ErrorAction SilentlyContinue
-    }
 	
-	# Reset default PS error handler - for WMI error trapping
-	$ErrorActionPreference = $old_ErrorActionPreference 
+
 }
 
 # ------------------------------------
 # 2) Database Master Keys - DB Level
 # ------------------------------------
 set-location $BaseFolder
-Write-Output "Saving Database Master Keys:"
+Write-Output "`r`nSaving Database Master Keys:"
 
 foreach($sqlDatabase in $srv.databases) 
 {
 
     # Skip System Databases
-    if ($sqlDatabase.Name -in 'Model','MSDB','TempDB','SSISDB') {continue}
+    if ($sqlDatabase.Name -in ('Model','MSDB','TempDB','SSISDB')) {continue}
 
     # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
@@ -307,7 +233,7 @@ foreach($sqlDatabase in $srv.databases)
     $fixedDBName = $fixedDBName.replace(']','')
 
     # Check for DB Master Key existence
-    $mySQLQuery = "
+    $sqlCMD2 = "
     Use $sqlDatabase;
 
     If (select Count(*) from sys.symmetric_keys where name like '%DatabaseMasterKey%') >0
@@ -317,79 +243,38 @@ foreach($sqlDatabase in $srv.databases)
     else
     begin
 	    select 0
-    end   
+    end
     "
-    # connect correctly
-	if ($serverauth -eq "win")
-	{
 
-        # .NET Method
-        # Open connection and Execute sql against server using Windows Auth
-	    $DataSet = New-Object System.Data.DataSet
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	    $SqlAdapter.SelectCommand = $SqlCmd
-    
-    	# Insert results into Dataset table
-    	$SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
+    if ($serverauth -eq "win")
+    {
+        try
         {
-            $sqlresults2 = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-	        $Connection.Close()
+	        $sqlresults2 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -ErrorAction Stop
         }
-        else
+        catch
         {
-            # Close connection to sql server
-            $sqlresults2 = $null
-	        $Connection.Close()
-            #continue
+            Write-Output("SQL Error getting symmetric key count, `r`nError:[{0}]" -f $_.Exception.Message)
+        }
+    }
+    else
+    {
+        try
+        {
+            $sqlresults2 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD2 -User $myuser -Password $mypass
+        }
+        catch
+        {
+            Write-Output("SQL Error getting symmetric key count, `r`nError:[{0}]" -f $_.Exception.Message)
         }
 
-	}
-	else
-	{
-
-        # .NET Method
-        # Open connection and Execute sql against server
-        $DataSet = New-Object System.Data.DataSet
-        $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-        $Connection = New-Object System.Data.SqlClient.SqlConnection
-        $Connection.ConnectionString = $SQLConnectionString
-        $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-        $SqlCmd.CommandText = $mySQLquery
-        $SqlCmd.Connection = $Connection
-        $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-        $SqlAdapter.SelectCommand = $SqlCmd
-    
-        # Insert results into Dataset table
-        $SqlAdapter.Fill($DataSet) | out-null
-        if ($DataSet.tables[0].Rows.count -gt 0)
-        {
-            $sqlresults2 = $DataSet.Tables[0].Rows
-            # Close connection to sql server
-            $Connection.Close()           
-        }
-        else
-        {
-            # Close connection to sql server
-            $sqlresults2 = $null
-            $Connection.Close()
-            continue
-        }  
-
-	}    
+    }
 
     # Skip if no key found
     if ($sqlresults2.Column1 -eq 0) {continue}
 
     # Debug
-    Write-Output "Exporting DB Master for $fixedDBName"
+    Write-Output "Exporting DataBase Master Key for Database: [$fixedDBName]"
     
 
     #Create output folder
@@ -401,56 +286,40 @@ foreach($sqlDatabase in $srv.databases)
     
     # Export the DB Master Key
     $myExportedDBMasterKeyName = $backupfolder + "\" + $fixedDBName + "_Database_Master_Key.txt"
-    $mySQLquery = "
+    $sqlCMD3 = "
     use $fixedDBName;
 
     backup master key to file = N'$myExportedDBMasterKeyName'
 	encryption by password = '3dH85Hhk003#GHkf02597gheij04'
     "
 
-    # Turn off Default Error Handling
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
     # connect correctly
-	if ($serverauth -eq "win")
-	{
+    if ($serverauth -eq "win")
+    {
+        try
+        {
+	        $sqlresults3 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3
+        }
+        catch
+        {
+            Write-Output("SQL Error backing up master key on server, `r`nError:[{0}]" -f $_.Exception.Message)
+        }
+    }
+    else
+    {
+        try
+        {
+            $sqlresults3 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD3 -User $myuser -Password $mypass
+        }
+        catch
+        {
+            Write-Output("SQL Error backing up master key on server, `r`nError:[{0}]" -f $_.Exception.Message)
+        }
+    }
 
-    	# .NET Method
-    	# Open connection and Execute sql against server using Windows Auth
-    	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-    	$Connection = New-Object System.Data.SqlClient.SqlConnection
-    	$Connection.ConnectionString = $SQLConnectionString
-        $Connection.Open()
-    	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-    	$SqlCmd.CommandText = $mySQLquery
-    	$SqlCmd.Connection = $Connection
-    	$DBMKresult=$sqlCmd.ExecuteNonQuery() | out-null
-    	$Connection.Close()
-
-	}
-	else
-	{
-
-        # .NET Method
-	    # Open connection and Execute sql against server using SQL Auth
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-        $Connection.Open()
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $DBMKresult = $sqlCmd.ExecuteNonQuery() | out-null
-	    $Connection.Close()
-
-	}
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 
 
     # No DB Master Key found, dont bother copying non-existent file
-    if ($DBMKresult -ne $null) {continue}
+    if ($sqlresults3 -ne $null) {continue}
 	
     # copy-item fails if your location is SQLSERVER:
     set-location $BaseFolder
@@ -494,8 +363,6 @@ foreach($sqlDatabase in $srv.databases)
 	   
         if(test-path -path $src)
         {
-            #Write-Output "src: "$src
-            #Write-Output "output_path:"$output_path
             copy-item $src $output_path -ErrorAction SilentlyContinue
             remove-item $src -ErrorAction SilentlyContinue
         }   
@@ -515,10 +382,10 @@ foreach($sqlDatabase in $srv.databases)
 # -------------------------------
 # 3) Certificates from Master DB
 # -------------------------------
-Write-Output "Saving Certs:"
+Write-Output "`r`nSaving Certs:"
 
-# Check for Exisitng Certs
-$mySQLQuery = "
+# Check for any Exisitng Certs
+$sqlCMD4 = "
     IF (SELECT count(*) FROM [master].[sys].[certificates] where name not like '##MS_%') >0
     begin
         select 1
@@ -532,74 +399,18 @@ $mySQLQuery = "
 # connect correctly
 if ($serverauth -eq "win")
 {
-
-    # .NET Method
-    # Open connection and Execute sql against server using Windows Auth
-    $DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $mySQLquery
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-        
-    # Insert results into Dataset table
-    $SqlAdapter.Fill($DataSet) | out-null
-    if ($DataSet.tables[0].Rows.count -gt 0)
-    {
-        $sqlresults22 = $DataSet.Tables[0].Rows
-        # Close connection to sql server
-	    $Connection.Close()
-    }
-    else
-    {
-        # Close connection to sql server
-        $sqlresults22 = $null
-	    $Connection.Close()
-        #continue
-    }
-
+	$sqlresults4 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD4
 }
 else
 {
-
-    # .NET Method
-    # Open connection and Execute sql against server
-    $DataSet = New-Object System.Data.DataSet
-    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-    $Connection = New-Object System.Data.SqlClient.SqlConnection
-    $Connection.ConnectionString = $SQLConnectionString
-    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-    $SqlCmd.CommandText = $mySQLquery
-    $SqlCmd.Connection = $Connection
-    $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-    $SqlAdapter.SelectCommand = $SqlCmd
-        
-    # Insert results into Dataset table
-    $SqlAdapter.Fill($DataSet) | out-null
-    if ($DataSet.tables[0].Rows.count -gt 0)
-    {
-        $sqlresults22 = $DataSet.Tables[0].Rows
-        # Close connection to sql server
-        $Connection.Close()           
-    }
-    else
-    {
-        # Close connection to sql server
-        $sqlresults22 = $null
-        $Connection.Close()
-        continue
-    } 
-
-}    
+    $sqlresults4 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMD4 -User $myuser -Password $mypass
+}
 
 # Export Certs if any found
-if ($sqlresults22.Column1 -eq 1)
+if ($sqlresults4.Column1 -eq 1)
 {
 
-    $mySQLquery = "
+    $SQLCMD5 = "
     use master;
 
     DECLARE @CertName  VARCHAR(128)
@@ -638,52 +449,34 @@ if ($sqlresults22.Column1 -eq 1)
     "
 
 
-    # Turn off Default Error Handling
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    # connect correctly
     if ($serverauth -eq "win")
     {
-
-    	# .NET Method
-	    # Open connection and Execute sql against server using Windows Auth
-	    $SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-        $Connection.Open()
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $sqlCmd.ExecuteNonQuery() | out-null
-	    $Connection.Close()
-
+        Try
+        {
+            Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
+        }
+        catch
+        {
+            Write-Output ("Error Doing Certificate ScriptOut: Error:[{0}]" -f $_.Exception.Message)
+        }
     }
     else
     {
-
-        # .NET Method
-	    # Open connection and Execute sql against server using SQL Auth
-	    $SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	    $Connection = New-Object System.Data.SqlClient.SqlConnection
-	    $Connection.ConnectionString = $SQLConnectionString
-        $Connection.Open()
-	    $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	    $SqlCmd.CommandText = $mySQLquery
-	    $SqlCmd.Connection = $Connection
-	    $sqlCmd.ExecuteNonQuery() | out-null
-	    $Connection.Close()
-
+        try
+        {
+            Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
+        }
+        catch
+        {
+            Write-Output ("Error Doing Certificate ScriptOut: Error:[{0}]" -f $_.Exception.Message)
+        }
     }
-
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 	
 
     # copy-item fails if your location is SQLSERVER:
     set-location $BaseFolder
 
     # Put Master Certs in 'master' output folder
-    $output_path = $PKI_Path+'\master'
+    $output_path = $PKI_Path+'master'
     if(!(test-path -path $output_path))
     {
         mkdir $output_path | Out-Null	
@@ -700,13 +493,20 @@ if ($sqlresults22.Column1 -eq 1)
         }
         else
         {
-            $src = "$backupfolder\*.cer"
-            copy-item $src $output_path
-            remove-item $src -ErrorAction SilentlyContinue
+            try
+            {
+                $src = "$backupfolder\*.cer"
+                copy-item $src $output_path -ErrorAction Stop
+                remove-item $src -ErrorAction Stop
 
-            $src = "$backupfolder\*.pvk"
-            copy-item $src $output_path
-            remove-item $src -ErrorAction SilentlyContinue
+                $src = "$backupfolder\*.pvk"
+                copy-item $src $output_path -ErrorAction Stop
+                remove-item $src -ErrorAction Stop
+            }
+            catch
+            {
+                Write-Output ("Error copying Exported CER and PVK files to output folder: Error:[{0}]" -f $_.Exception.Message)
+            }
         }
     }
     else
@@ -729,8 +529,17 @@ if ($sqlresults22.Column1 -eq 1)
 	   
         if(test-path -path $src)
         {
-            copy-item $src $output_path
-            remove-item $src -ErrorAction SilentlyContinue
+            #gci $src
+            Write-Output ("copy-item {0} to {1}" -f $src, $output_path)
+            try
+            {
+                copy-item $src $output_path -ErrorAction Stop
+                remove-item $src -ErrorAction Stop
+            }
+            catch
+            {
+                Write-Output ("Error copying Certificates to output folder: Error:[{0}]" -f $_.Exception.Message)
+            }
         }   
         else
         {
@@ -758,8 +567,15 @@ if ($sqlresults22.Column1 -eq 1)
 	   
         if(test-path -path $src)
         {
-            copy-item $src $output_path
-            remove-item $src -ErrorAction SilentlyContinue
+            try
+            {
+                copy-item $src $output_path -ErrorAction Stop
+                remove-item $src -ErrorAction Stop
+            }
+            catch
+            {
+                Write-Output ("Error copying Private Key files to output folder: Error:[{0}]" -f $_.Exception.Message)
+            }
         }   
         else
         {
