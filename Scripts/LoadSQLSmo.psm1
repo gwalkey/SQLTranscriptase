@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Loads the latest SQL Server SMO .NET assembly installed on your machine
 	
@@ -54,7 +54,7 @@ function LoadSQLSMO(){
         Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
         Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
         Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
-        Write-Output "Using SMO Library v14 (2017)"
+        #Write-Output "Using SMO Library v14 (2017)"
     }
     catch
     {
@@ -66,7 +66,7 @@ function LoadSQLSMO(){
             Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
             Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
             Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
-            Write-Output "Using SMO Library v13 (2016)"
+            #Write-Output "Using SMO Library v13 (2016)"
         }
 
         catch
@@ -78,7 +78,7 @@ function LoadSQLSMO(){
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
                 Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
-                Write-Output "Using SMO Library v12 (2014)"
+                #Write-Output "Using SMO Library v12 (2014)"
             }
             catch
             {    
@@ -89,7 +89,7 @@ function LoadSQLSMO(){
                     Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
                     Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
                     Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
-                    Write-Output "Using SMO Library v11 (2012)"
+                    #Write-Output "Using SMO Library v11 (2012)"
                 }
                 catch
                 {
@@ -97,7 +97,7 @@ function LoadSQLSMO(){
                     {
                         Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
                         Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"                    
-                        Write-Output "Using SMO Library 10 (2008)"
+                        #Write-Output "Using SMO Library 10 (2008)"
                     }
                     catch
                     {
@@ -105,7 +105,7 @@ function LoadSQLSMO(){
                         {
                             Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=9.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
                             Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=9.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91"
-                            Write-Output "Using SMO Library 9 (2005)"
+                            #Write-Output "Using SMO Library 9 (2005)"
                         }
                         catch
                         {
@@ -117,9 +117,7 @@ function LoadSQLSMO(){
                 } # 11.0
             } # 12.0
         } #13.0
-
     } # 14.0
 }
 
 export-modulemember -function LoadSQLSMO
-
