@@ -11,19 +11,8 @@ These scripts use three main SQL Server technologies
 * SMO
 
 <em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information, 
+
 just like when Jesus coded your DNA using proteins. https://www.youtube.com/watch?v=TVkdQhNdzHU
 
 Teaching Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
-
-<h2>Version History</h2>
-
-<h3>April 23, 2018</h3>
-Refactored to use functions, modules and consistent coding practices
-
-<h3>Jan 26, 2018</h3>
-Added 50_Security_Tree<br>
-Exports All SQL Logins and their explicit permissions in Each Database
-
-<h3>Oct 14, 2017</h3>
-Added Routes, Endpoints and Remote Service Bindings to Service Broker Module
