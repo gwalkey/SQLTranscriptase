@@ -307,17 +307,24 @@ foreach($sqlDatabase in $srv.databases)
     # 1) Orphaned Users
     $sqlCMD3 = 
     "
-    use $dbname;
+    use [$dbname];
 
-    SELECT  u.name , u.type_desc, u.type
-    FROM  sys.database_principals u 
-    LEFT JOIN  sys.server_principals l ON u.sid = l.sid 
-    WHERE l.sid IS NULL 
-    AND u.type NOT IN ('A', 'R', 'C') -- not a db./app. role or certificate
-    AND u.principal_id > 4 -- not dbo, guest or INFORMATION_SCHEMA
-    AND u.name NOT LIKE '%DataCollector%' 
-    AND u.name NOT LIKE 'mdw%'
-    ORDER by 1
+    SELECT
+        u.name,
+        u.type_desc, 
+        u.type
+    FROM
+        sys.database_principals u 
+    LEFT JOIN 
+        sys.server_principals l ON u.sid = l.sid 
+    WHERE 
+        l.sid IS NULL 
+        AND u.type NOT IN ('A', 'R', 'C') -- not a db./app. role or certificate
+        AND u.principal_id > 4 -- not dbo, guest or INFORMATION_SCHEMA
+        AND u.name NOT LIKE '%DataCollector%' 
+        AND u.name NOT LIKE 'mdw%'
+    ORDER BY
+        1
     "
 
     # Run SQL
