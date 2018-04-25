@@ -115,7 +115,7 @@ foreach($sqlDatabase in $srv.databases)
     # Get Diagrams
     $sqlCMD2 = 
     "
-    USE $fixedDBName;
+    USE [$fixedDBName];
     
     if (select 1 from sys.tables where name = 'sysdiagrams')=1
     begin
@@ -151,7 +151,7 @@ foreach($sqlDatabase in $srv.databases)
         $DName = $diagram.name
 
         $sqlCMD3 = "`
-        Use "+$sqlDatabase.Name+";"+
+        Use ["+$sqlDatabase.Name+"];"+
         "
 
         select

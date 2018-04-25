@@ -115,7 +115,7 @@ foreach($sqlDatabase in $srv.databases)
     # Get Diagrams
     $sqlCMD1 = 
     "
-    USE $fixedDBName;
+    USE [$fixedDBName];
     
     select * from  sys.plan_guides;
     "
@@ -147,7 +147,7 @@ foreach($sqlDatabase in $srv.databases)
         $PlanID = $pg.Plan_guide_ID
 
         $sqlCMD2 = "`
-        Use "+$sqlDatabase.Name+";"+
+        Use ["+$sqlDatabase.Name+"];"+
         "
 
         select 
