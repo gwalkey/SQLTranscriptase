@@ -319,7 +319,7 @@ foreach($sqlDatabase in $srv.databases)
 
 
     # No DB Master Key found, dont bother copying non-existent file
-    if (!($sqlresults3)) {continue}
+    if ($sqlresults3 -eq $null) {continue}
 	
     # copy-item fails if your location is SQLSERVER:
     set-location $BaseFolder
