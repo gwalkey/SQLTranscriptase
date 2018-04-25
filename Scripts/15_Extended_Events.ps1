@@ -154,8 +154,15 @@ foreach($XESession in $XEStore.Sessions)
     Write-Output ("Scripting out {0}" -f $XESession.Name)
 
     $output_path = $fullfolderPath+"\"+$XESession.name+".sql"    
-    
-    $script = $XESession.ScriptCreate().GetScript()    
+    try
+    {
+        $script = $XESession.ScriptCreate().GetScript()
+    }
+    catch
+    {
+        Write-Output('Error calling ScriptCreate.getScript on this Session')
+        Write-Output('Error: {0}' -f $_.Exception.Message)
+    }
     $script | out-file  $output_path -Force -encoding ascii
 }
 

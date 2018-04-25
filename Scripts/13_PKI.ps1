@@ -21,7 +21,7 @@
     AKA, you will need to hard code that, or add a parameter to this script...
     Most Keys/Certs are signed with the Service Master Key, not the Database Master Key
 
-    Once the Database Master Key is restored, the Syms and ASyms are restored (because they live in the database)
+    Once the Database Master Key is restored, the Syms and ASyms are restored (because they live in the databases)
     AKA, MS has no export routine for Sym/ASym keys
 
 	Might have to run this Elevated (As Administrator) on Windows 8+
@@ -319,7 +319,7 @@ foreach($sqlDatabase in $srv.databases)
 
 
     # No DB Master Key found, dont bother copying non-existent file
-    if ($sqlresults3 -ne $null) {continue}
+    if (!($sqlresults3)) {continue}
 	
     # copy-item fails if your location is SQLSERVER:
     set-location $BaseFolder
