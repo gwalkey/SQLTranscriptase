@@ -61,12 +61,9 @@ $VolumeUsedGB =  @{Name="VolumeUsedGB";Expression={[Math]::Round((($_.Capacity -
 $VolumeFreeGB =  @{Name="VolumeFreeGB";Expression={[Math]::Round(($_.FreeSpace/1GB),2)}}
 
 # Let WMI errors be trapped
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
-
 try
 {
-	$VolumeArray = Get-WmiObject -Computer $WinServer Win32_Volume | sort-object name 
+	$VolumeArray = Get-WmiObject -Computer $WinServer Win32_Volume -ErrorAction stop| sort-object name 
     if ($?)
     {
         Write-Output "Good WMI Connection"
@@ -95,11 +92,8 @@ catch
     echo null > "$fullfolderpath\01 - Server Storage - WMI Could not connect.txt"
     Write-Output "WMI Could not connect"        
     Set-Location $BaseFolder
-    Throw("WMI Could not connect")
+    exit
 }
-
-# Reset default PS error handler - WMI error trapping
-$ErrorActionPreference = $old_ErrorActionPreference 
 
 # HTML CSS
 $head = "<style type='text/css'>"
@@ -136,7 +130,7 @@ td
 $head+="</style>"
 
 $RunTime = Get-date
-
+Write-Output('{0} Volumes found' -f @($VolumeArray).Count)
 $myoutputfile4 = $FullFolderPath+"\Server_Storage_Volumes.html"
 $myHtml1 = $VolumeArray | select Name, Label, FileSystem, DriveType, $VolumeTotalGB, $VolumeUsedGB, $VolumeFreeGB, BootVolume, DriveLetter, BlockSize | `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Storage Volumes</h2>"

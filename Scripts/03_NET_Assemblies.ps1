@@ -126,7 +126,7 @@ foreach($sqlDatabase in $srv.databases)
     # Get Assemblies
     $SQLCMD2 = 
     "
-    USE $fixedDBName
+    USE [$fixedDBName]
 
     SELECT  
     a.name as [AName],

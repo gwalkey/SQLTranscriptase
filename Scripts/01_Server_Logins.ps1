@@ -270,7 +270,15 @@ foreach ($Login in $Logins)
             }
                 
             # Get all Users of this AD Group
-            $ADGroupUsers = Get-AdGroupMember -identity $ADName -recursive |Where {$_.objectClass -eq "user"} | sort name
+            try
+            {
+            $ADGroupUsers = Get-AdGroupMember -identity $ADName -recursive  -ErrorAction Stop |Where {$_.objectClass -eq "user"} | sort name
+            }
+            catch
+            {
+                Write-Output('Error Getting ADGroup Member [{0}]' -f $ADName)
+                Write-Output('Error: [{0}]' -f $_.Exception.Message)
+            }
 
             # Export Users for this AD Group
             $myoutputfile = $WinGroupSinglePath+"Users in "+$myFixedGroupName+".sql"
