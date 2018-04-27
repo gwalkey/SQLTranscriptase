@@ -79,6 +79,45 @@ catch
 	exit
 }
 
+function Get-SSRSVersion
+{
+    [CmdletBinding()]
+    Param(
+        [string]$SQLInstance="localhost"
+    )
+
+    # Get SSRS (NOT underlying SQL) Version
+    $ssrsProxy = Invoke-WebRequest -Uri "http://$SQLInstance/reportserver" -UseDefaultCredential
+    $content = $ssrsProxy.Content
+    $Regex = [Regex]::new("(?<=Microsoft SQL Server Reporting Services Version )(.*)(?=`">)") 
+    $match = $regex.Match($content)
+    if($Match.Success)            
+    {
+        $Global:SSRSFamily = 'SSRS'
+        $version = $Match.Value
+    }
+    else
+    {
+        # Try Powerbi Repotrting Server
+        $Regex = [Regex]::new("(?<=Microsoft Power BI Report Server Version )(.*)(?=`">)") 
+        $match = $regex.Match($content)
+        if($Match.Success)            
+        {
+            $Global:SSRSFamily = 'PowerBI'
+            $version = $Match.Value
+        }
+        else
+        {
+            $Global:SSRSFamily = 'SSRS'
+            $version = 'unknown'
+        }
+    }
+
+    Write-Output($version)
+}
+
+$SSRSVersion = Get-SSRSVersion $SQLInstance
+Write-Output ("SSRS Version: {0}" -f $SSRSVersion)
 
 
 # Create some CSS for help in column formatting during HTML exports
@@ -126,66 +165,177 @@ if(!(test-path -path $folderPath))
     mkdir $folderPath | Out-Null
 }
 
-$mySQL = 
-"
-    --The first CTE gets the content as a varbinary(max)
-    --as well as the other important columns for all reports,
-    --data sources and shared datasets.
+# Get RDL Reports and or PowerBI PBIX
+if ($SSRSFamily -eq 'PowerBI')
+{
+    $sqlCMDRDL = 
+    "
     WITH ItemContentBinaries AS
     (
-      SELECT
-         ItemID,
-         ParentID,
-         Name,
-         [Type],
-         CASE Type
-           WHEN 2 THEN 'Report'
-           WHEN 5 THEN 'Data Source'
-           WHEN 7 THEN 'Report Part'
-           WHEN 8 THEN 'Shared Dataset'
-           ELSE 'Other'
-         END AS TypeDescription,
-         CONVERT(varbinary(max),Content) AS Content
-      FROM ReportServer.dbo.Catalog
-      WHERE Type IN (2,5,7,8)
+	    SELECT
+		    ItemID,
+		    ParentID,
+		    Name,
+		    [Type],
+		    CASE Type
+		    WHEN 2 THEN 'Report'
+		    WHEN 5 THEN 'Data Source'
+		    WHEN 7 THEN 'Report Part'
+		    WHEN 8 THEN 'Shared Dataset'
+		    ELSE 'Other'
+		    END AS TypeDescription,
+		    'BINARYXML' AS 'contentType',
+		    CONVERT(varbinary(max),Content) AS Content
+	    FROM ReportServer.dbo.Catalog
+	    WHERE Type IN (2,5,7,8)
+
+	    UNION
+
+	    SELECT
+		    c.ItemID,
+		    c.ParentID,
+		    c.[Name],
+		    c.[Type],
+		    'Power BI Report' as 'TypeDescription',
+		    e.ContentType,
+		    CONVERT(varbinary(max),e.Content) AS Content
+	    FROM 
+		    ReportServer.dbo.Catalog C
+	    INNER JOIN 
+		    reportserver.dbo.CatalogItemExtendedContent E
+	    ON
+		    c.ItemID = e.ItemId
+	    WHERE 
+            c.Type IN (13) AND e.ContentType='CatalogItem'
+        ),
+
+    --The second CTE strips off the BOM if it exists...
+    ItemContentNoBOM AS
+    (
+        SELECT
+            ItemID,
+            ParentID,
+            Name,
+            [Type],
+            TypeDescription,
+		    ContentType,
+            CASE
+            WHEN LEFT(Content,3) = 0xEFBBBF
+                THEN CONVERT(varbinary(max),SUBSTRING(Content,4,LEN(Content)))
+            ELSE
+                Content
+            END AS Content
+        FROM ItemContentBinaries
+    )
+
+    --The outer query gets the content in its varbinary, varchar and xml representations...
+    SELECT
+        ItemID,
+        ParentID,
+        Name,
+        [Type],
+        TypeDescription,
+	    ContentType,
+        Content, --varbinary
+        CASE
+		    WHEN ContentType ='BINARYXML' THEN CONVERT(varchar(max),Content)
+		    WHEN ContentType IN ('CatalogItem','DataModel','PowerBIReportDefinition') THEN null
+	     END AS ContentVarchar, --varchar
+        CASE 
+		    WHEN ContentType ='BINARYXML' THEN CONVERT(xml,Content) 
+		    WHEN ContentType IN ('CatalogItem','DataModel','PowerBIReportDefinition') THEN null
+	    END AS ContentXML --xml
+    FROM ItemContentNoBOM
+    order by 2
+    "
+}
+else
+{
+    $sqlCMDRDL = 
+    "
+    WITH ItemContentBinaries AS
+    (
+	    SELECT
+		    ItemID,
+		    ParentID,
+		    Name,
+		    [Type],
+		    CASE Type
+		    WHEN 2 THEN 'Report'
+		    WHEN 5 THEN 'Data Source'
+		    WHEN 7 THEN 'Report Part'
+		    WHEN 8 THEN 'Shared Dataset'
+		    ELSE 'Other'
+		    END AS TypeDescription,
+		    'BINARYXML' AS 'contentType',
+		    CONVERT(varbinary(max),Content) AS Content
+	    FROM ReportServer.dbo.Catalog
+	    WHERE Type IN (2,5,7,8)
     ),
 
     --The second CTE strips off the BOM if it exists...
     ItemContentNoBOM AS
     (
-      SELECT
-         ItemID,
-         ParentID,
-         Name,
-         [Type],
-         TypeDescription,
-         CASE
-           WHEN LEFT(Content,3) = 0xEFBBBF
-             THEN CONVERT(varbinary(max),SUBSTRING(Content,4,LEN(Content)))
-           ELSE
-             Content
-         END AS Content
-      FROM ItemContentBinaries
+        SELECT
+            ItemID,
+            ParentID,
+            Name,
+            [Type],
+            TypeDescription,
+		    ContentType,
+            CASE
+            WHEN LEFT(Content,3) = 0xEFBBBF
+                THEN CONVERT(varbinary(max),SUBSTRING(Content,4,LEN(Content)))
+            ELSE
+                Content
+            END AS Content
+        FROM ItemContentBinaries
     )
 
     --The outer query gets the content in its varbinary, varchar and xml representations...
     SELECT
-       ItemID,
-       ParentID,
-       Name,
-       [Type],
-       TypeDescription,
-       Content, --varbinary
-       CONVERT(varchar(max),Content) AS ContentVarchar, --varchar
-       CONVERT(xml,Content) AS ContentXML --xml
+        ItemID,
+        ParentID,
+        Name,
+        [Type],
+        TypeDescription,
+	    ContentType,
+        Content, --varbinary
+        CASE
+		    WHEN ContentType ='BINARYXML' THEN CONVERT(varchar(max),Content)
+		    WHEN ContentType IN ('CatalogItem','DataModel','PowerBIReportDefinition') THEN null
+	     END AS ContentVarchar, --varchar
+        CASE 
+		    WHEN ContentType ='BINARYXML' THEN CONVERT(xml,Content) 
+		    WHEN ContentType IN ('CatalogItem','DataModel','PowerBIReportDefinition') THEN null
+	    END AS ContentXML --xml
     FROM ItemContentNoBOM
     order by 2
-"
+    "
+}
 
 $sqlToplevelfolders = "
-SELECT [ItemId],[ParentID],[Path]
-  FROM [ReportServer].[dbo].[Catalog]
-  where Parentid is not null and [Type] = 1  
+--- Root
+SELECT 
+	[ItemId],
+	[ParentID],
+	'/' AS 'Path'
+FROM 
+	[ReportServer].[dbo].[Catalog]
+where 
+	Parentid is null and [Type] = 1
+
+UNION
+
+SELECT 
+	[ItemId],
+	[ParentID],
+	[Path]
+FROM 
+	[ReportServer].[dbo].[Catalog]
+where 
+	Parentid is not null and [Type] = 1 AND [Name]<>'System Resources'
+ORDER BY [Path]
 "
 
 
@@ -225,7 +375,7 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
     # Get Packages
     try
     {
-        $Packages = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mySQL -User $myuser -Password $mypass -ErrorAction Stop
+        $Packages = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMDRDL -User $myuser -Password $mypass -ErrorAction Stop
     }
     catch
     {
@@ -268,7 +418,7 @@ else
     # Get Packages
     try
     {
-        $Packages = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mySQL -ErrorAction Stop
+        $Packages = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMDRDL -ErrorAction Stop
     }
     catch
     {
@@ -291,10 +441,10 @@ else
 # Create output folders
 set-location $BaseFolder
 $fullfolderPath = "$BaseFolder\$sqlinstance\11 - SSRS"
-$fullfolderPathRDL = "$BaseFolder\$sqlinstance\11 - SSRS\RDL"
-$fullfolderPathSUB = "$BaseFolder\$sqlinstance\11 - SSRS\Timed Subscriptions"
-$fullfolderPathKey = "$BaseFolder\$sqlinstance\11 - SSRS\Encryption Key"
-$fullfolderPathSecurity = "$BaseFolder\$sqlinstance\11 - SSRS\Folder Permissions"
+$fullfolderPathRDL = "$BaseFolder\$sqlinstance\11 - SSRS\Reports"
+$fullfolderPathSUB = "$BaseFolder\$sqlinstance\11 - SSRS\Subscriptions"
+$fullfolderPathKey = "$BaseFolder\$sqlinstance\11 - SSRS\EncryptionKey"
+$fullfolderPathFolders = "$BaseFolder\$sqlinstance\11 - SSRS\Folders"
 
 if(!(test-path -path $fullfolderPath))
 {
@@ -316,30 +466,108 @@ if(!(test-path -path $fullfolderPathKey))
     mkdir $fullfolderPathKey | Out-Null
 }
 
-if(!(test-path -path $fullfolderPathSecurity))
+if(!(test-path -path $fullfolderPathFolders))
 {
-    mkdir $fullfolderPathSecurity | Out-Null
+    mkdir $fullfolderPathFolders | Out-Null
 }
 	
+
+# -----------------------------------------
+# 1) Get SSRS Version and Supported Interfaces
+# -----------------------------------------
+Write-Output ("SSRS Version: {0}" -f $SSRSVersion) | out-file -Force -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+$SOAPAPIVersion=''
+$RESTAPIVersion=''
+
+if ($SSRSVersion -ne 'unknown')
+{
+
+    # 2005
+    if ($SSRSVersion -like '9.0*')
+    {
+        "Supports SOAP Interface 2005"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2005.asmx"
+        $RESTAPIVersion=$null
+    }
+
+    # 2008
+    if ($SSRSVersion -like '10.0*')
+    {
+        "Supports SOAP Interface 2005"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2005.asmx"
+        $RESTAPIVersion=$null
+    }
+
+    # 2008 R2
+    if ($SSRSVersion -like '10.5*')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIVersion=$null
+    }
+
+    # 2012
+    if ($SSRSVersion -like '11.0*')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIVersion=$null
+    }
+
+    # 2014
+    if ($SSRSVersion -like '12.0*')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIVersion=$null
+    }
+
+    # 2016
+    if ($SSRSVersion -like '13.0*')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        "Supports REST Interface v1.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIVersion="http://$SQLInstance/reports/api/v1.0"
+    }
+
+    # 2017
+    if ($SSRSVersion -like '14.0*')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        "Supports REST Interface v2.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIVersion="http://$SQLInstance/reports/api/v2.0"
+    }
+    
+    # PowerBI
+    if ($SSRSVersion -like '15.0*')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        "Supports REST Interface v2.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIVersion="http://$SQLInstance/reports/api/v2.0"
+    }
+}
+
+
 # --------
-# 1) RDL
+# 2) RDL
 # --------
 Write-Output "Writing out Report RDL.."
 
 # Create Output Folder Structure to mirror the SSRS ReportServer Catalog and dump the RDL into the respective folder tree
 foreach ($tlfolder in $toplevelfolders)
 {
-    # Only Script out the Items for this Folder
-    # Create Folder Structure
+    # Create Folder Structure, Fixup forward slashes
     $myNewStruct = $fullfolderPathRDL+$tlfolder.Path
-    # Fixup forward slashes
     $myNewStruct = $myNewStruct.replace('/','\')
     if(!(test-path -path $myNewStruct))
     {
         mkdir $myNewStruct | Out-Null
     }
 
-    # Only Script out the Reports in this Folder
+    # Only Script out the Reports in this Folder (Report ParentID matches Folder ItemID
     $myParentID = $tlfolder.ItemID
     Foreach ($pkg in $Packages)
     {
@@ -349,28 +577,33 @@ foreach ($tlfolder in $toplevelfolders)
             # Get the Report ID, Name
             $myItemID = $pkg.ItemID
             $pkgName = $Pkg.name
+            Write-Output('Package: {0}' -f $pkgName)
 
             # Report RDL
             if ($pkg.Type -eq 2)
             {    
-                #Export                
                 $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.rdl"
             }
 
             # Shared Data Source
             if ($pkg.Type -eq 5)
             {    
-
-                # Export
                 $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.shdsrc.txt"
             }
 
             # Shared Dataset
             if ($pkg.Type -eq 8)
-            {    
-
+            {
                 $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.shdset.txt"
             }
+
+            # Power BI Report
+            if ($pkg.Type -eq 13)
+            {
+                [io.file]::WriteAllBytes("$myNewStruct\$pkgName.pbix",$pkg.Content)
+                #$pkg.Content | Set-Content "$myNewStruct\$pkgName.pbix" -Encoding Byte                 
+            }
+
 
             Write-Output("Item: [{0}], Type: [{1}]" -f $pkg.name, $pkg.Type)
             # Other Types include
@@ -389,9 +622,9 @@ foreach ($tlfolder in $toplevelfolders)
 }
 
 
-# ------------------------
-# 2) SSRS Configuration
-# ------------------------
+# ----------------------------
+# 3) SSRS Configuration Files
+# ----------------------------
 Write-Output "Writing SSRS Settings to file..."
 $old_ErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = 'SilentlyContinue'
@@ -529,9 +762,9 @@ if ($wmi1 -eq 0)
 # Reset default PS error handler - for WMI error trapping
 $ErrorActionPreference = $old_ErrorActionPreference 
 
-# -------------------------
-# 3) RSReportServer.config File
-# -------------------------
+# ------------------------------
+# 4) RSReportServer.config File
+# ------------------------------
 # https://msdn.microsoft.com/en-us/library/ms157273.aspx
 
 Write-Output "Saving RSReportServer.config file..."
@@ -564,9 +797,10 @@ copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Servic
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft Power BI Report Server\PBIRS\ReportServer\RSreportserver.config"
 copy-item "\\$sqlinstance\c$\Program Files\Microsoft Power BI Report Server\PBIRS\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
-# -----------------------
-# 4) Database Encryption Key
-# -----------------------
+
+# ---------------------------
+# 5) Database Encryption Key
+# ---------------------------
 Write-Output "Backup SSRS Encryption Key..."
 Write-Output ("WMI found SSRS version {0}" -f $wmi1)
 
@@ -726,7 +960,7 @@ if ($wmi1 -eq 15)
 $ErrorActionPreference = $old_ErrorActionPreference 
 
 # ---------------------
-# 5) Timed Subscriptions
+# 6) Timed Subscriptions
 # ---------------------
 $myRDLSked = 
 "
@@ -966,7 +1200,7 @@ if ($SubCommands)
 
 
 # --------------------
-# 6) Folder Permissions
+# 7) Folder Permissions
 # --------------------
 # http://stackoverflow.com/questions/6600480/ssrs-determine-report-permissions-via-reportserver-database-tables
 #
@@ -981,20 +1215,40 @@ if ($SubCommands)
 #  System Administrator Role
 #  System User Role
 
+Write-Output "Folder Permissions..."
 $sqlSecurity = "
 Use ReportServer;
-select E.Path, E.Name, C.UserName, D.RoleName
-from dbo.PolicyUserRole A
-   inner join dbo.Policies B on A.PolicyID = B.PolicyID
-   inner join dbo.Users C on A.UserID = C.UserID
-   inner join dbo.Roles D on A.RoleID = D.RoleID
-   inner join dbo.Catalog E on A.PolicyID = E.PolicyID
-order by 1
+
+select 
+    E.Path, 
+    E.Name, 
+    C.UserName, 
+    D.RoleName
+from 
+    dbo.PolicyUserRole A
+inner join 
+    dbo.Policies B 
+ON 
+    A.PolicyID = B.PolicyID
+inner join 
+    dbo.Users C 
+on 
+    A.UserID = C.UserID
+inner join 
+    dbo.Roles D 
+on 
+    A.RoleID = D.RoleID
+inner join 
+    dbo.Catalog E 
+on 
+    A.PolicyID = E.PolicyID
+Where
+    E.[Name] not in ('System Resources')
+order by 
+    1
 "
 
-
 # Get Permissions
-# Run Query
 if ($serverauth -eq "win")
 {
     try
@@ -1003,7 +1257,7 @@ if ($serverauth -eq "win")
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL Getting Folder Permissions: {0}" -f $error[0])
     }
 }
 else
@@ -1014,13 +1268,95 @@ try
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL Getting Folder Permissions: {0}" -f $error[0])
     }
 }
 
+$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-Html -Head $myCSS -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content "$fullfolderPathFolders\PermissionsReport.html"
+$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTreePermissions.json" -Force -Encoding ascii
 
 
-$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-Html -Head $myCSS -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content "$fullfolderPathSecurity\HtmlReport.html"
+# 9) Folder Tree Structure - Serialize
+Write-Output "Folder Tree Structure..."
+
+# Can we use the REST API?
+if ($SSRSVersion -like '13.0*' -or $SSRSVersion -like '14.0*' -or $SSRSVersion -like '15.0*')
+{
+    switch($SSRSVersion.Substring(0,2))
+    {
+        13 {$RESTAPIVersion = "v1.0"}
+        14 {$RESTAPIVersion = "v2.0"}
+        15 {$RESTAPIVersion = "v2.0"}
+    }
+
+    $URI = "http://$SQLInstance/reports/api/$RESTAPIVersion"
+    $response  = Invoke-RestMethod "$URI/CatalogItems" -Method get -UseDefaultCredentials
+    $FolderTree = $response.value | Where-Object {$_.Type -eq 'Folder'} | select path
+    $FolderTree | convertto-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTreeStructure.json" -Force -Encoding ascii
+    # Read Back in
+    # $NewFolderTree = get-content -Path "$fullfolderPath\FolderTree.json" | ConvertFrom-Json
+}
+
+# Use SOAP on older verisons
+if ($SSRSVersion -like '9.0*' -or $SSRSVersion -like '10.0*' -or $SSRSVersion -like '10.5*' -or $SSRSVersion -like '11.0*' -or $SSRSVersion -like '12.0*')
+{
+    if ($SSRSVersion -like '9.0*')
+    {
+        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2005.asmx"
+    }
+    else
+    {
+        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2010.asmx"
+    }
+
+    # Get SOAP Proxy
+    $rs2010 = New-WebServiceProxy -Uri $ReportServerUri -UseDefaultCredential;
+    $type = $rs2010.GetType().Namespace    
+    $CatalogItemDataType = ($type + '.catalogItems')    
+    $CatalogItems= $rs2010.ListChildren("/",$true)
+    $FolderTree = $CatalogItems | Where-Object {$_.TypeName -eq 'Folder'} | select Path
+    $FolderTree | convertto-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTree.json" -Force -Encoding ascii
+    # Read Back in
+    # $NewFolderTree = get-content -Path "$fullfolderPath\FolderTree.json" | ConvertFrom-Json
+}
+
+# 10) Subscriptions as JSON Document Collection
+Write-Output "Serialize Subscriptions as a JSON Document Collection..."
+
+# Can we use the REST API?
+if ($SSRSVersion -like '13.0*' -or $SSRSVersion -like '14.0*' -or $SSRSVersion -like '15.0*')
+{
+    switch($SSRSVersion.Substring(0,2))
+    {
+        13 {$RESTAPIVersion = "v1.0"}
+        14 {$RESTAPIVersion = "v2.0"}
+        15 {$RESTAPIVersion = "v2.0"}
+    }
+
+    $URI = "http://$SQLInstance/reports/api/$RESTAPIVersion"
+    $response  = Invoke-RestMethod "$URI/Subscriptions" -Method get -UseDefaultCredentials
+    $response.value | ConvertTo-Json -Depth 4 | out-file -FilePath "$fullfolderPathSUB\Subscriptions.json" -Force -Encoding ascii    
+}
+
+# Use SOAP on older versions
+if ($SSRSVersion -like '9.0*' -or $SSRSVersion -like '10.0*' -or $SSRSVersion -like '10.5*' -or $SSRSVersion -like '11.0*' -or $SSRSVersion -like '12.0*' -or  $SSRSVersion -like '14.0*')
+{
+    if ($SSRSVersion -like '9.0*')
+    {
+        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2005.asmx"
+    }
+    else
+    {
+        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2010.asmx"
+    }
+
+    # Get SOAP Proxy
+    $rs2010 = New-WebServiceProxy -Uri $ReportServerUri -UseDefaultCredential;
+    $type = $rs2010.GetType().Namespace
+    $CatalogItems= $rs2010.ListSubscriptions("/")
+    $CatalogItems | ConvertTo-Json -Depth 4 | out-file -FilePath "$fullfolderPathSUB\Subscriptions2.json" -Force -Encoding ascii 
+    
+}
 
 
 # Return to Base
