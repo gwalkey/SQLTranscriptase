@@ -114,6 +114,7 @@ Invoke-Expression ".\17_Managed_Backups.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\22_Policy_Based_Mgmt.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\23_Database_Diagrams.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\24_Plan_Guides.ps1 $SQLInstance $myuser $mypass"
+Invoke-Expression ".\25_Vuln_Scanner.ps1 $SQLInstance $myuser $mypass"
 # Invoke-Expression ".\30_DataBase_Objects.ps1 $SQLInstance $myuser $mypass"
 # Invoke-Expression ".\31_DataBase_Export_Table_Data.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\32_Database_Recovery_Models.ps1 $SQLInstance $myuser $mypass"
@@ -127,6 +128,7 @@ $ElapsedTime = ((get-date) - $startTime)
 Write-Output ("$SQLInstance Elapsed time: {0:00}:{1:00}:{2:00}.{3:0000}" -f $ElapsedTime.Hours,$ElapsedTime.Minutes,$ElapsedTime.Seconds, $ElapsedTime.TotalMilliseconds)
 
 [System.GC]::Collect()
+[System.GC]::GetTotalMemory($true) 
 
 set-location $BaseFolder
 exit
