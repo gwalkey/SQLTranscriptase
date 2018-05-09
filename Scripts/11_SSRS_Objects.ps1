@@ -5,10 +5,15 @@
 .DESCRIPTION
    Writes the SSRS Objects out to the "11 - SSRS" folder   
    Objects written include:
-   RDL files
-   Timed Subscriptions
-   RSreportserver.config file
-   Encryption Keys   
+   FolderTree
+   RDL Report Files
+   Subscriptions
+   Configuration Files
+   Encryption Keys
+   Folder and Report Permissions
+   Subscriptions
+   Data Sources (for Embedded RDL too)
+
    
 .EXAMPLE
     11_SSRS_Objects.ps1 localhost
@@ -49,7 +54,7 @@ Set-StrictMode -Version latest;
 Write-Host  -f Yellow -b Black "11 - SSRS Objects"
 Write-Output "Server $SQLInstance"
 
-# Server connection check
+# Database Server connection check
 $SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
@@ -79,15 +84,51 @@ catch
 	exit
 }
 
+# ---------
+# Functions
+# ---------
+function Format-Xml {
+    param(
+        ## Text of an XML document.
+        [Parameter(ValueFromPipeline = $true)]
+        [string[]]$Text
+    )
+
+    begin {
+        $data = New-Object System.Collections.ArrayList
+    }
+    process {
+        [void] $data.Add($Text -join "`n")
+    }
+    end {
+        $doc=New-Object System.Xml.XmlDataDocument
+        $doc.LoadXml($data -join "`n")
+        $sw=New-Object System.Io.Stringwriter
+        $writer=New-Object System.Xml.XmlTextWriter($sw)
+        $writer.Formatting = [System.Xml.Formatting]::Indented
+        $doc.WriteContentTo($writer)
+        $sw.ToString()
+    }
+}
+
+
 function Get-SSRSVersion
 {
     [CmdletBinding()]
     Param(
-        [string]$SQLInstance="localhost"
+        [string]$SQLInstance
     )
 
-    # Get SSRS (NOT underlying SQL) Version
-    $ssrsProxy = Invoke-WebRequest -Uri "http://$SQLInstance/reportserver" -UseDefaultCredential
+    # Get SSRS (NOT SQL Server) Version
+    try
+    {
+        $ssrsProxy = Invoke-WebRequest -Uri "http://$SQLInstance/reportserver" -UseDefaultCredential
+    }
+    catch
+    {
+        Write-Output('Error getting SSRS version from WebService: {0}' -f $_.Exception.Message)
+        throw('Error getting SSRS version from WebService: {0}' -f $_.Exception.Message)
+    }
     $content = $ssrsProxy.Content
     $Regex = [Regex]::new("(?<=Microsoft SQL Server Reporting Services Version )(.*)(?=`">)") 
     $match = $regex.Match($content)
@@ -98,7 +139,7 @@ function Get-SSRSVersion
     }
     else
     {
-        # Try Powerbi Repotrting Server
+        # Try PowerBI Reporting Server
         $Regex = [Regex]::new("(?<=Microsoft Power BI Report Server Version )(.*)(?=`">)") 
         $match = $regex.Match($content)
         if($Match.Success)            
@@ -109,15 +150,14 @@ function Get-SSRSVersion
         else
         {
             $Global:SSRSFamily = 'SSRS'
-            $version = 'unknown'
+            $version = '0.0'
         }
     }
 
-    Write-Output($version)
+    $NumericVersion = $version.Split('.')
+    
+    Write-Output($NumericVersion[0]+'.'+$NumericVersion[1])
 }
-
-$SSRSVersion = Get-SSRSVersion $SQLInstance
-Write-Output ("SSRS Version: {0}" -f $SSRSVersion)
 
 
 # Create some CSS for help in column formatting during HTML exports
@@ -156,15 +196,167 @@ td
 "
 
 
-set-location $BaseFolder
 
-# Create output folder
+# ---------------------
+# Create output folders
+# ---------------------
+set-location $BaseFolder
 $folderPath = "$BaseFolder\$sqlinstance"
+$fullfolderPath = "$BaseFolder\$sqlinstance\11 - SSRS"
+$fullfolderPathConfig = "$BaseFolder\$sqlinstance\11 - SSRS\Config"
+$fullfolderPathRDL = "$BaseFolder\$sqlinstance\11 - SSRS\Reports"
+$fullfolderPathSUB = "$BaseFolder\$sqlinstance\11 - SSRS\Subscriptions"
+$fullfolderPathKey = "$BaseFolder\$sqlinstance\11 - SSRS\EncryptionKey"
+$fullfolderPathFolders = "$BaseFolder\$sqlinstance\11 - SSRS\FolderTree"
+$fullfolderPathUsers = "$BaseFolder\$sqlinstance\11 - SSRS\Users"
+$fullfolderPathPermissions = "$BaseFolder\$sqlinstance\11 - SSRS\Permissions"
+$fullfolderPathDataSources = "$BaseFolder\$sqlinstance\11 - SSRS\DataSources"
+
 if(!(test-path -path $folderPath))
 {
     mkdir $folderPath | Out-Null
 }
 
+if(!(test-path -path $fullfolderPath))
+{
+    mkdir $fullfolderPath | Out-Null
+}
+
+if(!(test-path -path $fullfolderPathRDL))
+{
+    mkdir $fullfolderPathRDL | Out-Null
+}
+
+if(!(test-path -path $fullfolderPathSUB))
+{
+    mkdir $fullfolderPathSUB | Out-Null
+}
+
+if(!(test-path -path $fullfolderPathKey))
+{
+    mkdir $fullfolderPathKey | Out-Null
+}
+
+if(!(test-path -path $fullfolderPathFolders))
+{
+    mkdir $fullfolderPathFolders | Out-Null
+}
+
+if(!(test-path -path $fullfolderPathUsers))
+{
+    mkdir $fullfolderPathUsers | Out-Null
+}	
+
+if(!(test-path -path $fullfolderPathConfig))
+{
+    mkdir $fullfolderPathConfig | Out-Null
+}	
+
+if(!(test-path -path $fullfolderPathPermissions))
+{
+    mkdir $fullfolderPathPermissions | Out-Null
+}	
+
+if(!(test-path -path $fullfolderPathDataSources))
+{
+    mkdir $fullfolderPathDataSources | Out-Null
+}	
+
+# ---------------------------------------------
+# 1) Get SSRS Version and Supported Interfaces
+# ---------------------------------------------
+# Get SSRS Version from WebService HTML Home Page
+try
+{
+    $SSRSVersion = Get-SSRSVersion $SQLInstance
+}
+catch
+{
+    Write-Output('{0}' -f $_.Exception.Message)
+    exit
+}
+
+Write-Output ("SSRS Version: {0}" -f $SSRSVersion)
+Write-Output ("SSRS Version: {0}" -f $SSRSVersion) | out-file -Force -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+$SOAPAPIURL=''
+$RESTAPIURL=''
+
+if ($SSRSVersion -ne '0.0')
+{
+
+    # 2005
+    if ($SSRSVersion -eq '9.0')
+    {
+        "Supports SOAP Interface 2005"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2005.asmx"
+        $RESTAPIURL=$null
+    }
+
+    # 2008
+    if ($SSRSVersion -eq '10.0')
+    {
+        "Supports SOAP Interface 2005"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2005.asmx"
+        $RESTAPIURL=$null
+    }
+
+    # 2008 R2
+    if ($SSRSVersion -eq '10.5')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIURL=$null
+    }
+
+    # 2012
+    if ($SSRSVersion -eq '11.0')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIURL=$null
+    }
+
+    # 2014
+    if ($SSRSVersion -eq '12.0')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIURL=$null
+    }
+
+    # 2016
+    if ($SSRSVersion -eq '13.0')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        "Supports REST Interface v1.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIURL="http://$SQLInstance/reports/api/v1.0"
+    }
+
+    # 2017
+    if ($SSRSVersion -eq '14.0')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        "Supports REST Interface v2.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIURL="http://$SQLInstance/reports/api/v2.0"
+    }
+    
+    # PowerBI
+    if ($SSRSVersion -eq '15.0')
+    {
+        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        "Supports REST Interface v2.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
+        $SOAPAPIURL="http://$SQLInstance/ReportServer/ReportService2010.asmx"
+        $RESTAPIURL="http://$SQLInstance/reports/api/v2.0"
+    }
+}
+
+
+# --------
+# 2) RDL
+# --------
+Write-Output "Reports RDL.."
 # Get RDL Reports and or PowerBI PBIX
 if ($SSRSFamily -eq 'PowerBI')
 {
@@ -176,6 +368,7 @@ if ($SSRSFamily -eq 'PowerBI')
 		    ItemID,
 		    ParentID,
 		    Name,
+            [Path],
 		    [Type],
 		    CASE Type
 		    WHEN 2 THEN 'Report'
@@ -187,7 +380,7 @@ if ($SSRSFamily -eq 'PowerBI')
 		    'BINARYXML' AS 'contentType',
 		    CONVERT(varbinary(max),Content) AS Content
 	    FROM ReportServer.dbo.Catalog
-	    WHERE Type IN (2,5,7,8)
+	    WHERE Type IN (2,5,8)
 
 	    UNION
 
@@ -195,6 +388,7 @@ if ($SSRSFamily -eq 'PowerBI')
 		    c.ItemID,
 		    c.ParentID,
 		    c.[Name],
+            c.[Path],
 		    c.[Type],
 		    'Power BI Report' as 'TypeDescription',
 		    e.ContentType,
@@ -216,6 +410,7 @@ if ($SSRSFamily -eq 'PowerBI')
             ItemID,
             ParentID,
             Name,
+            [Path],
             [Type],
             TypeDescription,
 		    ContentType,
@@ -233,6 +428,7 @@ if ($SSRSFamily -eq 'PowerBI')
         ItemID,
         ParentID,
         Name,
+        [Path],
         [Type],
         TypeDescription,
 	    ContentType,
@@ -259,6 +455,7 @@ else
 		    ItemID,
 		    ParentID,
 		    Name,
+            [Path],
 		    [Type],
 		    CASE Type
 		    WHEN 2 THEN 'Report'
@@ -270,7 +467,7 @@ else
 		    'BINARYXML' AS 'contentType',
 		    CONVERT(varbinary(max),Content) AS Content
 	    FROM ReportServer.dbo.Catalog
-	    WHERE Type IN (2,5,7,8)
+	    WHERE Type IN (2,5,8)
     ),
 
     --The second CTE strips off the BOM if it exists...
@@ -280,6 +477,7 @@ else
             ItemID,
             ParentID,
             Name,
+            [Path],
             [Type],
             TypeDescription,
 		    ContentType,
@@ -297,6 +495,7 @@ else
         ItemID,
         ParentID,
         Name,
+        [Path],
         [Type],
         TypeDescription,
 	    ContentType,
@@ -334,7 +533,7 @@ SELECT
 FROM 
 	[ReportServer].[dbo].[Catalog]
 where 
-	Parentid is not null and [Type] = 1 AND [Name]<>'System Resources'
+	Parentid is not null and [Type] = 1 AND [Name]<>'System Resources' AND [Path] NOT IN ('/Data Sources','/Datasets')
 ORDER BY [Path]
 "
 
@@ -343,7 +542,6 @@ ORDER BY [Path]
 # initialize arrays
 $Packages = [System.Collections.ArrayList]@()
 $toplevelfolders = [System.Collections.ArrayList]@()
-$skeds = [System.Collections.ArrayList]@()
 
 # Connect correctly
 $serverauth = "win"
@@ -438,125 +636,9 @@ else
 
 }
 
-# Create output folders
-set-location $BaseFolder
-$fullfolderPath = "$BaseFolder\$sqlinstance\11 - SSRS"
-$fullfolderPathRDL = "$BaseFolder\$sqlinstance\11 - SSRS\Reports"
-$fullfolderPathSUB = "$BaseFolder\$sqlinstance\11 - SSRS\Subscriptions"
-$fullfolderPathKey = "$BaseFolder\$sqlinstance\11 - SSRS\EncryptionKey"
-$fullfolderPathFolders = "$BaseFolder\$sqlinstance\11 - SSRS\Folders"
+# Create Output Folder Structure to mirror the SSRS ReportServer Catalog and dump the RDL into the folder tree
+$FoldersToExport = [System.Collections.ArrayList]@()
 
-if(!(test-path -path $fullfolderPath))
-{
-    mkdir $fullfolderPath | Out-Null
-}
-
-if(!(test-path -path $fullfolderPathRDL))
-{
-    mkdir $fullfolderPathRDL | Out-Null
-}
-
-if(!(test-path -path $fullfolderPathSUB))
-{
-    mkdir $fullfolderPathSUB | Out-Null
-}
-
-if(!(test-path -path $fullfolderPathKey))
-{
-    mkdir $fullfolderPathKey | Out-Null
-}
-
-if(!(test-path -path $fullfolderPathFolders))
-{
-    mkdir $fullfolderPathFolders | Out-Null
-}
-	
-
-# -----------------------------------------
-# 1) Get SSRS Version and Supported Interfaces
-# -----------------------------------------
-Write-Output ("SSRS Version: {0}" -f $SSRSVersion) | out-file -Force -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-$SOAPAPIVersion=''
-$RESTAPIVersion=''
-
-if ($SSRSVersion -ne 'unknown')
-{
-
-    # 2005
-    if ($SSRSVersion -like '9.0*')
-    {
-        "Supports SOAP Interface 2005"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2005.asmx"
-        $RESTAPIVersion=$null
-    }
-
-    # 2008
-    if ($SSRSVersion -like '10.0*')
-    {
-        "Supports SOAP Interface 2005"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2005.asmx"
-        $RESTAPIVersion=$null
-    }
-
-    # 2008 R2
-    if ($SSRSVersion -like '10.5*')
-    {
-        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
-        $RESTAPIVersion=$null
-    }
-
-    # 2012
-    if ($SSRSVersion -like '11.0*')
-    {
-        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
-        $RESTAPIVersion=$null
-    }
-
-    # 2014
-    if ($SSRSVersion -like '12.0*')
-    {
-        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
-        $RESTAPIVersion=$null
-    }
-
-    # 2016
-    if ($SSRSVersion -like '13.0*')
-    {
-        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        "Supports REST Interface v1.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
-        $RESTAPIVersion="http://$SQLInstance/reports/api/v1.0"
-    }
-
-    # 2017
-    if ($SSRSVersion -like '14.0*')
-    {
-        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        "Supports REST Interface v2.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
-        $RESTAPIVersion="http://$SQLInstance/reports/api/v2.0"
-    }
-    
-    # PowerBI
-    if ($SSRSVersion -like '15.0*')
-    {
-        "Supports SOAP Interface 2010"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        "Supports REST Interface v2.0"| out-file -append -encoding ascii -FilePath "$fullfolderPath\SSRSVersion.txt"
-        $SOAPAPIVersion="http://$SQLInstance/ReportServer/ReportService2010.asmx"
-        $RESTAPIVersion="http://$SQLInstance/reports/api/v2.0"
-    }
-}
-
-
-# --------
-# 2) RDL
-# --------
-Write-Output "Writing out Report RDL.."
-
-# Create Output Folder Structure to mirror the SSRS ReportServer Catalog and dump the RDL into the respective folder tree
 foreach ($tlfolder in $toplevelfolders)
 {
     # Create Folder Structure, Fixup forward slashes
@@ -567,17 +649,18 @@ foreach ($tlfolder in $toplevelfolders)
         mkdir $myNewStruct | Out-Null
     }
 
-    # Only Script out the Reports in this Folder (Report ParentID matches Folder ItemID
+    # Only Script out the Reports in this Folder (Report ParentID matches Folder ItemID)
     $myParentID = $tlfolder.ItemID
     Foreach ($pkg in $Packages)
     {
         if ($pkg.ParentID -eq $myParentID)
         {
 
-            # Get the Report ID, Name
-            $myItemID = $pkg.ItemID
+            # Get the Report GUID, Name, Path (without report name)
+            $pkgItemID = $pkg.ItemID.Guid
             $pkgName = $Pkg.name
-            Write-Output('Package: {0}' -f $pkgName)
+            #$pkgPath = $Pkg.Path.Replace($pkg.name,'')
+            $pkgPath = $Pkg.Path
 
             # Report RDL
             if ($pkg.Type -eq 2)
@@ -588,65 +671,72 @@ foreach ($tlfolder in $toplevelfolders)
             # Shared Data Source
             if ($pkg.Type -eq 5)
             {    
-                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.shdsrc.txt"
+                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.rdl"
             }
 
             # Shared Dataset
             if ($pkg.Type -eq 8)
             {
-                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.shdset.txt"
+                $pkg.ContentXML | Out-File -Force -encoding ascii -FilePath "$myNewStruct\$pkgName.rdl"
             }
 
             # Power BI Report
             if ($pkg.Type -eq 13)
             {
-                [io.file]::WriteAllBytes("$myNewStruct\$pkgName.pbix",$pkg.Content)
-                #$pkg.Content | Set-Content "$myNewStruct\$pkgName.pbix" -Encoding Byte                 
+                [io.file]::WriteAllBytes("$myNewStruct\$pkgName.pbix",$pkg.Content)             
             }
 
+            # 1  - Folder
+            # 2  - Report
+            # 3  - File/Resource
+            # 4  - Linked Report
+            # 5  - Shared Datasource
+            # 6  - Model
+            # 7  - 
+            # 8  - Shared DataSet             
+            # 9  - Report Part
+            # 10 -
+            # 11 - KPI
+            # 12 - Mobile Report
+            # 13 - PBI
+            # 14 - Future - ForeRunner?
 
-            Write-Output("Item: [{0}], Type: [{1}]" -f $pkg.name, $pkg.Type)
-            # Other Types include
-            # 3 - File/Resource
-            # 4 - Linked Report
-            # 6 - Model
-            # 7 - 
-            # 9 - 
+            # Write Out Report MetaData to JSON file
+            $ReportMetaData = [ordered]@{}
+            $ReportMetaData.add('ItemID',$pkgItemID)
+            $ReportMetaData.add('Name',$pkgName)
+            $ReportMetaData.add('Path',$pkgPath)
 
-            
+            $FoldersToExport.Add($ReportMetaData) | Out-Null
 
         } # Parent
     } # Items in this folder
 
 
+
 }
 
+$FoldersToExport| ConvertTo-Json -Depth 6 | out-file "$fullfolderPathRDL\ReportPaths.json" -force -Encoding ascii 
 
 # ----------------------------
 # 3) SSRS Configuration Files
 # ----------------------------
-Write-Output "Writing SSRS Settings to file..."
-$old_ErrorActionPreference = $ErrorActionPreference
-$ErrorActionPreference = 'SilentlyContinue'
+Write-Output "SSRS Settings to file..."
+
+# Get WMI Instance Name First
+$WMIInstance = gwmi -class "__NAMESPACE" -namespace "root\Microsoft\SqlServer\ReportServer" -ComputerName $SQLInstance | select -ExpandProperty Name
 
 # 2008?
 [int]$wmi1 = 0
 try 
 {
-    $junk = get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v10\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
-    if ($?)
-    {
-        $wmi1 = 10
-        Write-Output "Found SSRS v10 (2008)"
-    }
-    else
-    {
-        #Write-Output "NOT v10"
-    }
+    $junk = get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\$WMIInstance\v10\Admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance -ErrorAction Stop | out-file -FilePath "$fullfolderPathConfig\Server_Config_Settings.txt" -encoding ascii
+    $wmi1 = 10
+    Write-Output "Found SSRS v10 (2008)"
 }
 catch
 {
-    #Write-Output "NOT v10"
+    #Write-Output('Error: {0}' -f $_.Exception.Message)
 }
 
 # 2012?
@@ -654,20 +744,13 @@ if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v11\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
-        if ($?)
-        {
-            $wmi1 = 11
-            Write-Output "Found SSRS v11 (2012)"
-        }
-        else
-        {
-            #Write-Output "NOT v11"
-        }
+        get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\$WMIInstance\v11\Admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance -ErrorAction Stop | out-file -FilePath "$fullfolderPathConfig\Server_Config_Settings.txt" -encoding ascii
+        $wmi1 = 11
+        Write-Output "Found SSRS v11 (2012)"        
     }
     catch
     {
-        #Write-Output "NOT v11"
+        #Write-Output('Error: {0}' -f $_.Exception.Message)
     }
 }
 
@@ -676,20 +759,13 @@ if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v12\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
-        if ($?)
-        {
-            $wmi1 = 12
-            Write-Output "Found SSRS v12 (2014)"
-        }
-        else
-        {
-            #Write-Output "NOT v12"
-        }
+        get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\$WMIInstance\v12\Admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance -ErrorAction Stop | out-file -FilePath "$fullfolderPathConfig\Server_Config_Settings.txt" -encoding ascii
+        $wmi1 = 12
+        Write-Output "Found SSRS v12 (2014)"        
     }
     catch
     {
-        #Write-Output "NOT v12"
+        #Write-Output('Error: {0}' -f $_.Exception.Message)
     }
 }
 
@@ -698,20 +774,13 @@ if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_MSSQLSERVER\v13\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
-        if ($?)
-        {
-            $wmi1 = 13
-            Write-Output "Found SSRS v13 (2016)"
-        }
-        else
-        {
-            #Write-Output "NOT v13"
-        }
+        get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\$WMIInstance\v13\Admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance -ErrorAction Stop | out-file -FilePath "$fullfolderPathConfig\Server_Config_Settings.txt" -encoding ascii
+        $wmi1 = 13
+        Write-Output "Found SSRS v13 (2016)"        
     }
     catch
     {
-        #Write-Output "NOT v13"
+        #Write-Output('Error: {0}' -f $_.Exception.Message)
     }
 }
 
@@ -720,20 +789,13 @@ if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\V14" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
-        if ($?)
-        {
-            $wmi1 = 14
-            Write-Output "Found SSRS v14 (2017)"
-        }
-        else
-        {
-            #Write-Output "NOT v13"
-        }
+        get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\$WMIInstance\V14\Admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance -ErrorAction Stop | out-file -FilePath "$fullfolderPathConfig\Server_Config_Settings.txt" -encoding ascii
+        $wmi1 = 14
+        Write-Output "Found SSRS v14 (2017)"        
     }
     catch
     {
-        #Write-Output "NOT v13"
+        #Write-Output('Error: {0}' -f $_.Exception.Message)
     }
 }
 
@@ -742,66 +804,57 @@ if ($wmi1 -eq 0)
 {
     try 
     {
-        get-wmiobject -namespace "root\Microsoft\SQlServer\ReportServer\RS_PBIRS\v15\Admin" -class MSREportServer_configurationSetting -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
-        if ($?)
-        {
-            $wmi1 = 15
-            Write-Output "Found SSRS v15 (Power BI)"
-        }
-        else
-        {
-            #Write-Output "NOT v15"
-        }
+        get-wmiobject -namespace "root\Microsoft\SQLServer\ReportServer\$WMIInstance\v15\Admin" -class MSReportServer_ConfigurationSetting -computername $SQLInstance -ErrorAction Stop | out-file -FilePath "$fullfolderPathConfig\Server_Config_Settings.txt" -encoding ascii
+        $wmi1 = 15
+        Write-Output "Found SSRS v15 (Power BI)"
     }
     catch
     {
-        #Write-Output "NOT v15"
+        #Write-Output('Error: {0}' -f $_.Exception.Message)
     }
-}
 
-# Reset default PS error handler - for WMI error trapping
-$ErrorActionPreference = $old_ErrorActionPreference 
+}
 
 # ------------------------------
 # 4) RSReportServer.config File
 # ------------------------------
 # https://msdn.microsoft.com/en-us/library/ms157273.aspx
 
-Write-Output "Saving RSReportServer.config file..."
+Write-Output "RSReportServer.config file..."
 
 # 2008
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS10.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS10.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS10.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 # 2008 R2
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS10_50.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS10_50.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS10_50.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 # 2012
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS11.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS11.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS11.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 # 2014
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS12.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS12.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS12.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 # 2016
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS13.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS13.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS13.MSSQLSERVER\Reporting Services\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 # 2017
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 # Power BI
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft Power BI Report Server\PBIRS\ReportServer\RSreportserver.config"
-copy-item "\\$sqlinstance\c$\Program Files\Microsoft Power BI Report Server\PBIRS\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft Power BI Report Server\PBIRS\ReportServer\RSreportserver.config" $fullfolderPathConfig -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
 
 
 # ---------------------------
 # 5) Database Encryption Key
 # ---------------------------
-Write-Output "Backup SSRS Encryption Key..."
+Write-Output "SSRS Encryption Key..."
 Write-Output ("WMI found SSRS version {0}" -f $wmi1)
 
 # 2008 no WMI
@@ -821,7 +874,7 @@ if ($wmi1 -eq 11)
 {
     try
     {
-        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\rs_mssqlserver\v11\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\$WMIInstance\v11\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
         if ($?)
         {
             $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
@@ -849,7 +902,7 @@ if ($wmi1 -eq 12)
 {
     try
     {
-        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\rs_mssqlserver\v12\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\$WMIInstance\v12\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
         if ($?)
         {
             $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
@@ -877,7 +930,7 @@ if ($wmi1 -eq 13)
 {
     try
     {
-        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\rs_mssqlserver\v13\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        $serverClass = get-wmiobject -namespace "root\microsoft\sqlserver\reportserver\$WMIInstance\v13\admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
         if ($?)
         {
             $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
@@ -905,7 +958,7 @@ if ($wmi1 -eq 14)
 {
     try
     {
-        $serverClass = get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\V14\Admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        $serverClass = get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\$WMIInstance\V14\Admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
         if ($?)
         {
             $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
@@ -933,7 +986,7 @@ if ($wmi1 -eq 15)
 {
     try
     {
-        $serverClass = get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\V14\Admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        $serverClass = get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\$WMIInstance\V15\Admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
         if ($?)
         {
             $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
@@ -945,14 +998,14 @@ if ($wmi1 -eq 15)
         {
             New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
             Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii            
-            Write-Output "Error Connecting to WMI for config file (v13)"
+            Write-Output "Error Connecting to WMI for config file (v15)"
         }
     }
     catch
     {
         New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
         Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
-        Write-Output "Error Connecting to WMI for config file (v13) 2"
+        Write-Output "Error Connecting to WMI for config file (v15) 2"
     }
 }
 
@@ -962,6 +1015,7 @@ $ErrorActionPreference = $old_ErrorActionPreference
 # ---------------------
 # 6) Timed Subscriptions
 # ---------------------
+Write-Output "Visual Timed Subscriptions as HTML..."
 $myRDLSked = 
 "
 select 
@@ -1074,7 +1128,6 @@ try
 
 
 $RunTime = Get-date
-Write-Output "Visual Timed Subscriptions..."
 $HTMLFileName = "$fullfolderPathSUB\Visual_Subscription_Schedule.html"
 
 $Skeds | select Folder, Report, State, RecurrenceType, RunTime, Weeks_Interval, Minutes_Interval, `
@@ -1084,7 +1137,7 @@ Week_of_Month, Sun, Mon, Tue, Wed, Thu, Fri, Sat, RunHour,  `
 | ConvertTo-Html -Head $myCSS -PostContent "<h3>Ran on : $RunTime</h3>" -CSSUri "HtmlReport.css"| Set-Content $HTMLFileName
 
 # Script out the Create Subscription Commands
-Write-Output "Timed Subscriptions..."
+Write-Output "Timed Subscriptions as SQL..."
 
 # Older SSRS version dont have the ReportZone Column
 if ($myver -ilike '9.0*' -or $myver -ilike '10.0*' -or $myver -ilike '10.5*')
@@ -1215,7 +1268,7 @@ if ($SubCommands)
 #  System Administrator Role
 #  System User Role
 
-Write-Output "Folder Permissions..."
+Write-Output "Folder and Report Permissions to JSON..."
 $sqlSecurity = "
 Use ReportServer;
 
@@ -1272,15 +1325,18 @@ try
     }
 }
 
-$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-Html -Head $myCSS -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content "$fullfolderPathFolders\PermissionsReport.html"
-$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTreePermissions.json" -Force -Encoding ascii
+$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-Html -Head $myCSS -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content "$fullfolderPathPermissions\FolderandReportPermissions.html"
+$sqlPermissions | select Path, Name, UserName, RoleName | ConvertTo-json -Depth 4 | out-file -FilePath "$fullfolderPathPermissions\FolderandReportPermissions.json" -Force -Encoding ascii
+Export-Clixml -InputObject $sqlPermissions -Path "$fullfolderPathPermissions\FolderandReportPermissions.xml" -Force -Encoding ASCII
 
 
-# 9) Folder Tree Structure - Serialize
-Write-Output "Folder Tree Structure..."
+# ------------------------
+# 8) Folder Tree Structure
+# ------------------------
+Write-Output "FolderTree Structure to JSON..."
 
 # Can we use the REST API?
-if ($SSRSVersion -like '13.0*' -or $SSRSVersion -like '14.0*' -or $SSRSVersion -like '15.0*')
+if ($SSRSVersion -in ('13.0','14.0','15.0'))
 {
     switch($SSRSVersion.Substring(0,2))
     {
@@ -1293,70 +1349,226 @@ if ($SSRSVersion -like '13.0*' -or $SSRSVersion -like '14.0*' -or $SSRSVersion -
     $response  = Invoke-RestMethod "$URI/CatalogItems" -Method get -UseDefaultCredentials
     $FolderTree = $response.value | Where-Object {$_.Type -eq 'Folder'} | select path
     $FolderTree | convertto-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTreeStructure.json" -Force -Encoding ascii
-    # Read Back in
-    # $NewFolderTree = get-content -Path "$fullfolderPath\FolderTree.json" | ConvertFrom-Json
 }
 
 # Use SOAP on older verisons
-if ($SSRSVersion -like '9.0*' -or $SSRSVersion -like '10.0*' -or $SSRSVersion -like '10.5*' -or $SSRSVersion -like '11.0*' -or $SSRSVersion -like '12.0*')
+if ($SSRSVersion -in ('9.0','10.0','10.5','11.0','12.0'))
 {
-    if ($SSRSVersion -like '9.0*')
-    {
-        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2005.asmx"
-    }
-    else
-    {
-        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2010.asmx"
-    }
-
     # Get SOAP Proxy
-    $rs2010 = New-WebServiceProxy -Uri $ReportServerUri -UseDefaultCredential;
+    $rs2010 = New-WebServiceProxy -Uri $SOAPAPIURL -UseDefaultCredential;
     $type = $rs2010.GetType().Namespace    
     $CatalogItemDataType = ($type + '.catalogItems')    
     $CatalogItems= $rs2010.ListChildren("/",$true)
     $FolderTree = $CatalogItems | Where-Object {$_.TypeName -eq 'Folder'} | select Path
-    $FolderTree | convertto-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTree.json" -Force -Encoding ascii
-    # Read Back in
-    # $NewFolderTree = get-content -Path "$fullfolderPath\FolderTree.json" | ConvertFrom-Json
+    $FolderTree | convertto-json -Depth 4 | out-file -FilePath "$fullfolderPathFolders\FolderTreeStructure.json" -Force -Encoding ascii
 }
 
-# 10) Subscriptions as JSON Document Collection
-Write-Output "Serialize Subscriptions as a JSON Document Collection..."
 
-# Can we use the REST API?
-if ($SSRSVersion -like '13.0*' -or $SSRSVersion -like '14.0*' -or $SSRSVersion -like '15.0*')
+# ----------------------------------
+# 9) Subscriptions as JSON Document
+# ----------------------------------
+Write-Output "Subscriptions to JSON..."
+
+# Use the REST API hotness on newer versions
+if ($SSRSVersion -in ('13.0','14.0','15.0'))
 {
-    switch($SSRSVersion.Substring(0,2))
-    {
-        13 {$RESTAPIVersion = "v1.0"}
-        14 {$RESTAPIVersion = "v2.0"}
-        15 {$RESTAPIVersion = "v2.0"}
-    }
-
-    $URI = "http://$SQLInstance/reports/api/$RESTAPIVersion"
+    $URI = $RESTAPIURL
     $response  = Invoke-RestMethod "$URI/Subscriptions" -Method get -UseDefaultCredentials
-    $response.value | ConvertTo-Json -Depth 4 | out-file -FilePath "$fullfolderPathSUB\Subscriptions.json" -Force -Encoding ascii    
+    $RESTsubscriptions = $response.value
+    $SubsToExport = [System.Collections.ArrayList]@()
+
+    foreach($sub in $RESTSubscriptions)
+    {
+        # Get Extra SubDetails
+        $SubID = $Sub.ID 
+        $FullSubDetails = Invoke-RestMethod "$URI/Subscriptions($SubID)" -Method get -UseDefaultCredentials
+        $mySubObject = [PSCustomObject]@{
+            ID     =              $sub.ID
+            Owner =               $sub.Owner
+            IsDataDriven=         $sub.IsDataDriven
+            Description=          $sub.Description
+            Report=               $sub.Report
+            IsActive=             $sub.IsActive
+            EventType=            $sub.EventType
+            Schedule=             $sub.Schedule
+            ScheduleDescription=  $FullSubDetails.ScheduleDescription
+            LastRuntime =         $sub.LastRunTime
+            LastStatus=           $sub.LastStatus
+            ExtensionSettings=    $FullSubDetails.ExtensionSettings
+            DeliveryExtension=    $sub.DeliveryExtension
+            ReportParameters=     $sub.ParameterValues
+        }
+        $SubsToExport.Add($mySubObject) | out-null
+    }
+    $SubsToExport| ConvertTo-Json -Depth 6 | out-file -FilePath "$fullfolderPathSUB\SubscriptionsREST.json" -force -Encoding ascii 
 }
 
-# Use SOAP on older versions
-if ($SSRSVersion -like '9.0*' -or $SSRSVersion -like '10.0*' -or $SSRSVersion -like '10.5*' -or $SSRSVersion -like '11.0*' -or $SSRSVersion -like '12.0*' -or  $SSRSVersion -like '14.0*')
+
+# Use the SOAP API on ancient versions
+if ($SSRSVersion -in '9.0')
 {
-    if ($SSRSVersion -like '9.0*')
-    {
-        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2005.asmx"
-    }
-    else
-    {
-        $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2010.asmx"
-    }
-
-    # Get SOAP Proxy
-    $rs2010 = New-WebServiceProxy -Uri $ReportServerUri -UseDefaultCredential;
-    $type = $rs2010.GetType().Namespace
-    $CatalogItems= $rs2010.ListSubscriptions("/")
-    $CatalogItems | ConvertTo-Json -Depth 4 | out-file -FilePath "$fullfolderPathSUB\Subscriptions2.json" -Force -Encoding ascii 
-    
+    $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2005.asmx"
 }
+else
+{
+    $ReportServerUri  = "http://$SQLInstance/ReportServer/ReportService2010.asmx"
+}
+
+# Get SOAP Proxy
+$rs2010 = New-WebServiceProxy -Uri $ReportServerUri -UseDefaultCredential;
+$type = $rs2010.GetType().Namespace
+$ExtensionSettingsDataType = ($type + '.ExtensionSettings')
+$ActiveStateDataType = ($type + '.ActiveState')
+$ParmValueDataType = ($type + '.ParameterValue')
+
+$SOAPSubscriptions= $rs2010.ListSubscriptions("/")
+$SubsToExport2 = [System.Collections.ArrayList]@()
+
+foreach ($sub in $SOAPSubscriptions)
+{
+    $extSettings = New-Object ($ExtensionSettingsDataType)
+    $paramSettings = New-Object ($ParmValueDataType)
+    $activeSettings = New-Object ($ActiveStateDataType)
+    $desc = ""
+    $status = ""
+    $eventType = ""
+    $matchdata = ""
+    $Subproperty = $rs2010.GetSubscriptionProperties($sub.subscriptionID, [ref]$extSettings, [ref]$desc, [ref]$activeSettings, [ref]$status, [ref]$eventType, [ref]$matchData, [ref]$paramSettings)
+
+    $mySubObject = [PSCustomObject]@{
+        ID     =              $sub.SubscriptionID
+        Owner =               $sub.Owner
+        IsDataDriven=         $sub.IsDataDriven
+        Description=          $sub.Description
+        Report=               $sub.Path
+        IsActive=             $true
+        EventType=            $sub.EventType
+        Schedule=             $matchdata
+        ScheduleDescription=  $null
+        LastExecuted=         $sub.LastExecuted
+        Status=               $sub.Status
+        ExtensionSettings=    $extSettings
+        DeliveryExtension=    $extSettings.Extension
+        ReportParameters=     $paramSettings
+            
+    }
+    $SubsToExport2.Add($mySubObject) | Out-Null
+}
+$SubsToExport2 | export-Clixml -Path "$fullfolderPathSUB\SubscriptionsSOAP.xml" -Force -Encoding ASCII
+
+
+# ----------
+# 10) Users
+# ----------
+Write-Output "Users to JSON..."
+$sqlCMDUsers=
+"
+SELECT 
+	UserID,
+	UserType,
+	AuthType,
+	UserName
+FROM 
+	[ReportServer].[dbo].[Users]
+WHERE
+	UserName NOT IN ('Everyone','NT AUTHORITY\SYSTEM','BUILTIN\Administrators','','sa')
+Order by
+    UserName
+"
+
+if ($serverauth -eq "win")
+{
+    try
+    {
+        $sqlUsers = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMDUsers -ErrorAction Stop
+    }
+    catch
+    {
+        Write-Output("Error Connecting to SQL Users: {0}" -f $error[0])
+    }
+}
+else
+{
+try
+    {
+        $sqlUsers = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlCMDUsers -User $myuser -Password $mypass -ErrorAction Stop
+    }
+    catch
+    {
+        Write-Output("Error Connecting to SQL Users: {0}" -f $error[0])
+    }
+}
+
+"Users" | out-file -FilePath "$fullfolderPathUsers\Users.json" -Force -Encoding ascii
+$sqlUsers | select UserID, UserType, AuthType, UserName | ConvertTo-json -Depth 4 | out-file -FilePath "$fullfolderPathUsers\Users.json" -Force -Encoding ascii
+
+
+# ----------------
+# 11) Data Sources
+# ----------------
+Write-Output "DataSources to JSON..."
+$sqlCMDDSrc=
+"
+SELECT 
+	[ItemID],
+    [SubscriptionID],
+	[Name],
+	[Extension],
+	[Link],
+	[CredentialRetrieval],
+	[Prompt],
+	[ConnectionString],
+	[OriginalConnectionString],
+    [OriginalConnectStringExpressionBased],
+	[UserName],
+	[Password],
+	[Flags],
+	[Version]
+FROM 
+	[ReportServer].[dbo].[DataSource]
+"
+
+if ($serverauth -eq "win")
+{
+    try
+    {
+        $sqlDataSources = ConnectWinAuth -SQLInstance $SQLInstance -Database "ReportServer" -SQLExec $sqlCMDDSrc -ErrorAction Stop
+    }
+    catch
+    {
+        Write-Output("Error Connecting to SQL Users: {0}" -f $error[0])
+    }
+}
+else
+{
+try
+    {
+        $sqlDataSources = ConnectSQLAuth -SQLInstance $SQLInstance -Database "ReportServer" -SQLExec $sqlCMDDSrc -User $myuser -Password $mypass -ErrorAction Stop
+    }
+    catch
+    {
+        Write-Output("Error Connecting to SQL Users: {0}" -f $error[0])
+    }
+}
+
+$sqlDataSources `
+    | select `
+        ItemID,`
+        SubscriptionID,`
+        Name,`
+        Extension,`
+        Link,`
+        CredentialRetrieval,`
+        Prompt,`
+        ConnectionString,`
+        OriginalConnectionString,`
+        OriginalConnectStringExpressionBased,`
+        UserName,`
+        Password,`
+        Flags,`
+        Version `
+    | ConvertTo-json -Depth 4 `
+    | out-file -FilePath "$fullfolderPathDataSources\DataSources.json" -Force -Encoding ascii
 
 
 # Return to Base
