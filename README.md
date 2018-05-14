@@ -35,12 +35,12 @@ Export Progress:
 Import Progress(executed in this order):
 * Users - Done
 * Folder Tree Structure - Done
-* Next step is to use the Config Manager to restore the Encryption Key
-* Shared Data Sources
-* Shared DataSets
-* RDL Reports with embededed Data Sources and DataSets
-* Subscriptions
-* Folder and Report Permissions
+* Next step is to use the Config Manager to restore the Encryption Key - Manual
+* Shared Data Sources - Done
+* Shared DataSets - Pending
+* RDL Reports with embededed Data Sources and DataSets - done
+* Subscriptions - Pending
+* Folder and Report Permissions - Pending
 
 Planned enhancements:
 * KPIs
