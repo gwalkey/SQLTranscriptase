@@ -14,3 +14,15 @@ These scripts use three main SQL Server technologies
 
 Teaching Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
+
+Notes:
+Currently (May 14, 2018) finalizing the SSRS Script for SQL Saturday Atlanta
+
+This was NOT easy, because the SSRS schema is not documented
+
+Export Progress:
+Reports with Embedded Data Sources - Done
+Configuration Files - Done
+Encryption Key - Done
+Subscriptions - Done
+Foder Permissions - Done
