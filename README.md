@@ -15,7 +15,7 @@ These scripts use three main SQL Server technologies
 Teaching Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
-'''Notes:'''
+<h3>Notes:</h3>
 
 Currently (May 14, 2018) finalizing the SSRS Script for SQL Saturday Atlanta
 
