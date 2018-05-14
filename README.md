@@ -16,13 +16,24 @@ Teaching Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
 Notes:
+
 Currently (May 14, 2018) finalizing the SSRS Script for SQL Saturday Atlanta
 
-This was NOT easy, because the SSRS schema is not documented
 
 Export Progress:
-Reports with Embedded Data Sources - Done
-Configuration Files - Done
-Encryption Key - Done
-Subscriptions - Done
-Foder Permissions - Done
+*Reports with Embedded Data Sources - Done
+*Shared DataSources - Done
+*Configuration Files - Done
+*Encryption Key - Done
+*Visual Subscriptions - Done
+*Folder Permissions - Done
+*Folder Tree Structure - Done
+*Subscriptions - Done
+*Users - Done
+*Shared Data Sets - Pending
+
+Import Progress(executed in this order):
+*Users - Done
+*Folder Tree Structure - Done
+*NextThis is where you use the Config Manager to restore the Encryption Key
+
