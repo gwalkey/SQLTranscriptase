@@ -28,6 +28,7 @@ Export Progress:
 * Visual Subscriptions - Done
 * Folder Permissions - Done
 * Folder Tree Structure - Done
+* Shared Schedules - Pending
 * Subscriptions - Done
 * Users - Done
 * Shared Data Sets - Pending
@@ -38,11 +39,12 @@ Import Progress(executed in this order):
 * Next step is to use the Config Manager to restore the Encryption Key - Manual
 * Shared Data Sources - Done
 * Shared DataSets - Pending
-* RDL Reports with embededed Data Sources and DataSets - done
+* RDL Reports with embededed Data Sources and DataSets - Done
+* Shared Schedules - Pending
 * Subscriptions - Pending
 * Folder and Report Permissions - Pending
 
-Planned enhancements:
+Future enhancements:
 * KPIs
 * Mobile Reports
 * PBIX reports
