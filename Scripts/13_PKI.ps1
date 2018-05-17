@@ -131,7 +131,7 @@ if ($serverauth -eq "win")
 {
     try
     {
-        Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
+        ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
     }
     catch
     {
@@ -142,7 +142,7 @@ else
 {
     try
     {
-        Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
+        ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
     }
     catch
     {
@@ -293,6 +293,7 @@ foreach($sqlDatabase in $srv.databases)
 	encryption by password = '3dH85Hhk003#GHkf02597gheij04'
     "
 
+    $sqlresults3 = $null
     # connect correctly
     if ($serverauth -eq "win")
     {
@@ -453,7 +454,7 @@ if ($sqlresults4.Column1 -eq 1)
     {
         Try
         {
-            Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
+            ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
         }
         catch
         {
@@ -464,7 +465,7 @@ if ($sqlresults4.Column1 -eq 1)
     {
         try
         {
-            Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
+            ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
         }
         catch
         {
