@@ -2,7 +2,8 @@
 <h2>SQL Server Documentation in Powershell</h2>
 
 <h3>Check the Wiki for Installation instructions</h3
-![Alt text](/SQLT.gif?raw=true "DEMO")
+
+![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
 
 Shoot me an email at dev@insyncva.com with suggestions/bugs
 
