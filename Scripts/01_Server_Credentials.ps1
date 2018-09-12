@@ -173,7 +173,7 @@ foreach ($Cred in $sqlresults)
 	$myFixedCredName = $myFixedCredName.replace('&', '-')
 	$myFixedCredName = $myFixedCredName.replace(':', '-')
     $myoutputfile = $Credentials_path+$myFixedCredName+".sql"
-    $myoutputstring = "CREATE CREDENTIAL "+$Cred.Name+" WITH IDENTITY='"+$Cred.credential_identity+"'"
+    $myoutputstring = "CREATE CREDENTIAL ["+$Cred.Name+"] WITH IDENTITY='"+$Cred.credential_identity+"'"
     $myoutputstring | out-file -FilePath $myoutputfile -append -encoding ascii -width 500
 }
 
