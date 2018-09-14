@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the SQL Agent Jobs
 	
@@ -127,7 +127,17 @@ else
 	Write-Output "Using Windows Auth"
 }
 
-$jobs = $server.JobServer.Jobs 
+$ErrorActionPreference='Stop'
+try
+{
+    $jobs = $server.JobServer.Jobs
+}
+catch
+{
+    Write-Output('Cant access the SMO Jobs Object')
+    exit
+}
+$ErrorActionPreference='Continue'
  
 # Create Output Folders
 $fullfolderPathEn = "$BaseFolder\$sqlinstance\04 - Agent Jobs\Enabled"
@@ -142,6 +152,7 @@ if(!(test-path -path $fullfolderPathDis))
 	mkdir $fullfolderPathDis | Out-Null
 }
 
+$jobcount = $server.JObserver.jobs.count
  
  # Export with filename fixups
  # Enabled Jobs First
@@ -172,7 +183,7 @@ if ($jobs -ne $null)
         $myjobname
     }
 
-    Write-Output ("{0} Jobs Exported" -f $jobs.count)
+    Write-Output ("{0} Jobs Exported" -f $jobCount)
 }
 else
 {
