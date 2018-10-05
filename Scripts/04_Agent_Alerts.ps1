@@ -76,15 +76,56 @@ catch
  # Get the Alerts Themselves
 $sqlCMD2 = 
 "
-SELECT 'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
-' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
-',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
-',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
-',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
-',@delay_between_responses='+convert(varchar(10),tsha.delay_between_responses)+char(13)+char(10)+
-',@include_event_description_in='+CONVERT(VARCHAR(5),tsha.include_event_description)+char(13)+char(10)+
-',@job_id=N'+char(39)+'00000000-0000-0000-0000-000000000000'+char(39)+char(13)+char(10)
-FROM msdb.dbo.sysalerts tsha
+SELECT 
+
+AlertText = 
+CASE 
+	WHEN tsha.job_id='00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS NOT NULL THEN
+		'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
+		' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+		',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
+		',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
+		',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
+		',@delay_between_responses='+convert(varchar(10),tsha.delay_between_responses)+char(13)+char(10)+
+		',@include_event_description_in='+CONVERT(VARCHAR(5),tsha.include_event_description)+char(13)+char(10)+
+		',@performance_condition='+char(39)+COALESCE(tsha.performance_condition,'')+char(39)+char(13)+char(10)
+
+	WHEN tsha.job_id='00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS null THEN
+	'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
+	' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+	',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
+	',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
+	',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
+	',@delay_between_responses='+convert(varchar(10),tsha.delay_between_responses)+char(13)+char(10)+
+	',@include_event_description_in='+CONVERT(VARCHAR(5),tsha.include_event_description)+char(13)+char(10)
+
+	WHEN tsha.job_id<>'00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS NOT NULL THEN
+		'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
+		' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+		',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
+		',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
+		',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
+		',@delay_between_responses='+convert(varchar(10),tsha.delay_between_responses)+char(13)+char(10)+
+		',@include_event_description_in='+CONVERT(VARCHAR(5),tsha.include_event_description)+char(13)+char(10)+
+		',@job_Name=N'+char(39)+sj.[name]+char(39)+char(13)+char(10)+
+		',@performance_condition='+char(39)+COALESCE(tsha.performance_condition,'')+char(39)+char(13)+char(10)
+
+	WHEN tsha.job_id<>'00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS NULL THEN
+		'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
+		' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+		',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
+		',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
+		',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
+		',@delay_between_responses='+convert(varchar(10),tsha.delay_between_responses)+char(13)+char(10)+
+		',@include_event_description_in='+CONVERT(VARCHAR(5),tsha.include_event_description)+char(13)+char(10)+
+		',@job_Name=N'+char(39)+sj.[name]+char(39)+char(13)+char(10)
+	END
+FROM 
+	msdb.dbo.sysalerts tsha
+LEFT JOIN
+	[msdb].[dbo].[sysjobs] sj
+ON
+	tsha.job_id = sj.job_id
 "
 
 
@@ -92,6 +133,7 @@ FROM msdb.dbo.sysalerts tsha
 $sqlCMD3 = 
 "
 select 
+    NotifyText =
 	'EXEC msdb.dbo.sp_add_notification '+char(13)+char(10)+
 	' @alert_name =N'+CHAR(39)+A.[name]+CHAR(39)+CHAR(13)+CHAR(10)+
 	' ,@operator_name = N'+CHAR(39)+O.[name]+CHAR(39)+CHAR(13)+CHAR(10)+	
@@ -116,34 +158,14 @@ if(!(test-path -path $fullfolderPath))
 
 
 	
-# Test for Username/Password needed to connect - else assume WinAuth pass-through
-if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
+# Get ALerts
+if ($serverauth -eq 'sql')
 {
 	Write-Output "Using SQL Auth"
-
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    # Export Alerts
-	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlCMD2
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
     
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results1 = $DataSet.Tables[0].Rows
-
+    # Alerts
+    $results1 = ConnectSQLAuth -SQLInstance $SQLInstance -Database 'master' -SQLExec $sqlCMD2 -User $myuser -Password $mypass
+    
     if ($results1 -eq $null)
     {
         Write-Output "No Agent Alerts Found on $SQLInstance"        
@@ -156,30 +178,13 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
     Add-Content -Value "USE MSDB `r`nGO `r`n" -Path "$fullfolderPath\Agent_Alerts.sql" -Encoding Ascii
     Foreach ($row in $results1)
     {
-        $row.column1 | out-file "$fullfolderPath\Agent_Alerts.sql" -Encoding ascii -Append
+        $row.AlertText | out-file "$fullfolderPath\Agent_Alerts.sql" -Encoding ascii -Append
     }
 
+    # Notifications
     Write-Output ("Exported: {0} Alerts" -f $results1.count)
 
-    # Export Alert Notifications
-   	# .NET Method
-	# Open connection and Execute sql against server
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;User ID=$myuser;Password=$mypass;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlCMD3
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+	$results2 = ConnectSQLAuth -SQLInstance $SQLInstance -Database 'master' -SQLExec $sqlCMD3 -User $myuser -Password $mypass
 
     if ($results2 -eq $null)
     {
@@ -189,15 +194,12 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
         exit
     }
 
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 
-
     # Export Alert Notifications
     New-Item "$fullfolderPath\Agent_Alert_Notifications.sql" -type file -force  |Out-Null
     Add-Content -Value "USE MSDB `r`nGO `r`n" -Path "$fullfolderPath\Agent_Alert_Notifications.sql" -Encoding Ascii
     Foreach ($row in $results2)
     {
-        $row.column1 | out-file "$fullfolderPath\Agent_Alert_Notifications.sql" -Encoding ascii -Append
+        $row.NotifyText | out-file "$fullfolderPath\Agent_Alert_Notifications.sql" -Encoding ascii -Append
     }
 
     Write-Output ("Exported: {0} Alert Notifications" -f $results2.count)
@@ -205,29 +207,9 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
 else
 {
 	Write-Output "Using Windows Auth"
-
-    $old_ErrorActionPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'SilentlyContinue'
-
-    # Export Alerts
-	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlCMD2
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
     
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results1 = $DataSet.Tables[0].Rows
+    # Alerts
+    $results1 =  ConnectWinAuth -SQLInstance $SQLInstance -Database 'master' -SQLExec $sqlCMD2
 
     if ($results1 -eq $null)
     {
@@ -237,34 +219,17 @@ else
         exit
     }
 
+    # Export
     New-Item "$fullfolderPath\Agent_Alerts.sql" -type file -force  |Out-Null
     Add-Content -Value "USE MSDB `r`nGO `r`n" -Path "$fullfolderPath\Agent_Alerts.sql" -Encoding Ascii
     Foreach ($row in $results1)
     {
-        $row.column1 | out-file "$fullfolderPath\Agent_Alerts.sql" -Encoding ascii -Append
+        $row.AlertText | out-file "$fullfolderPath\Agent_Alerts.sql" -Encoding ascii -Append
     }
     Write-Output ("{0} Alerts Exported" -f $results1.count)
 
-
-    # Export Alert Notifications
-  	# .NET Method
-	# Open connection and Execute sql against server using Windows Auth
-	$DataSet = New-Object System.Data.DataSet
-	$SQLConnectionString = "Data Source=$SQLInstance;Integrated Security=SSPI;"
-	$Connection = New-Object System.Data.SqlClient.SqlConnection
-	$Connection.ConnectionString = $SQLConnectionString
-	$SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-	$SqlCmd.CommandText = $sqlCMD3
-	$SqlCmd.Connection = $Connection
-	$SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
-	$SqlAdapter.SelectCommand = $SqlCmd
-    
-	# Insert results into Dataset table
-	$SqlAdapter.Fill($DataSet) | out-null
-
-	# Close connection to sql server
-	$Connection.Close()
-	$results2 = $DataSet.Tables[0].Rows
+    # Notifications
+    $results2 = $results1 =  ConnectWinAuth -SQLInstance $SQLInstance -Database 'master' -SQLExec $sqlCMD3
 
     if ($results2 -eq $null)
     {
@@ -274,15 +239,12 @@ else
         exit
     }
 
-    # Reset default PS error handler
-    $ErrorActionPreference = $old_ErrorActionPreference 
-
-    # Export Alert Notifications
+    # Export
     New-Item "$fullfolderPath\Agent_Alert_Notifications.sql" -type file -force  |Out-Null
     Add-Content -Value "USE MSDB `r`nGO `r`n" -Path "$fullfolderPath\Agent_Alert_Notifications.sql" -Encoding Ascii
     Foreach ($row in $results2)
     {
-        $row.column1+"`r`n" | out-file "$fullfolderPath\Agent_Alert_Notifications.sql" -Encoding ascii -Append
+        $row.NotifyText+"`r`n" | out-file "$fullfolderPath\Agent_Alert_Notifications.sql" -Encoding ascii -Append
     }
 
     Write-Output ("{0} Alert Notifications Exported" -f $results2.count)
