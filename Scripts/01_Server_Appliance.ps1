@@ -564,32 +564,20 @@ else
 
 
 # Get Device Drivers
-$WinServer = ($SQLInstance -split {$_ -eq "," -or $_ -eq "\"})[0]
-if ($WinServer -eq 'localhost' -or $WinServer -eq '.')
+try
 {
-    $ddrivers = driverquery.exe /nh /fo table /s .
-}
-else
-{
-    # Skip driverquery on DMZ Machines - hangs or asks for creds, but cant use them
-    if ($myuser.Length -eq 0 -and $mypass.Length -eq 0)
-    {
-        $ddrivers = driverquery.exe /nh /fo table /s $WinServer
-    }
-    else
-    {
-        $ddrivers = $null
-    }
-}
-
-if ($ddrivers -ne  $null)
-{
-    $fullFileName = $fullfolderPath+"\04_Device_Drivers.txt"
+    $ddrivers = Get-WmiObject Win32_PnPSignedDriver -ComputerName $WinServer | where-object {$_.DeviceName -ne $null}| select DeviceName, FriendlyName, HardwareID, Manufacturer, DriverVersion| sort DeviceName
+    $fullFileName = $fullfolderPath+"\04_Device_Drivers.html"
+    $fullFileNameCSV = $fullfolderPath+"\04_Device_Drivers.csv"
     New-Item $fullFileName -type file -force  |Out-Null
-    Add-Content -Value "Device Drivers for $SQLInstance" -Path $fullFileName -Encoding Ascii  
-    Add-Content -Value $ddrivers -Path $fullFileName -Encoding Ascii
+    New-Item $fullFileNameCSV -type file -force  |Out-Null
+    $ddrivers | ConvertTo-Html|out-file -filepath $fullFileName -Encoding Ascii -Append
+    $ddrivers | ConvertTo-csv -NoTypeInformation|out-file -filepath $fullFileNameCSV -Encoding Ascii -Append
 }
-
+catch
+{
+    Write-Output('Could NOT get Device Drivers with WMI')
+}
 
 
 # Get Running Processes
