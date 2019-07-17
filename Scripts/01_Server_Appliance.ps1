@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Hardware/Software config of the targeted SQL server
 	
@@ -194,6 +194,7 @@ if ($sqlresults12 -ne $null) {$myCreateDate = $sqlresults12.column1} else {$myCr
 
 
 # Get SQL Server Config Settings using SMO
+
 $mystring =  "SQL Server Name: " +$srv.Name 
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
@@ -260,6 +261,36 @@ $mystring | out-file $fullFileName -Encoding ascii -Append
 $mystring =  "SQL Protocols: " + ($srv.endpoints | select Parent, Name, Endpointtype, EndpointState, ProtocolType |format-table| out-string)
 $mystring | out-file $fullFileName -Encoding ascii -Append
 
+
+
+# TempDB Location
+# Get SQL Engine Installation Date
+$mysql13 = 
+"
+USE [tempdb]
+SELECT *  FROM [sys].[database_files] ORDER BY file_id;
+"
+
+# Connect correctly
+if ($serverauth -eq "win")
+{
+    $sqlresults13 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql13
+}
+else
+{
+    $sqlresults13 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql13 -User $myuser -Password $mypass
+}
+
+
+if ($sqlresults13 -ne $null) 
+{
+    "TempDB Files: " | out-file $fullFileName -Encoding ascii -Append
+
+    foreach($File in $sqlresults13)
+    {
+        Write-Output("ID:{0}, Type:{1}, Name: {2}, FileName:{3}" -f $File.file_id, $file.type_desc, $File.name, $file.physical_name) |out-file $fullFileName -Encoding ascii -Append
+    }
+}
 
 " " | out-file $fullFileName -Encoding ascii -Append
 
@@ -578,6 +609,7 @@ catch
 {
     Write-Output('Could NOT get Device Drivers with WMI')
 }
+
 
 
 # Get Running Processes
