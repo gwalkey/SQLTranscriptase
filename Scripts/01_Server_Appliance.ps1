@@ -129,7 +129,7 @@ else
 $fullFileName = $fullfolderPath+"\01_Server_Appliance.txt"
 New-Item $fullFileName -type file -force | Out-Null
 Add-Content -Value "Server Hardware and Software Capabilities for $SQLInstance `r`n" -Path $fullFileName -Encoding Ascii
-
+Write-Output("Local Time: {0}" -f (get-date -Format G)) | out-file -FilePath $fullFileName -Encoding Ascii -Append
 
 # Get Server Uptime
 if ($myver -like "9.0*")
