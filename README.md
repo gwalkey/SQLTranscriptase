@@ -1,5 +1,5 @@
 # SQLTranscriptase 
-<h2>SQL Server Documentation in Powershell</h2>
+<h2>Creating SQL Server Documentation using Powershell</h2>
 
 <h3>Slideshow https://gitpitch.com/gwalkey/sqltranscriptase</h3>
 
