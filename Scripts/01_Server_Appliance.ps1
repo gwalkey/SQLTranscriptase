@@ -657,6 +657,32 @@ catch
     Write-Output ("NT Services: Could not connect")
 }
 
+# Get Server Configuration Settings
+$mysql20 = 
+"
+SELECT *
+  FROM sys.configurations
+  ORDER BY [name]
+;
+"
+
+# Connect correctly
+if ($serverauth -eq "win")
+{
+    $sqlresults20 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql20
+}
+else
+{
+    $sqlresults20 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mysql20 -User $myuser -Password $mypass
+}
+
+# Convert dataset to html table
+$myHtml1 = $sqlresults20 | select configuration_id, name, value, minimum, maximum, value_in_use, description, is_dynamic, is_advanced | `
+ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Configurations</h2><h3>Ran on : $RunTime</h3>"
+ 
+$myoutputfile20 = $FullFolderPath+"\01_Server_Configurations.html"
+Convertto-Html -head $head -Body "$myHtml1" -Title "Server Configurations" | Set-Content -Path $myoutputfile20
+
 
 # Return to Base
 set-location $BaseFolder
