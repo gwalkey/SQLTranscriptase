@@ -16,7 +16,7 @@ These scripts use three main SQL Server technologies
 
 <em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information from DNA
 
-Teaching Video Here:<br>
+Presentation Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
 
