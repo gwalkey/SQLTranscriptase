@@ -50,59 +50,74 @@ $dmfver = $null;
 
 try 
 {
+  # 2019
+  $dmfver = 15
+  Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+  Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+  Write-Output "Using DMF Library v15 (2019)"
+}
+catch 
+{
+}
+
+try 
+{
   # 2017
   $dmfver = 14
   Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
   Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+  Write-Output "Using DMF Library v14 (2017)"
 }
 catch 
 {
-    try 
-    {
-        # 2016
-        $dmfver = 13
-	    Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-	    Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-    }
-    catch 
-    {
-	    try 
-        {
-	        # 2014
-            $dmfver = 12
-	        Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-	        Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-	    }
-	    catch 
-        {
-  	        try 
-            {
-		        # 2012
-                $dmfver = 11
-		        Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-		        Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-	        }
-	        catch 
-            {
-        	    try 
-                {
-		            # 2008
-                    $dmfver = 10
-		            Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-		            Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
-		        }
-		        catch 
-                {
-		            Write-Warning 'SMO components not installed'
-		            throw('SMO components not installed')
-		        }
-	        }
-	    }
-    }
 }
 
+try 
+{
+    # 2016
+    $dmfver = 13
+    Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+    Write-Output "Using DMF Library v13 (2016)"
+}
+catch 
+{
+}
+try 
+{
+	# 2014
+    $dmfver = 12
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+    Write-Output "Using DMF Library v12 (2014)"
+}
+catch 
+{
+}
+try 
+{
+	# 2012
+    $dmfver = 11
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+    Write-Output "Using DMF Library v11 (2012)"
+}
+catch 
+{
+}
+try 
+{
+	# 2008
+    $dmfver = 10
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Dmf, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+	Add-Type -AssemblyName 'Microsoft.SqlServer.Management.Sdk.Sfc, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91' -ErrorAction Stop
+    Write-Output "Using DMF Library v10 (2008)"
+}
+catch 
+{
+}
 
-If (!($dmfver))
+If ($dmfver -eq $null)
 {
     Write-Output "'Microsoft.SqlServer.Dmf.dll' or 'Microsoft.SqlServer.Management.Sdk.Sfc.dll' not found, exiting"
     exit
