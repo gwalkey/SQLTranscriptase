@@ -132,7 +132,7 @@ foreach($sqlDatabase in $srv.databases)
     # Any results?
     if ($sqlresults1 -eq $null) {continue}
 
-    Write-Output ("Scripting out Plan Guides for: {0}" -f $fixedDBName)
+    Write-Output ("Database: {0}" -f $fixedDBName)
     
     # One Output folder per DB
     if(!(test-path -path $output_path))
@@ -145,22 +145,24 @@ foreach($sqlDatabase in $srv.databases)
     {        
         $PlanName = $pg.Name
         $PlanID = $pg.Plan_guide_ID
+        Write-Output('     Plan Name: {0}' -f $PlanName)
 
         $sqlCMD2 = "`
         Use ["+$sqlDatabase.Name+"];"+
         "
 
         select 
-	        'exec sp_create_plan_guide '+
-	        '@name=N'+char(39)+'['+[name]+']'+char(39)+', '+
-	        '@stmt=N'+char(39)+[query_text]+char(39)+', '+
-	        '@type=N'+char(39)+[scope_type_desc]+char(39)+', '+
-	        '@module_or_batch=N'+char(39)+isnull([scope_batch],'null')+char(39)+', '+
-	        '@params='+iif([parameters] is null,'null', 'N'+char(39)+[parameters]+char(39))+', '+
-	        '@hints=N'+char(39)+[hints]+char(39) as 'column1'
+	        'exec sp_create_plan_guide '+char(13)+char(10)+
+	        '@name=N'+char(39)+'['+[name]+']'+char(39)+', '+char(13)+char(10)+
+	        '@stmt=N'+char(39)+replace([query_text],char(39),char(39)+char(39))+char(39)+', '+char(13)+char(10)+
+	        '@type=N'+char(39)+[scope_type_desc]+char(39)+', '+char(13)+char(10)+
+	        '@module_or_batch=N'+char(39)+isnull(replace([scope_batch],char(39),char(39)+char(39)),'null')+char(39)+', ' +char(13)+char(10)+
+	        '@params='+iif([parameters] is null, 'null',char(39)+[parameters]+char(39))+', '+char(13)+char(10)+
+	        '@hints='+iif([hints] is null, 'null',char(39)+[hints]+char(39))+char(13)+char(10) as 'column1'
         from 
 	        sys.plan_guides
-           where [Plan_Guide_ID] = '$PlanID'
+        where 
+            [Plan_Guide_ID] = '$PlanID'
         "
 
                 

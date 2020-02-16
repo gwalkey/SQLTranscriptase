@@ -81,6 +81,7 @@ set-location $BaseFolder
 
 Invoke-Expression ".\01_Server_Appliance.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\01_Server_Credentials.ps1 $SQLInstance $myuser $mypass"
+Invoke-Expression ".\01_Server_Databases.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\01_Server_Logins.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\01_Server_Resource_Governor.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\01_Server_Roles.ps1 $SQLInstance $myuser $mypass"
