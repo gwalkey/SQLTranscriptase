@@ -74,6 +74,24 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
+}
+
+
+
 # Get Folder Structure 
 $sqlCMD2 = 
 "
@@ -501,17 +519,8 @@ else
         $sourcefolder = $backupfolder.Replace(":","$") # server is remote, but itself uses drive letter, which we need as unc from our point of view
         $src = "\\$sqlinstance\$sourcefolder"+$destfrag
     }
-
     set-location $BaseFolder
-    try
-    {
-        copy-item $src $fullfolderPath -Force -ErrorAction SilentlyContinue
-    }
-    catch
-    {
-        Write-Output("Error: {0}" -f $Error[0])
-    }
-    
+    copy-item $src $fullfolderPath -Force -ErrorAction SilentlyContinue
     # Leave no trace on server
     remove-item $src -ErrorAction SilentlyContinue
 }
@@ -527,9 +536,9 @@ $myrestorecmd = "Restore master key from file = 'SSISDB_Master_Key.txt' `
 Write-Output "Writing out Master Key Restore Command..."
 $myrestorecmd | out-file $fullfolderPath\Master_Key_Restore_cmd.sql -Encoding ascii
 
-if ($Folders -ne $null -and @($Folders).count -gt 0)
+if ($Folders -ne $null -and $Folders.count -gt 0)
 {
-    Write-Output ("{0} Packages Exported" -f @($Folders).count)
+    Write-Output ("{0} Packages Exported" -f $Folders.count)
 }
 
 # Return To Base

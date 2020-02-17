@@ -73,6 +73,23 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
+}
+
+
 
 # New UP SQL SMO Object
 if ($serverauth -eq "win")
@@ -187,6 +204,5 @@ foreach($sqlDatabase in $srv.databases)
 
 # Return To Base
 set-location $BaseFolder
-
 
 

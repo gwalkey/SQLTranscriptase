@@ -77,6 +77,24 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
+}
+
+
+
 # Create Output Folders
 $fullfolderPath = "$BaseFolder\$sqlinstance\06 - Query Plan Cache"
 if(!(test-path -path $fullfolderPath))

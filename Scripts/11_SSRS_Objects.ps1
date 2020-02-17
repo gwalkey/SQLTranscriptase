@@ -229,7 +229,7 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 
 
@@ -240,7 +240,7 @@ if ($mypass.Length -ge 1 -and $myuser.Length -ge 1)
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
     
 }
@@ -272,7 +272,7 @@ else
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 
     # Get Top-Level Folders
@@ -282,7 +282,7 @@ else
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 
 
@@ -504,6 +504,28 @@ if ($wmi1 -eq 0)
     }
 }
 
+# 2019
+if ($wmi1 -eq 0)
+{
+    try 
+    {
+        get-wmiobject -namespace "root\Microsoft\SqlServer\ReportServer\RS_SSRS\V15" -class MSREportServer_Instance -computername $SQLInstance | out-file -FilePath "$fullfolderPath\Server_Config_Settings.txt" -encoding ascii
+        if ($?)
+        {
+            $wmi1 = 15
+            Write-Output "Found SSRS v15 (2019)"
+        }
+        else
+        {
+            #Write-Output "NOT v13"
+        }
+    }
+    catch
+    {
+        #Write-Output "NOT v13"
+    }
+}
+
 # Power BI?
 if ($wmi1 -eq 0)
 {
@@ -559,6 +581,11 @@ copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server\MSRS13.MSSQLSERV
 # 2017
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config"
 copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+
+# 2019
+$copysrc = "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config"
+copy-item "\\$sqlinstance\c$\Program Files\Microsoft SQL Server Reporting Services\SSRS\ReportServer\RSreportserver.config" $fullfolderPath -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+
 
 # Power BI
 $copysrc = "\\$sqlinstance\c$\Program Files\Microsoft Power BI Report Server\PBIRS\ReportServer\RSreportserver.config"
@@ -694,6 +721,34 @@ if ($wmi1 -eq 14)
     }
 }
 
+# 2019
+if ($wmi1 -eq 15)
+{
+    try
+    {
+    
+        $serverClass = get-wmiobject -namespace "ROOT\Microsoft\SqlServer\ReportServer\RS_SSRS\V15\Admin" -class "MSReportServer_ConfigurationSetting" -computername $SQLInstance
+        if ($?)
+        {
+            $result = $serverClass.BackupEncryptionKey("SomeNewSecurePassword$!")
+            $stream = [System.IO.File]::Create("$fullfolderPathKey\ssrs_master_key.snk", $result.KeyFile.Length);
+            $stream.Write($result.KeyFile, 0, $result.KeyFile.Length);
+            $stream.Close();
+        }
+        else
+        {
+            New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
+            Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii            
+            Write-Output "Error Connecting to WMI for config file (v15)"
+        }
+    }
+    catch
+    {
+        New-Item "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -type file -force  |Out-Null
+        Add-Content -Value "Use the rskeymgmt.exe app on the SSRS server to export the encryption key" -Path "$fullfolderPathKey\SSRS_Encryption_Key_not_exported.txt" -Encoding Ascii
+        Write-Output "Error Connecting to WMI for config file (v15) 2"
+    }
+}
 # Power BI Report Server
 if ($wmi1 -eq 15)
 {
@@ -823,7 +878,7 @@ if ($serverauth -eq "win")
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 }
 else
@@ -834,7 +889,7 @@ try
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 }
 
@@ -851,6 +906,7 @@ Week_of_Month, Sun, Mon, Tue, Wed, Thu, Fri, Sat, RunHour,  `
 
 # Script out the Create Subscription Commands
 Write-Output "Timed Subscription Create commands..."
+$SubCommands = $null
 $mySubs = 
 "
 USE [ReportServer];
@@ -895,7 +951,7 @@ if ($serverauth -eq "win")
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 }
 else
@@ -906,7 +962,7 @@ try
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 }
 
@@ -962,7 +1018,7 @@ if ($serverauth -eq "win")
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 }
 else
@@ -973,7 +1029,7 @@ try
     }
     catch
     {
-        Throw("Error Connecting to SQL: {0}" -f $error[0])
+        Write-Output("Error Connecting to SQL: {0}" -f $error[0])
     }
 }
 

@@ -25,11 +25,11 @@
 
 [CmdletBinding()]
 Param(
-    [string]$SQLInstance = "localhost",
-    [string]$myuser,
-    [string]$mypass,
+    [string]$SQLInstance = 'localhost',
     [string]$myDatabase,
-	[string]$mytable
+  	[string]$mytable,
+    [string]$myuser,
+    [string]$mypass
 )
 
 # Load Common Modules and .NET Assemblies
@@ -50,7 +50,7 @@ if ($myTable.Length -gt 0 -and $myDatabase.Length -eq 0)
 }
 
 # Working
-Write-Output "Server $SQLInstance"
+Write-Output "Server: $SQLInstance"
 
 
 # Server connection check
@@ -83,6 +83,24 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
+}
+
+
+
 # New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
@@ -105,34 +123,35 @@ if(!(test-path -path $FullFolderPath))
 
 if ($myDatabase.Length -gt 0)
 {
-    Write-Output ("Database: {0}"-f $myDatabase)
+    Write-Output ("Database Filter: [{0}]"-f $myDatabase)
 }
 
 # -----------------------
 # iterate over each DB
 # -----------------------
-foreach($sqlDatabase in $srv.databases) 
+$Databases = $srv.databases
+foreach($Database in $Databases)
 {
 	# If only one database specified on the command-line, ignore/skip all others
 	if ($myDatabase.Length -gt 0) 	
 	{
-		if ($sqlDatabase.Name -ne $myDatabase) {continue}		
+		if ($Database.Name -ne $myDatabase) {continue}		
 	}
 
     # Skip System Databases
-    if ($sqlDatabase.Name -in 'Master','Model','MSDB','TempDB','SSISDB','distribution') {continue}
+    if ($Database.Name -in 'Master','Model','MSDB','TempDB','SSISDB','distribution') {continue}
 
     # Skip Offline Databases (SMO still enumerates them, but cant retrieve the objects)
-    if ($sqlDatabase.Status -ne 'Normal')     
+    if ($Database.Status -ne 'Normal')     
     {
-        Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
+        Write-Output ("Skipping Offline: {0}" -f $Database.Name)
         continue
     }
 
-    Write-Output ("Database: {0}" -f $sqlDatabase.name)
+    Write-Output ("Database: {0}" -f $Database.name)
 
     # Script out objects for each DB
-    $db = $sqlDatabase
+    $db = $Database
     $fixedDBName = $db.name.replace('[','')
     $fixedDBName = $fixedDBName.replace(']','')
     $output_path = $FullFolderPath+"\$fixedDBname"
@@ -173,6 +192,7 @@ foreach($sqlDatabase in $srv.databases)
 
         $FileFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".dat"
         $FileFormatFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".fmt"
+        $FileXMLFormatFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".xml"
 
         # Create Batch files that run the BCP OUT command itself, and call those
         # Windows Auth
@@ -184,10 +204,15 @@ foreach($sqlDatabase in $srv.databases)
             #$myoutstring
             $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
-            # Format File
-            $myformatstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -n -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
+            # Standard Format File
+            $myformatstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -c -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
             #$myformatstring
             $myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
+
+            # XML Format File
+            $myxmlformatstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -x -c -S "+$SQLInstance + " -f "+[char]34+$FileXMLFormatFullName+[char]34+ "`n"
+            #$myformatstring
+            $myxmlformatstring | out-file -FilePath "$DB_Path\BCPTableXMLFormat.cmd" -Force -Encoding ascii
 
             # Import ETL
             $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
@@ -197,7 +222,8 @@ foreach($sqlDatabase in $srv.databases)
             set-location $DB_Path
 
             Invoke-Expression ".\BCPTableFormat.cmd"
-            Invoke-Expression ".\BCPTableDump.cmd"            
+            Invoke-Expression ".\BCPTableXMLFormat.cmd"
+            Invoke-Expression ".\BCPTableDump.cmd"          
 
             set-location $BaseFolder
 

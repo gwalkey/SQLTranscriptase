@@ -74,6 +74,23 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
+}
+
+
 
 # Set Local Vars
 if ($serverauth -eq "win")
@@ -310,7 +327,8 @@ foreach($sqlDatabase in $srv.databases)
     use [$dbname];
 
     SELECT
-        u.name,
+        u.name AS 'DBUser',
+		COALESCE(l.name,'-none-') AS 'ServerLogin',
         u.type_desc, 
         u.type
     FROM
@@ -338,7 +356,7 @@ foreach($sqlDatabase in $srv.databases)
     }
 
     $myoutputfile4 = $output_path+"\1_Orphaned Users.html"
-    $myHtml1 = $sqlresults3 | select  Name, Type_desc, type | `
+    $myHtml1 = $sqlresults3 | select  DBUser, ServerLogin, Type_desc, type | `
     ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Orphaned Users in [$dbname]</h2>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "Orphaned Users in $dbname" -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 

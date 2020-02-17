@@ -49,31 +49,49 @@ Write-Output "Server $SQLInstance"
 # Startup
 # --------
 # Server connection check
+$SQLCMD1 = "select serverproperty('productversion') as 'Version'"
 try
 {
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        $results = ConnectSQLAuth "select serverproperty('productversion')" -SQLInstance $SQLInstance -Database "master" -User $myuser -Password $mypass        
+        Write-Output "Testing SQL Auth"        
+        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
         $serverauth="sql"
     }
     else
     {
-        $results = ConnectWinAuth "select serverproperty('productversion')" -SQLInstance $SQLInstance -Database "master"
+        Write-Output "Testing Windows Auth"
+		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
         $serverauth = "win"
     }
 
-    if($results -ne $null)
+    if($myver -ne $null)
     {
-        Write-Output ("SQL Version: {0}" -f $results.Column1)
+        Write-Output ("SQL Version: {0}" -f $myver)
     }
 
 }
 catch
 {
-    Write-Output ("Error: {0}" -f $Error[0])
-    Write-Host -f red "$SQLInstance appears offline - Try Windows Authorization."
+    Write-Host -f red "$SQLInstance appears offline."
     Set-Location $BaseFolder
 	exit
+}
+
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
 }
 
 

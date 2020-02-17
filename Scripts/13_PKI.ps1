@@ -84,6 +84,23 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
+}
+
+
 # New Up SMO Object
 if ($serverauth -eq "win")
 {
@@ -131,7 +148,7 @@ if ($serverauth -eq "win")
 {
     try
     {
-        ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
+        Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
     }
     catch
     {
@@ -142,7 +159,7 @@ else
 {
     try
     {
-        ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
+        Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
     }
     catch
     {
@@ -293,8 +310,8 @@ foreach($sqlDatabase in $srv.databases)
 	encryption by password = '3dH85Hhk003#GHkf02597gheij04'
     "
 
-    $sqlresults3 = $null
     # connect correctly
+    $sqlresults3 = $null
     if ($serverauth -eq "win")
     {
         try
@@ -454,7 +471,7 @@ if ($sqlresults4.Column1 -eq 1)
     {
         Try
         {
-            ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
+            Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
         }
         catch
         {
@@ -465,7 +482,7 @@ if ($sqlresults4.Column1 -eq 1)
     {
         try
         {
-            ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
+            Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
         }
         catch
         {

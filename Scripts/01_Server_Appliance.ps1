@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Hardware/Software config of the targeted SQL server
 	
@@ -32,11 +32,11 @@ Param(
     [string]$SQLInstance='localhost',
 
     [parameter(Position=1,mandatory=$false,ValueFromPipeline)]
-    [ValidateLength(0,20)]
+    [ValidateLength(0,50)]
     [string]$myuser,
 
     [parameter(Position=2,mandatory=$false,ValueFromPipeline)]
-    [ValidateLength(0,35)]
+    [ValidateLength(0,50)]
     [string]$mypass
 )
 
@@ -84,6 +84,22 @@ catch
 	exit
 }
 
+# Get Major Version Only
+[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+switch ($ver)
+{
+    7  {Write-Output "SQL Server 7"}
+    8  {Write-Output "SQL Server 2000"}
+    9  {Write-Output "SQL Server 2005"}
+    10 {Write-Output "SQL Server 2008/R2"}
+    11 {Write-Output "SQL Server 2012"}
+    12 {Write-Output "SQL Server 2014"}
+    13 {Write-Output "SQL Server 2016"}
+    14 {Write-Output "SQL Server 2017"}
+    15 {Write-Output "SQL Server 2019"}
+}
+
 
 # Create folder
 $fullfolderPath = "$BaseFolder\$sqlinstance\01 - Server Appliance"
@@ -129,7 +145,7 @@ else
 $fullFileName = $fullfolderPath+"\01_Server_Appliance.txt"
 New-Item $fullFileName -type file -force | Out-Null
 Add-Content -Value "Server Hardware and Software Capabilities for $SQLInstance `r`n" -Path $fullFileName -Encoding Ascii
-Write-Output("Local Time: {0}" -f (get-date -Format G)) | out-file -FilePath $fullFileName -Encoding Ascii -Append
+
 
 # Get Server Uptime
 if ($myver -like "9.0*")
@@ -656,6 +672,7 @@ catch
 {
     Write-Output ("NT Services: Could not connect")
 }
+
 
 # Get Server Configuration Settings
 $mysql20 = 

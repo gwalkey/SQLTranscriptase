@@ -21,11 +21,15 @@
     SQLPackage.exe to create the .dacpac files
     The Microsoft.SqlServer.Dac namespace from the DacFX library to register the Databases as Data-Tier Applications for Drift Reporting
     
-    DaxFX 
-    http://www.microsoft.com/en-us/download/details.aspx?id=45886
+    DaxFX Download
+    https://www.microsoft.com/en-us/download/details.aspx?id=100297 - 18.3.1
+    This Install loads the DLL into [C:\Program Files\Microsoft SQL Server\150]
 
     Check the Registrations results here:
     select * from msdb.dbo.sysdac_instances
+
+    February 2020
+    The DacFX code has branched off from SSMS/SSDT and has its own dev cadence
 
 .LINK
 	https://github.com/gwalkey
@@ -86,6 +90,12 @@ if((test-path -path $dacdll))
     $dacver = 2017
     add-type -path "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\Microsoft.SqlServer.Dac.dll"
 }
+$dacdll = "C:\Program Files\Microsoft SQL Server\150\DAC\bin\Microsoft.SqlServer.Dac.dll"
+if((test-path -path $dacdll))
+{
+    $dacver = 2019
+    add-type -path "C:\Program Files\Microsoft SQL Server\150\DAC\bin\Microsoft.SqlServer.Dac.dll"
+}
 
 If (!($dacver))
 {
@@ -137,6 +147,7 @@ switch ($ver)
     12 {Write-Output "SQL Server 2014"}
     13 {Write-Output "SQL Server 2016"}
     14 {Write-Output "SQL Server 2017"}
+   	15 {Write-Output "SQL Server 2019"}
 }
 
 # Skip if server not 2008 R2+
@@ -208,6 +219,12 @@ if((test-path -path $pkgexe))
 }
 
 $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\sqlpackage.exe"
+if((test-path -path $pkgexe))
+{
+    $pkgver = $pkgexe
+}
+
+$pkgexe = "C:\Program Files\Microsoft SQL Server\150\DAC\bin\sqlpackage.exe"
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe

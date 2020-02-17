@@ -78,7 +78,7 @@ catch
 }
 
 
-# Bail out if not 2014 or greater
+# Get Major Version Only
 [int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
 
 switch ($ver)
@@ -91,7 +91,9 @@ switch ($ver)
     12 {Write-Output "SQL Server 2014"}
     13 {Write-Output "SQL Server 2016"}
     14 {Write-Output "SQL Server 2017"}
+	15 {Write-Output "SQL Server 2019"}
 }
+
 
 # Bail if not 2014 or greater
 if ($ver -lt 12)
