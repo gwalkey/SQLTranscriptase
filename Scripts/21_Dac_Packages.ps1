@@ -26,7 +26,7 @@
     This Install loads the DLL into [C:\Program Files\Microsoft SQL Server\150]
 
     Check the Registrations results here:
-    select * from msdb.dbo.sysdac_instances
+    select * from msdb.dbo.sysdac_instances ORDER BY instance_name
 
     February 2020
     The DacFX code has branched off from SSMS/SSDT and has its own dev cadence
