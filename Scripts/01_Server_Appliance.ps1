@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Hardware/Software config of the targeted SQL server
 	
@@ -108,7 +108,6 @@ if(!(test-path -path $fullfolderPath))
 	mkdir $fullfolderPath | Out-Null
 }
 
-
 # New UP SMO Server Object
 if ($serverauth -eq "win")
 {
@@ -148,7 +147,7 @@ Add-Content -Value "Server Hardware and Software Capabilities for $SQLInstance `
 
 
 # Get Server Uptime
-if ($myver -like "9.0*")
+if ($ver -eq 9)
 {
     $mysql11 = 
     "
@@ -696,10 +695,50 @@ else
 # Convert dataset to html table
 $myHtml1 = $sqlresults20 | select configuration_id, name, value, minimum, maximum, value_in_use, description, is_dynamic, is_advanced | `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Server Configurations</h2><h3>Ran on : $RunTime</h3>"
- 
 $myoutputfile20 = $FullFolderPath+"\01_Server_Configurations.html"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Server Configurations" | Set-Content -Path $myoutputfile20
 
+
+# Check for Hybrid Memory Pool PMEM on NVDIMM DAX-formatted Drives
+# https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/hybrid-buffer-pool?view=sql-server-ver15
+# https://docs.microsoft.com/en-us/windows-server/storage/storage-spaces/deploy-pmem
+if ($ver -ge 15)
+{
+
+    $mySQL25="SELECT * FROM sys.server_memory_optimized_hybrid_buffer_pool_configuration"
+    $myoutputfile25 = $FullFolderPath+"\07_Hybrid_Memory_Pool.html"
+    # Connect correctly
+    if ($serverauth -eq "win")
+    {
+        $sqlresults25 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mySQL25
+    }
+    else
+    {
+        $sqlresults25 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mySQL25 -User $myuser -Password $mypass
+    }
+
+    $myHtml25 = $sqlresults25 | select is_configured, is_enabled| `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><h2>Hybrid Memory Pool (PMEM)</h2>"
+    Convertto-Html -head $head -Body "$myHtml25" -Title "Hybrid Memory Pool" | Set-Content -Path $myoutputfile25
+
+    
+    $mySQL26="SELECT * FROM sys.configurations WHERE name = 'hybrid_buffer_pool'"
+    $myoutputfile26 = $FullFolderPath+"\08_Hybrid_Memory_Pool_Configurations.html"
+    # Connect correctly
+    if ($serverauth -eq "win")
+    {
+        $sqlresults26 = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mySQL26
+    }
+    else
+    {
+        $sqlresults26 = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $mySQL26 -User $myuser -Password $mypass
+    }
+
+    $myHtml26 = $sqlresults26 | select is_configured, is_enabled| `
+    ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><h2>Hybrid Memory Pool Configurations</h2>"
+    Convertto-Html -head $head -Body "$myHtml26" -Title "Hybrid Memory Pool" | Set-Content -Path $myoutputfile26
+    
+}
 
 # Return to Base
 set-location $BaseFolder
