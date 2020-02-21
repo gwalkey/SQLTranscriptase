@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Gets the Public Key Infrastructure Objects on the target server
 
@@ -24,7 +24,7 @@
     Once the Database Master Key is restored, the Syms and ASyms are restored (because they live in the databases)
     AKA, MS has no export routine for Sym/ASym keys
 
-    Might have to run this Elevated (As Administrator) on Windows 8+
+	Might have to run this Elevated (As Administrator) on Windows 8+
 
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
@@ -105,7 +105,6 @@ switch ($ver)
 if ($serverauth -eq "win")
 {
     $srv = New-Object ('Microsoft.SqlServer.Management.Smo.Server') $SQLInstance
-    $backupfolder = $srv.Settings.BackupDirectory
 }
 else
 {
@@ -113,16 +112,18 @@ else
     $srv.ConnectionContext.LoginSecure=$false
     $srv.ConnectionContext.set_Login($myuser)
     $srv.ConnectionContext.set_Password($mypass)
-    $backupfolder = $srv.Settings.BackupDirectory
 }
 
-# if the Server's Backup Path is a UNC path, use it 
+# Get Data Directory
+$DataDir = $srv.Settings.Properties | where-object {$_.name -eq 'Defaultfile'}| Select-Object -ExpandProperty Value
+Write-Output('Data folder is [{0}]' -f $DataDir)
+
+# if the Server's Data Path is a UNC path, use it 
 $unc = 0
-if ($backupfolder -like "*\\*")
+if ($DataDir -like "*\\*")
 {
     $unc = 1
 }
-
 
 # Create Output Folder
 $PKI_Path = "$BaseFolder\$SQLInstance\13 - PKI\"
@@ -131,19 +132,15 @@ if(!(test-path -path $PKI_path))
     mkdir $PKI_path | Out-Null	
 }
 
-Write-Output "Backup folder is $backupfolder"
 
 # -------------------------------------
 # 1) Service Master Key - Server Level
 # -------------------------------------
 Write-Output "`r`nSaving Service Master Key..."
 
-$SQLCMD1 = "
-backup service master key to file = N'$backupfolder\Service_Master_Key.txt'
-encryption by password = 'SomeNewSecurePassword$!'
-"
 
 # Run SQL
+$SQLCMD1 = "backup service master key to file = N'Service_Master_Key.txt' encryption by password = 'MultiPassForASaferWorld$!'"
 if ($serverauth -eq "win")
 {
     try
@@ -152,7 +149,7 @@ if ($serverauth -eq "win")
     }
     catch
     {
-        Write-Output ("Error Doing Backup of Master Key: Error:[{0}]" -f $_.Exception.Message)
+        Write-Output ("Error Doing Backup of Master Key: Error:[{0}]" -f $error[0])
     }
 }
 else
@@ -163,7 +160,7 @@ else
     }
     catch
     {
-       Write-Output ("Error Doing Backup of Master Key: Error:[{0}]" -f $_.Exception.Message)
+       Write-Output ("Error Doing Backup of Master Key: Error:[{0}]" -f $error[0])
     }
 }
 
@@ -182,43 +179,43 @@ else
     $SQLInstance2 = $SQLInstance
 }
 
-# Fix source folder for copy-item
+# Figure out where the Engine will save the Key Files for copy-item
 if ($unc -eq 1)
 {
-    $sourcefolder = $backupfolder.Replace(":","$")
-    $src = "$sourcefolder\Service_Master_Key.txt"
+    $sourcefolder = $DataDir.Replace(":","$")
+    $src = $sourcefolder+"Service_Master_Key.txt"
     if (!(test-path $src))
     {
         Write-Output "Cant connect to $src"
     }
     else
     {
-        copy-item $src "$PKI_Path"
+        Copy-Item -Path $src -Destination "$PKI_Path" -Force -ErrorAction SilentlyContinue
         # Leave no trace on server
-        remove-item $src -ErrorAction SilentlyContinue 
+        # remove-item $src -ErrorAction SilentlyContinue 
     }
 }
 else
 {    
     if ($SQLInstance -eq "localhost")
     {
-        $sourcefolder = $backupfolder
-        $src = "$sourcefolder\Service_Master_Key.txt"
+        $sourcefolder = $DataDir
+        $src = $sourcefolder+"Service_Master_Key.txt"
     }
     else
     {
-        $sourcefolder = $backupfolder.Replace(":","$")
-        $src = "\\$sqlinstance2\$sourcefolder\Service_Master_Key.txt"
+        $sourcefolder = $DataDir.Replace(":","$")
+        $src = "\\$sqlinstance2\$sourcefolder"+"Service_Master_Key.txt"
     }
     
     try
     {
-        copy-item $src "$PKI_Path" -ErrorAction stop
-        remove-item $src -ErrorAction Stop
+        copy-item -Path $src -Destination "$PKI_Path" -Force -ErrorAction Stop
+        #remove-item  $src -Force -ErrorAction Stop
     }
     catch
     {
-        Write-Output "Cant connect to $src"
+        Write-Output("Error Moving File: [{0}]" -f $error[0])
     }
 	
 
@@ -303,7 +300,7 @@ foreach($sqlDatabase in $srv.databases)
     }
     
     # Export the DB Master Key
-    $myExportedDBMasterKeyName = $backupfolder + "\" + $fixedDBName + "_Database_Master_Key.txt"
+    $myExportedDBMasterKeyName = $DataDir + $fixedDBName + "_Database_Master_Key.txt"
     $sqlCMD3 = "
     use $fixedDBName;
 
@@ -346,8 +343,8 @@ foreach($sqlDatabase in $srv.databases)
     # Fixup output folder if the backup folder is a UNC path
     if ($unc -eq 1)
     {
-        $sourcefolder = $backupfolder.Replace(":","$")
-        $myExportedDBMasterKeyName = $sourcefolder + "\" + $fixedDBName + "_Database_Master_Key.txt"
+        $sourcefolder = $DataDir.Replace(":","$")
+        $myExportedDBMasterKeyName = $sourcefolder + $fixedDBName + "_Database_Master_Key.txt"
    		$src = $myExportedDBMasterKeyName
 
         if(test-path -path $src)
@@ -368,15 +365,15 @@ foreach($sqlDatabase in $srv.databases)
         # this script is running on the localhost, C:\ is OK
         if ($SQLInstance -eq "localhost")
         {
-            $sourcefolder = $backupfolder
-            $myExportedDBMasterKeyName = $sourcefolder + "\" + $fixedDBName + "_Database_Master_Key.txt"
+            $sourcefolder = $DataDir
+            $myExportedDBMasterKeyName = $sourcefolder + $fixedDBName + "_Database_Master_Key.txt"
             $src = $myExportedDBMasterKeyName
         }
         else
         {
             # ON a remote server (D:\backups is \\server\d$\backups for me)
-            $sourcefolder = $backupfolder.Replace(":","$")
-            $myExportedDBMasterKeyName = $sourcefolder + "\" + $fixedDBName + "_Database_Master_Key.txt"
+            $sourcefolder = $DataDir.Replace(":","$")
+            $myExportedDBMasterKeyName = $sourcefolder + $fixedDBName + "_Database_Master_Key.txt"
             $src = "\\"+$sqlinstance2+"\"+$myExportedDBMasterKeyName
         }
 	   
@@ -451,9 +448,9 @@ if ($sqlresults4.Column1 -eq 1)
 		    SET @SQLCommand = 
 		    'USE master; '+char(13)+
 		    'BACKUP CERTIFICATE [' + @CertName +'] '+
-		    'TO FILE = '+char(39)+'$backupfolder\' + @OutputCer +char(39)+
+		    'TO FILE = '+char(39)+'$DataDir' + @OutputCer +char(39)+
 		    ' WITH PRIVATE KEY '+
-		    '(FILE = '+char(39)+'$backupfolder\'+@OutputPvk+char(39)+','+
+		    '(FILE = '+char(39)+'$DataDir'+@OutputPvk+char(39)+','+
 		    ' ENCRYPTION BY PASSWORD = '+char(39)+'SomeNewSecurePassword$!'+char(39)+
 		    ');'+char(13)
 		
@@ -504,21 +501,21 @@ if ($sqlresults4.Column1 -eq 1)
     # Fixup output folder if backup folder is UNC path
     if ($unc -eq 1)
     {
-        $backupfolder = $backupfolder.Replace(":","$")
+        $backupfolder2 = $DataDir.Replace(":","$")
         # Test-Path
-        if (!(test-path $backupfolder))
+        if (!(test-path $backupfolder2))
         {
-            Write-Output "Cant connect to $backupfolder"
+            Write-Output "Cant connect to $backupfolder2"
         }
         else
         {
             try
             {
-                $src = "$backupfolder\*.cer"
+                $src = "$DataDir"+"*.cer"
                 copy-item $src $output_path -ErrorAction Stop
                 remove-item $src -ErrorAction Stop
 
-                $src = "$backupfolder\*.pvk"
+                $src = "$DataDir"+"*.pvk"
                 copy-item $src $output_path -ErrorAction Stop
                 remove-item $src -ErrorAction Stop
             }
@@ -534,15 +531,15 @@ if ($sqlresults4.Column1 -eq 1)
         # If on localhost, C:\ is OK
         if ($SQLInstance -eq "localhost")
         {
-            $sourcefolder = $backupfolder
-            $myExportedCerts = $sourcefolder + "\*.cer"
+            $sourcefolder = $DataDir
+            $myExportedCerts = $sourcefolder + "*.cer"
             $src = $myExportedCerts
         }
         else
         {
             # From a remote server (D:\backups for a remote server is \\server\d$\backups for me)
-            $sourcefolder = $backupfolder.Replace(":","$")
-            $myExportedCerts = $sourcefolder + "\*.cer"
+            $sourcefolder = $DataDir.Replace(":","$")
+            $myExportedCerts = $sourcefolder + "*.cer"
             $src = "\\$sqlinstance2\$myExportedCerts"
         }
 	   
@@ -572,15 +569,15 @@ if ($sqlresults4.Column1 -eq 1)
         # localhost and this script on same box, C:\ is OK
         if ($SQLInstance -eq "localhost")
         {
-            $sourcefolder = $backupfolder
-            $myExportedCerts = $sourcefolder + "\*.pvk"
+            $sourcefolder = $DataDir
+            $myExportedCerts = $sourcefolder + "*.pvk"
             $src = $myExportedCerts
         }
         else
         {
             # From remote server (D:\backups for a remote server is \\server\d$\backups for me)
-            $sourcefolder = $backupfolder.Replace(":","$")
-            $myExportedCerts = $sourcefolder + "\*.pvk"
+            $sourcefolder = $DataDir.Replace(":","$")
+            $myExportedCerts = $sourcefolder + "*.pvk"
             $src = "\\$sqlinstance2\$myExportedCerts"
         }
 	   
