@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets the Public Key Infrastructure Objects on the target server
 
@@ -24,7 +24,7 @@
     Once the Database Master Key is restored, the Syms and ASyms are restored (because they live in the databases)
     AKA, MS has no export routine for Sym/ASym keys
 
-	Might have to run this Elevated (As Administrator) on Windows 8+
+    Might have to run this Elevated (As Administrator) on Windows 8+
 
 .Inputs
     ServerName, [SQLUser], [SQLPassword]
@@ -148,7 +148,7 @@ if ($serverauth -eq "win")
 {
     try
     {
-        Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
+        ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop
     }
     catch
     {
@@ -159,7 +159,7 @@ else
 {
     try
     {
-        Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
+        Connect-SQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop
     }
     catch
     {
@@ -230,6 +230,7 @@ else
 set-location $BaseFolder
 Write-Output "`r`nSaving Database Master Keys:"
 
+# Iterate using SMO
 foreach($sqlDatabase in $srv.databases) 
 {
 
@@ -471,7 +472,7 @@ if ($sqlresults4.Column1 -eq 1)
     {
         Try
         {
-            Connect-SQLServerExecuteNonQuery -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
+            ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -ErrorAction Stop
         }
         catch
         {
@@ -482,7 +483,7 @@ if ($sqlresults4.Column1 -eq 1)
     {
         try
         {
-            Connect-SQLServerExecuteNonQueryDMZ -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
+            ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $sqlcmd5 -User $myuser -Password $mypass -ErrorAction Stop
         }
         catch
         {
