@@ -1,8 +1,6 @@
 # SQLTranscriptase 
 <h2>Creating SQL Server Documentation using Powershell</h2>
 
-<h3>Slideshow https://gitpitch.com/gwalkey/sqltranscriptase</h3>
-
 <h3>Check the Wiki for Installation/Requirements</h3>
 
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
