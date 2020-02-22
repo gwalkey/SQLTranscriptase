@@ -6,11 +6,9 @@
    Uses powercfg.exe
    
 .EXAMPLE
-    Set_Power_Plan_to_High_Performance.ps1 c0sqltier1
-	
+    Set_Power_Plan_to_High_Performance.ps1	
 
 .Inputs
-    ServerName
 
 .Outputs
     Power Plan Changed to High Performance Profile
@@ -20,7 +18,7 @@
 
 .LINK
 
-	https://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/solutions/sql-server-on-vmware-best-practices-guide.pdf
+    https://www.vmware.com/content/dam/digitalmarketing/vmware/en/pdf/solutions/sql-server-on-vmware-best-practices-guide.pdf
     
     https://www.codykonior.com/2016/10/20/i-like-you-but-i-dont-like-your-best-practice-power-plans/
 
