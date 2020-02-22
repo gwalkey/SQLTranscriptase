@@ -106,7 +106,7 @@ Invoke-Expression ".\09_SSIS_Packages_from_SSISDB.ps1 $SQLInstance $myuser $mypa
 Invoke-Expression ".\10_SSAS_Objects.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\11_SSRS_Objects.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\12_Security_Audit.ps1 $SQLInstance $myuser $mypass"
-Invoke-Expression ".\13_PKI.ps1 $SQLInstance $myuser $mypass"
+# Invoke-Expression ".\13_PKI.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\14_Service_Broker.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\15_Extended_Events.ps1 $SQLInstance $myuser $mypass"
 Invoke-Expression ".\16_Audits.ps1 $SQLInstance $myuser $mypass"
