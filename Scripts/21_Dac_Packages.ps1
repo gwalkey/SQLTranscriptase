@@ -19,7 +19,8 @@
 	
 .NOTES
     SQLPackage.exe to create the .dacpac files
-    The Microsoft.SqlServer.Dac namespace from the DacFX library to register the Databases as Data-Tier Applications for Drift Reporting
+    The Microsoft.SqlServer.Dac namespace from the DacFX library to register
+    Databases as Data-Tier Applications for Drift Reporting
     
     DaxFX Download
     https://www.microsoft.com/en-us/download/details.aspx?id=100297 - 18.3.1
