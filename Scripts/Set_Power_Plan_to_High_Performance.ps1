@@ -1,9 +1,9 @@
-﻿<#
+<#
 .SYNOPSIS
     Sets the Windows Power Plan to High Performance (default is Balanced)
 	
 .DESCRIPTION
-   Uses CIM
+   Uses powercfg.exe
    
 .EXAMPLE
     Set_Power_Plan_to_High_Performance.ps1 c0sqltier1
@@ -13,11 +13,10 @@
     ServerName
 
 .Outputs
-    Power Plan Changed to High Performance
+    Power Plan Changed to High Performance Profile
 	
 .NOTES
 
-    Windows 2003 Doesnt have the WMI/CIM bits in place for power management	
 
 .LINK
 
@@ -29,16 +28,14 @@
 
 	
 #>
-Param(
-  [string]$WinServer
-)
 
-if ($WinServer -eq $null)
-{
-    exit
-}
+cls
 
-$p = Get-CimInstance -computername $WinServer -Name root\cimv2\power -Class win32_PowerPlan -Filter "ElementName = 'High Performance'" | Out-Null
+powercfg /list
 
-Invoke-CimMethod -InputObject $p -MethodName Activate
+Write-Host -f Yellow -b Black "`r`nSetting Power Plan to High Performance"
+
+powercfg.exe /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+
+powercfg /list
 
