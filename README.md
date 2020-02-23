@@ -9,10 +9,11 @@ Shoot me an email at dev@insyncva.com with suggestions/bugs
 
 These scripts use three main SQL Server technologies
 * TSQL
-* WMI
+* WMI/CIM
 * SMO
 
 <em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information from DNA
+https://signatureinthecell.com/
 
 Presentation Video Here:<br>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
