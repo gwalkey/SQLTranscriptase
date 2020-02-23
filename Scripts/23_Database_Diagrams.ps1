@@ -3,14 +3,11 @@
     Gets the Database Diagrams from the target server
 	
 .DESCRIPTION
-   Writes INSERT Statements into [database].[dbo].[sysdiagrams]
+   Creates INSERT Statements into [database].[dbo].[sysdiagrams]
 
 .EXAMPLE
     23_Database_Diagrams.ps1 localhost
 	
-.EXAMPLE
-    23_Database_Diagrams.ps1 localhost
-
 .Inputs
     ServerName\instance, [SQLUser], [SQLPassword]
 
@@ -33,8 +30,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init

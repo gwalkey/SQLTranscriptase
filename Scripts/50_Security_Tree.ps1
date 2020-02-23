@@ -34,9 +34,26 @@ Param(
 
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
+
 
 # Init
 Set-StrictMode -Version latest;
@@ -209,9 +226,9 @@ foreach($myLogin in $logins)
     # Create Output File
     $myLoginName = $fixedDBName = $myLogin.name.replace('\','_')
     $myoutputfile = $output_path+$myLoginName+".txt"
-    Write-Output("SQL Server Permissions for [{0}]" -f $myLogin.name) 
-    Write-Output("SQL Server Permissions for [{0}]" -f $myLogin.name) | out-file $myoutputfile -Append    
-    Write-Output("Default Database: {0}" -f $myLogin.default_database_name) | out-file $myoutputfile -Append
+    Write-Output("Login [{0}]" -f $myLogin.name) 
+    Write-Output("Login [{0}]" -f $myLogin.name) | out-file $myoutputfile -Append    
+    Write-Output("Default Database: [{0}]" -f $myLogin.default_database_name) | out-file $myoutputfile -Append
     if ($myLogin.is_disabled -eq '1')
     {
         Write-Output("Login is disabled") | out-file $myoutputfile -Append

@@ -33,8 +33,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -107,6 +123,7 @@ use master;
 SELECT top 25
 db_name(qt.dbid) as 'DataBase',
 SUBSTRING(qt.TEXT, (qs.statement_start_offset/2)+1,((CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(qt.TEXT) ELSE qs.statement_end_offset END - qs.statement_start_offset)/2)+1) AS 'Query',
+qp.query_plan,
 qs.execution_count,
 qs.total_worker_time,
 qs.total_logical_reads, 
@@ -206,6 +223,27 @@ $myHtml1 = $sqlresults | `
 ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Top 25 Worst Queries</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Top 25 Worst Queries"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content "$fullfolderPath\Top25_Worst_Queries.html"
 
+# Export Query Text as a .SQL file
+# Export Query Plan as a .sqlplan file
+[int]$i=1
+foreach($query in $sqlresults)
+{
+    Write-Output('Plan: [{0}]' -f $i)
+
+    $PlanfolderPath = "$BaseFolder\$sqlinstance\06 - Top 25 Worst Queries\Queries\"+[string]$i
+    if(!(test-path -path $PlanfolderPath))
+    {
+	    mkdir $PlanfolderPath | Out-Null
+    }
+
+    $sqltextfile = $PlanfolderPath+'\'+[string]$i+'_Query.sql'
+    $query.query | out-file -FilePath $sqltextfile -Force -Encoding default
+
+    $sqlplanfile = $PlanfolderPath+'\'+[string]$i+'_Query.sqlplan'
+    $query.query_plan | out-file -FilePath $sqlplanfile -Force -Encoding default
+
+    $i++
+}
 
 # Return To Base
 set-location $BaseFolder

@@ -1,9 +1,11 @@
 <#
 .SYNOPSIS
-    Gets all MS Vulnerability Assessments from a Rules Database and runs them on another Server, outputting the results as Text and HTML files
+    Gets all MS Vulnerability Assessments from a Rules Database and runs them on another Server, 
+    outputting the results as Text and HTML files
 	
 .DESCRIPTION
-    Gets all MS Vulnerability Assessments from a Rules Database and runs them on another Server, outputting the results as Text and HTML files
+    Gets all MS Vulnerability Assessments from a Rules Database and runs them on another Server, 
+    outputting the results as Text and HTML files
       
 .EXAMPLE
     Run-VAScan.ps1 localhost
@@ -19,7 +21,7 @@
 	
 .NOTES
     defaults to scanning localhost
-    Needs Sysadmin=level security to run all checks
+    Needs Sysadmin-level security to run all checks
 
 .LINK
     https://github.com/gwalkey
@@ -32,6 +34,27 @@ Param(
   [string]$myuser,
   [string]$mypass
 )
+
+# Load Common Modules and .NET Assemblies
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
+LoadSQLSMO
 
 # ----------------
 # - Initializing 
@@ -180,7 +203,7 @@ switch ($ver)
 # Fixup Server Names with Instances
 
 # Create base output folder
-$output_path = "$BaseFolder\$SQLInstance\MSVA\"
+$output_path = "$BaseFolder\$SQLInstance\25 - Vuln Scanner\"
 if(!(test-path -path $output_path))
 {
     mkdir $output_path | Out-Null

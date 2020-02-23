@@ -1,9 +1,9 @@
 ﻿<#
 .SYNOPSIS
-    Dumps the Extended Events Sessions to .SQL files
+    Exports Extended Events Sessions to .SQL files
 
 .DESCRIPTION
-    Dumps the Extended Events Sessions to .SQL files
+    Exports Extended Events Sessions to .SQL files
 	
 .EXAMPLE
     15_Extended_Events.ps1 localhost
@@ -41,8 +41,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -139,7 +155,8 @@ if(!(test-path -path $fullfolderPath))
 
 
 # *Must Credit*
-# Jonathan Kehayias for the following code, including the correct DLLs, order of things and the use of 'System.Data.SqlClient.SqlConnectionStringBuilder'
+# Jonathan Kehayias for the following code, including the correct DLLs, 
+# the sequence of things and the use of 'System.Data.SqlClient.SqlConnectionStringBuilder'
 # https://www.sqlskills.com/blogs/jonathan/
 # http://sqlperformance.com/author/jonathansqlskills-com
 $conBuild = New-Object System.Data.SqlClient.SqlConnectionStringBuilder;

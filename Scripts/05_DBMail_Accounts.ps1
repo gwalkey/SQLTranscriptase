@@ -33,10 +33,25 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
-LoadSQLSMO
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
+LoadSQLSMO
 # Init
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
@@ -186,11 +201,7 @@ Foreach ($row in $sqlresults)
 	Add-Content -Value "`r`n" -Path "$fullfolderPath\DBMail_Accounts.sql" -Encoding Ascii
 }
 
-try
-{
-    Write-Output ("{0} DBMail Accounts Exported" -f $results.count)
-}
-catch {}
+Write-Output ("{0} DBMail Accounts Exported" -f @($sqlresults).count)
 
 
 # Return To Base

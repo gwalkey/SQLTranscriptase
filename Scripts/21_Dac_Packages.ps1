@@ -19,8 +19,7 @@
 	
 .NOTES
     SQLPackage.exe to create the .dacpac files
-    The Microsoft.SqlServer.Dac namespace from the DacFX library to register
-    Databases as Data-Tier Applications for Drift Reporting
+    The Microsoft.SqlServer.Dac namespace from the DacFX library to register the Databases as Data-Tier Applications for Drift Reporting
     
     DaxFX Download
     https://www.microsoft.com/en-us/download/details.aspx?id=100297 - 18.3.1
@@ -47,8 +46,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init

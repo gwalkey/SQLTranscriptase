@@ -6,7 +6,7 @@
    Writes the SQL Server Credentials out to the "17 - Managed Backups" folder
    Saves the Master Switch settings to the file "Managed_Backups_Server_Settings.sql"
    And the Managed Backup settings for each Database into its own folder with the filename "Managed_Backup_Settings.sql"
-   Managed Backups save your Databases automatically to Azure Blob Storage using a Container and locally stored Credentials
+   Managed Backups save your Databases automatically to an Azure Blob Storage Container using locally stored Credentials
    
 .EXAMPLE
     17_Managed_Backups.ps1 localhost
@@ -36,8 +36,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init

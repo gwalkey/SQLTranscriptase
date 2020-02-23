@@ -5,7 +5,7 @@
 .DESCRIPTION
    Writes the SQL PKI objects out to the "13 - PKI" folder   
    Using the SQL Server PKI Hierarchy, we write out:
-   The Server-Level Service_Master_Key
+   The Server-Level Service Master_Key
    The Master Database's global Certificates and Private Keys
    Then each Database has its own Database_Master_Key, Certificates, Asymmetric and Symmetric Keys
 
@@ -17,7 +17,7 @@
     13_PKI.ps1 server01 sa password
 
 .NOTES
-    This CANNOT Script Out Keys and Certs signed with passwords, unless you know the password and OPEN the Key/Cert first
+    This CANNOT Script Out Keys or Certs signed with passwords, unless you know the password and OPEN the Key/Cert first
     AKA, you will need to hard code that, or add a parameter to this script...
     Most Keys/Certs are signed with the Service Master Key, not the Database Master Key
 
@@ -254,7 +254,7 @@ foreach($sqlDatabase in $srv.databases)
 {
 
     # Skip System Databases
-    if ($sqlDatabase.Name -in ('Model','MSDB','TempDB','SSISDB')) {continue}
+    if ($sqlDatabase.Name -in ('Model','MSDB','TempDB')) {continue}
 
     # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
