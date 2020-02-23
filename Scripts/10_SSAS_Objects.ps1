@@ -4,8 +4,9 @@
 	
 .DESCRIPTION
    Writes the SSAS Objects out to the "10 - SSAS" folder   
-   Objects are written out in XMLA format for easy re-creation in SSMS
-   Objects include:
+   Objects are written out in XMLA or JSON format for easy re-creation in SSMS
+   
+   MD Objects include:
    Cubes
    KPIs
    Measure Groups
@@ -13,6 +14,11 @@
    Dimensions
    Data Sources
    DataSource Views
+   
+   Tabular Objects:
+   Databases
+   Tables
+   Roles
    
 .EXAMPLE
     10_SSAS_Objects.ps1 localhost
