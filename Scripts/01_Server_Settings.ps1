@@ -36,8 +36,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -201,7 +217,7 @@ if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*" -or $
         
         if ($sqlresults3.state -eq 5)
         {
-            Write-Output "Buffer-Pool Extensions are Configured"
+
             $strExport = 
 "ALTER SERVER CONFIGURATION
 SET BUFFER POOL EXTENSION ON
@@ -211,7 +227,6 @@ SET BUFFER POOL EXTENSION ON
         }
         else
         {
-            "Buffer-Pool Extensions are Not Configured"
             "Buffer-Pool Extensions are Not Configured" | out-file "$output_path\Buffer_Pool_Extensions_are_NOT_Configured.sql" -Encoding ascii
         }
     }

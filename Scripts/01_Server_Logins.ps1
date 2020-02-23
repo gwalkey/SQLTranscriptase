@@ -49,10 +49,25 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
-LoadSQLSMO
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
+LoadSQLSMO
 function CopyObjectsToFiles($objects, $outDir) {
 	
 	if (-not (Test-Path $outDir)) {
@@ -180,12 +195,12 @@ if ($OnDomain -eq $true)
     
         if ($MyDCs -ne $null)
         {
-            Write-Output "I am in a Domain - Resolving of AD Group-User Memberships Enabled"
+            Write-Output "I am in a Domain - Resolving of AD Group-User Members Enabled"
             $ADModuleExists = $true
         }
         else
         {
-            Write-Output "I am NOT in a Domain - Resolving of AD Group-User Memberships Disabled"
+            Write-Output "I am NOT in a Domain - Resolving of AD Group-User Members Disabled"
         }
     
         # Reset default PS error handler

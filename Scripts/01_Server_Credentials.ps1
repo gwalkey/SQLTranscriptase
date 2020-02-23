@@ -35,8 +35,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -119,7 +135,7 @@ if(!(test-path -path $Credentials_path))
 }
 
 # 2005 has different columns
-if ($myver -like "9.0*")
+if ($ver -eq 9)
 {
     $mySQLquery = "
     USE master; 

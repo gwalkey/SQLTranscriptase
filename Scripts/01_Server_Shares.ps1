@@ -31,8 +31,24 @@ Param(
 )
 
 # Load Common Modules and .NET Assemblies
-Import-Module ".\SQLTranscriptase.psm1"
-Import-Module ".\LoadSQLSmo.psm1"
+try
+{
+    Import-Module ".\SQLTranscriptase.psm1" -ErrorAction Stop
+}
+catch
+{
+    Throw('SQLTranscriptase.psm1 not found')
+}
+
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -136,7 +152,7 @@ ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2
 Convertto-Html -head $head -Body "$myHtml1" -Title "Shares Overview"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Loop Through Each Share, exporting NTFS and SMB permissions
-Write-Output "Dumping NTFS/SMB Share Permissions..."
+Write-Output "Exporting NTFS/SMB Share Permissions..."
 
 
 $PermPath = "$BaseFolder\$sqlinstance\01 - Server Shares\NTFS_Permissions\"
