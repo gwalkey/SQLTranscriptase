@@ -210,35 +210,31 @@ foreach($Database in $Databases)
         $FileFormatFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".fmt"
         $FileXMLFormatFullName = $DB_Path+"\"+$tblSchema2+"."+$tblTable2+".xml"
 
-        # Create Batch files that run the BCP OUT command itself, and call those
+        # Create Batch files that run the BCP OUT command itself, and call the BAT file
         # Windows Auth
         if ($serverauth -eq "win")
         {
             
             # Data
             $myoutstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" out "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
-            #$myoutstring
             $myoutstring | out-file -FilePath "$DB_Path\BCPTableDump.cmd" -Force -Encoding ascii
 
             # Standard Format File
             $myformatstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -c -S "+$SQLInstance + " -f "+[char]34+$FileFormatFullName+[char]34+ "`n"
-            #$myformatstring
             $myformatstring | out-file -FilePath "$DB_Path\BCPTableFormat.cmd" -Force -Encoding ascii
 
             # XML Format File
             $myxmlformatstring = "@echo off `r`nbcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" format nul -T -x -c -S "+$SQLInstance + " -f "+[char]34+$FileXMLFormatFullName+[char]34+ "`n"
-            #$myformatstring
             $myxmlformatstring | out-file -FilePath "$DB_Path\BCPTableXMLFormat.cmd" -Force -Encoding ascii
 
             # Import ETL
             $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + "`n"
-            #$myImportETL
             $myImportETL | out-file -FilePath "$DB_Path\BCPTableImport.cmd" -append -Encoding ascii
 
             set-location $DB_Path
 
             Invoke-Expression ".\BCPTableFormat.cmd"
-            Invoke-Expression ".\BCPTableXMLFormat.cmd"
+            #Invoke-Expression ".\BCPTableXMLFormat.cmd"
             Invoke-Expression ".\BCPTableDump.cmd"          
 
             set-location $BaseFolder
@@ -258,7 +254,6 @@ foreach($Database in $Databases)
 
             # Import ETL
             $myImportETL = "bcp ["+$fixedDBName+"]."+$tblSchema+"."+$tblTable+" in "+[char]34+$FileFullName+[char]34 + " -n -T -S " +$SQLInstance + " -U "+$myUser + " -P "+ $myPass + "`n"
-            $myImportETL
             $myImportETL | out-file -FilePath "$DB_Path\BCPTableImport.cmd" -append -Encoding ascii
 
 
