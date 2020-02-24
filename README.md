@@ -12,7 +12,7 @@ https://github.com/gwalkey/SQLTranscriptase/releases
 https://github.com/gwalkey/SQLTranscriptase/wiki/Setup-Instructions
 
 <h2>Technology</h2>
-These scripts use three main SQL Server technologies
+These scripts use three main SQL Server technologies:<br>
 * TSQL
 * WMI/CIM
 * SMO
