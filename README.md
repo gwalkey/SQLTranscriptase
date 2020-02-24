@@ -5,6 +5,10 @@
 
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
 
+
+<h2>Releases</h2>
+https://github.com/gwalkey/SQLTranscriptase/releases
+
 Shoot me an email at dev@insyncva.com with suggestions/bugs
 
 These scripts use three main SQL Server technologies
