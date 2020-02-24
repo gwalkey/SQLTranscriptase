@@ -23,7 +23,7 @@ Shoot me an email at dev@insyncva.com with suggestions/bugs
 
 <h2>Project Background</h2>
 <em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information from DNA
-https://www.youtube.com/watch?v=aA-FcnLsF1g&feature=emb_logo<br>
+https://www.youtube.com/watch?v=aA-FcnLsF1g<br>
 A need arose to both learn Powershell and document SQL Server that current SQL Tool Vendor's offerings could not meet.
 
 <h2>Original Presentation</h2>
