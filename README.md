@@ -9,6 +9,10 @@
 <h2>Releases</h2>
 https://github.com/gwalkey/SQLTranscriptase/releases
 
+<h2>Setup Instructions</h2>
+https://github.com/gwalkey/SQLTranscriptase/wiki/Setup-Instructions
+
+<h2>Background</h2>
 Shoot me an email at dev@insyncva.com with suggestions/bugs
 
 These scripts use three main SQL Server technologies
