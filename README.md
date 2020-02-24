@@ -2,6 +2,7 @@
 <h2>Creating SQL Server Documentation using Powershell</h2>
 
 <h3>Sample Execution</h3>
+
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
 
 <h2>Releases</h2>
