@@ -58,7 +58,7 @@ LoadSQLSMO
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "22 - Policy Based Mgmt Objects"
-Write-Output "Server $SQLInstance"
+Write-Output("Server: [{0}]" -f $SQLInstance)
 
 # Load DMF Assemblies
 $dmfver = $null;

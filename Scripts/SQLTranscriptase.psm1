@@ -99,8 +99,31 @@ function ConnectSQLAuth
     }
 }
 
+function GetSQLNumericalVersion
+{
+    [CmdletBinding()]
+    Param([String]$myver)
 
+    # Get Major Version Only
+    [int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
+
+    switch ($ver)
+    {
+        7  {Write-Host "SQL Server 7"}
+        8  {Write-Host "SQL Server 2000"}
+        9  {Write-Host "SQL Server 2005"}
+        10 {Write-Host "SQL Server 2008/R2"}
+        11 {Write-Host "SQL Server 2012"}
+        12 {Write-Host "SQL Server 2014"}
+        13 {Write-Host "SQL Server 2016"}
+        14 {Write-Host "SQL Server 2017"}
+    	15 {Write-Host "SQL Server 2019"}
+    }
+
+    Write-Output $ver
+}
 
 
 export-modulemember -function ConnectWinAuth
 export-modulemember -function ConnectSQLAuth
+export-modulemember -function GetSQLNumericalVersion

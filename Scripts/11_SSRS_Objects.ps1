@@ -63,7 +63,7 @@ LoadSQLSMO
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "11 - SSRS Objects"
-Write-Output "Server $SQLInstance"
+Write-Output("Server: [{0}]" -f $SQLInstance)
 
 # Server connection check
 $SQLCMD1 = "select serverproperty('productversion') as 'Version'"
@@ -95,7 +95,7 @@ catch
 	exit
 }
 
-
+[int]$ver = GetSQLNumericalVersion $myver
 
 # Create some CSS for help in column formatting during HTML exports
 $myCSS = 

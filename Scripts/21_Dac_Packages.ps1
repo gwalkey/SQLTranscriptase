@@ -42,7 +42,7 @@ Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
   [string]$mypass,
-  [int]$registerDAC=0
+  [int]$registerDAC=1
 )
 
 # Load Common Modules and .NET Assemblies
@@ -70,6 +70,7 @@ LoadSQLSMO
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "21 - DAC Packages"
+Write-Output("Server: [{0}]" -f $SQLInstance)
 
 # Load Additional Assemblies
 $dacver = $null;
@@ -150,21 +151,7 @@ catch
 	exit
 }
 
-# Get Version Integer
-[int]$ver = $myver.Substring(0,$myver.IndexOf('.'))
-
-switch ($ver)
-{
-    7  {Write-Output "SQL Server 7"}
-    8  {Write-Output "SQL Server 2000"}
-    9  {Write-Output "SQL Server 2005"}
-    10 {Write-Output "SQL Server 2008/R2"}
-    11 {Write-Output "SQL Server 2012"}
-    12 {Write-Output "SQL Server 2014"}
-    13 {Write-Output "SQL Server 2016"}
-    14 {Write-Output "SQL Server 2017"}
-   	15 {Write-Output "SQL Server 2019"}
-}
+[int]$ver = GetSQLNumericalVersion $myver
 
 # Skip if server not 2008 R2+
 if ($ver -lt 10)

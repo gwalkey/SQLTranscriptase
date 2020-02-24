@@ -57,10 +57,12 @@ catch
 LoadSQLSMO
 
 # Init
+cls
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host -f Yellow -b Black "00 - RunAllScripts"
 $starttime = get-date
+Write-Output("Server: [{0}]" -f $SQLInstance)
 
 # Server connection check
 $SQLCMD1 = "select serverproperty('productversion') as 'Version'"
@@ -91,6 +93,8 @@ catch
     Set-Location $BaseFolder
 	exit
 }
+
+[int]$ver = GetSQLNumericalVersion $myver
 
 set-location $BaseFolder
 

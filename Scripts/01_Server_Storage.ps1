@@ -59,7 +59,7 @@ LoadSQLSMO
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "01 - Server Storage"
-Write-Output "Server $SQLInstance"
+Write-Output("Server: [{0}]" -f $SQLInstance)
 
 # Output folder
 $fullfolderPath = "$BaseFolder\$sqlinstance\01 - Server Storage\"
