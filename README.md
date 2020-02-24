@@ -13,9 +13,9 @@ https://github.com/gwalkey/SQLTranscriptase/wiki/Setup-Instructions
 
 <h2>Technology</h2>
 These scripts use three main SQL Server technologies:<br>
-* TSQL
-* WMI/CIM
-* SMO
+* TSQL<br>
+* WMI/CIM<br>
+* SMO<br>
 
 <h2>Feedback</h2>
 Shoot me an email at dev@insyncva.com with suggestions/bugs
