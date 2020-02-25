@@ -19,6 +19,7 @@ EXEC msdb.dbo.sp_add_alert
 ,@include_event_description_in=1
 ,@job_id=N'00000000-0000-0000-0000-000000000000'
 
+
 EXEC msdb.dbo.sp_add_alert 
  @name=N'Error Number 14151 - Fulltext Catalog Not Setup on Replicated Table'
 ,@message_id=14151
