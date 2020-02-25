@@ -60,6 +60,22 @@ function LoadSQLSMO(){
     $ErrorActionPreference = 'SilentlyContinue'
 
 
+    # Try NuGet Package Version
+    try
+    {
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Smo.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.SmoExtended.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Management.XEvent.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Management.XEventEnum.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction Stop
+        Write-Output "Using SMO Library [vNext] (150.18208.0)"
+        return
+    }
+    catch
+    {
+    }
+
+
     # 2019
     try
     {
