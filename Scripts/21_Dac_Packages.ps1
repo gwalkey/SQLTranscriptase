@@ -17,11 +17,8 @@
 .Outputs
 
 	
-.NOTES
-    SQLPackage.exe to create the .dacpac files
-    The Microsoft.SqlServer.Dac namespace from the DacFX library to register the Databases as Data-Tier Applications for Drift Reporting
-    
-    DaxFX Download
+.NOTES  
+    DacFX Download
     https://www.microsoft.com/en-us/download/details.aspx?id=100297 - 18.3.1
     This Install loads the DLL into [C:\Program Files\Microsoft SQL Server\150]
 
@@ -30,6 +27,9 @@
 
     February 2020
     The DacFX code has branched off from SSMS/SSDT and has its own dev cadence
+    
+    Try installing the NuGet Package in an Elevated Console
+    Install-Package Microsoft.SqlServer.DacFx.x86 -ProviderName NuGet
 
 .LINK
 	https://github.com/gwalkey
@@ -42,7 +42,8 @@ Param(
   [string]$SQLInstance="localhost",
   [string]$myuser,
   [string]$mypass,
-  [int]$registerDAC=1
+  [int]$registerDAC=1,
+  [int]$ExportBacPac=1
 )
 
 # Load Common Modules and .NET Assemblies
@@ -55,71 +56,14 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
-try
-{
-    Import-Module ".\LoadSQLSmo.psm1"
-}
-catch
-{
-    Throw('LoadSQLSmo.psm1 not found')
-}
-
 LoadSQLSMO
+LoadDacFx
 
 # Init
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "21 - DAC Packages"
 Write-Output("Server: [{0}]" -f $SQLInstance)
-
-# Load Additional Assemblies
-$dacver = $null;
-$dacdll = "C:\Program Files (x86)\Microsoft SQL Server\100\DAC\bin\Microsoft.SqlServer.Dac.dll"
-if((test-path -path $dacdll))
-{
-    $dacver = 2008
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\100\DAC\bin\Microsoft.SqlServer.Dac.dll"
-}
-
-$dacdll = "C:\Program Files (x86)\Microsoft SQL Server\110\DAC\bin\Microsoft.SqlServer.Dac.dll"
-if((test-path -path $dacdll))
-{
-    $dacver = 2012
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\110\DAC\bin\Microsoft.SqlServer.Dac.dll"
-}
-
-$dacdll = "C:\Program Files (x86)\Microsoft SQL Server\120\DAC\bin\Microsoft.SqlServer.Dac.dll"
-if((test-path -path $dacdll))
-{
-    $dacver = 2014
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\120\DAC\bin\Microsoft.SqlServer.Dac.dll"
-}
-
-$dacdll = "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\Microsoft.SqlServer.Dac.dll"
-if((test-path -path $dacdll))
-{
-    $dacver = 2016
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\Microsoft.SqlServer.Dac.dll"
-}
-$dacdll = "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\Microsoft.SqlServer.Dac.dll"
-if((test-path -path $dacdll))
-{
-    $dacver = 2017
-    add-type -path "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\Microsoft.SqlServer.Dac.dll"
-}
-$dacdll = "C:\Program Files\Microsoft SQL Server\150\DAC\bin\Microsoft.SqlServer.Dac.dll"
-if((test-path -path $dacdll))
-{
-    $dacver = 2019
-    add-type -path "C:\Program Files\Microsoft SQL Server\150\DAC\bin\Microsoft.SqlServer.Dac.dll"
-}
-
-If (!($dacver))
-{
-    Write-Output "Microsoft.SqlServer.Dac.dll not found, exiting"
-    exit
-}
-
 
 # Server connection check
 $SQLCMD1 = "select serverproperty('productversion') as 'Version'"
@@ -176,8 +120,7 @@ else
 }
 
 
-# Output Folder
-Write-Output "$SQLInstance - Dac Packages"
+# Create Output Folder
 $Output_path  = "$BaseFolder\$SQLInstance\21 - DAC Packages\"
 if(!(test-path -path $Output_path))
 {
@@ -201,36 +144,42 @@ $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\100\DAC\bin\sqlpackage.ex
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe
+    Write-output('SQLPackage v2008 found')
 }
 
 $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\110\DAC\bin\sqlpackage.exe"
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe
+    Write-output('SQLPackage v2012 found')
 }
 
 $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\120\DAC\bin\sqlpackage.exe"
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe
+    Write-output('SQLPackage v2014 found')
 }
 
 $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\sqlpackage.exe"
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe
+    Write-output('SQLPackage v2016 found')
 }
 
 $pkgexe = "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\sqlpackage.exe"
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe
+    Write-output('SQLPackage v2017 found')
 }
 
 $pkgexe = "C:\Program Files\Microsoft SQL Server\150\DAC\bin\sqlpackage.exe"
 if((test-path -path $pkgexe))
 {
     $pkgver = $pkgexe
+    Write-output('SQLPackage v2019 found')
 }
 
 If (!($pkgver))
@@ -239,7 +188,7 @@ If (!($pkgver))
     exit
 }
 
-Write-Output "Exporting Dac Packages..."
+Write-Output("`r`nCreating Dac Export Batch file")
 
 # Create Batch file to run below
 $myoutstring = "@ECHO OFF`n" | out-file -FilePath "$Output_path\DacExtract.cmd" -Force -Encoding ascii
@@ -273,9 +222,9 @@ foreach($sqlDatabase in $srv.databases)
 
     set-location $Output_path
        
-    # ----------------------------------------------
+    # ------------------
     # Script out DACPACs
-    # ----------------------------------------------
+    # ------------------
     if ($serverauth -eq "win")
     {
         $myoutstring = [char]34+$pkgver + [char]34+ " /action:extract /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.dacpac `n"
@@ -286,7 +235,9 @@ foreach($sqlDatabase in $srv.databases)
     }
     $myoutstring | out-file -FilePath "$Output_path\DacExtract.cmd" -Encoding ascii -append
 
-    # Register the Database as a Data Tier Application - if command-line parameter was set True
+    # 
+    # Register the Database as a Data Tier Application
+    #
     if ($registerDAC -eq 1)
     {
         # Specify the DAC metadata before Registration
@@ -296,13 +247,20 @@ foreach($sqlDatabase in $srv.databases)
         # Register as 1.0.0.0    
         try
         {
-            $dac = new-object Microsoft.SqlServer.Dac.DacServices "server=$sqlinstance"
+            if ($serverauth -eq "win")
+            {
+                $dac = new-object Microsoft.SqlServer.Dac.DacServices "data source=$sqlinstance;Integrated Security=SSPI;Application Name=SQLTranscriptase"
+            }
+            else
+            {
+                $dac = new-object Microsoft.SqlServer.Dac.DacServices "data source=$sqlinstance;User ID=$myUser;Password=$myPass;Application Name=SQLTranscriptase"
+            }
             $dac.register($myDB, $myDB, $version, $description)
-			Write-Output ("Registered Database {0}" -f $myDB)
+			Write-Output ("Registered Database [{0}]  v[{1}] as [{2}]" -f $myDB, $version, $description)
         }
         catch
         {
-            Write-Output "DacServices Register of $myDB failed"
+            Write-Output('Dac Register of [{0}] failed, Error:[{1}]' -f $mydb, $error[0])
         }
         $dac = $null;
     }
@@ -326,25 +284,30 @@ foreach($sqlDatabase in $srv.databases)
     # ---------------------
     # Script out BACPACs
     # ---------------------
-    #if ($serverauth -eq "win")
-    #{
-    #    $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac `n"
-    #}
-    #else
-    #{
-    #    $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac /sourceuser:$myuser /sourcepassword:$mypass `n"
-    #}
-    #$myoutstring | out-file -FilePath "$Output_path\BacExport.cmd" -Encoding ascii -append
+    if ($serverauth -eq "win")
+    {
+        $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac `n"
+    }
+    else
+    {
+        $myoutstring = [char]34+$pkgver + [char]34+ " /action:export /sourcedatabasename:$myDB /sourceservername:$MyServer /targetfile:$MyDB.bacpac /sourceuser:$myuser /sourcepassword:$mypass `n"
+    }
+    $myoutstring | out-file -FilePath "$Output_path\BacExport.cmd" -Encoding ascii -append
 
 }
 
 # Run the SQLPACKAGE batch files
+Write-Output("`r`nExporting Dac Packages")
 invoke-expression ".\DacExtract.cmd"
-#invoke-expression ".\BacExport.cmd"
+
+if ($ExportBacPac -eq 1)
+{
+    invoke-expression ".\BacExport.cmd"
+}
 
 # Remember to run the Drift Report batch files in the DriftReports folder
 remove-item -Path "$Output_path\DacExtract.cmd" -Force -ErrorAction SilentlyContinue
-#remove-item -Path "$Output_path\BacExport.cmd" -Force -ErrorAction SilentlyContinue
+remove-item -Path "$Output_path\BacExport.cmd" -Force -ErrorAction SilentlyContinue
 
 # Return to Base
 set-location $BaseFolder

@@ -63,14 +63,6 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
-try
-{
-    Import-Module ".\LoadSQLSmo.psm1"
-}
-catch
-{
-    Throw('LoadSQLSmo.psm1 not found')
-}
 
 LoadSQLSMO
 

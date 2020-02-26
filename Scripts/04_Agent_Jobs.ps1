@@ -43,19 +43,10 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
-try
-{
-    Import-Module ".\LoadSQLSmo.psm1"
-}
-catch
-{
-    Throw('LoadSQLSmo.psm1 not found')
-}
-
 LoadSQLSMO
 
 # Init
-Set-StrictMode -Version latest;
+Set-StrictMode -Version latest
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "04 - Agent Jobs"
 Write-Output("Server: [{0}]" -f $SQLInstance)

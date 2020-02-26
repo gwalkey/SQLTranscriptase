@@ -158,7 +158,6 @@ if ($SQLInstance.Length -eq 0)
 Write-Output("Server: [{0}]" -f $SQLInstance)
 
 # Load SMO Assemblies
-Import-Module ".\LoadSQLSmo.psm1"
 LoadSQLSMO
 
 # Load Additional Assemblies
