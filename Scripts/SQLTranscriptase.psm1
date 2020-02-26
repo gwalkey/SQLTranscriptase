@@ -6,14 +6,16 @@
     Provides Common functions for the action scripts
 	
 .EXAMPLE
-    
 	
 .Inputs
 
 .Outputs
 	
 .NOTES
-    1) Windows/SQL auth server connections
+    1) Windows/SQL auth server connection Code
+    2) Gets Major SQL Version
+    3) Loads latest installed version of SQL SMO
+    4) Loads latest installed version of DacFX Framework
 
 .LINK
 	
@@ -99,6 +101,7 @@ function ConnectSQLAuth
     }
 }
 
+
 function GetSQLNumericalVersion
 {
     [CmdletBinding()]
@@ -123,7 +126,211 @@ function GetSQLNumericalVersion
     Write-Output $ver
 }
 
+function LoadSQLSMO
+{
+
+    # Try NuGet Package Version
+    try
+    {
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Smo.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.SmoExtended.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Management.XEvent.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Management.XEventEnum.dll" -ErrorAction Stop
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.SqlManagementObjects.150.18208.0\lib\net45\Microsoft.SqlServer.Management.Sdk.Sfc.dll" -ErrorAction Stop
+        Write-Output "Using SMO Library [vNext] (150.18208.0)"
+        return
+    }
+    catch
+    {
+    }
+     
+    # 2019
+    try
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=15.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Write-Output "Using SMO Library v15 (2019)"
+        return
+    }
+    catch
+    {
+    }
+	
+    # 2017
+    try
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Write-Output "Using SMO Library v14 (2017)"
+        return
+    }
+    catch
+    {
+    }
+
+    # 2016
+    try
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=13.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Write-Output "Using SMO Library v13 (2016)"
+        return
+    }
+    catch
+    {
+    }
+
+    # 2014
+    try
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=12.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Write-Output "Using SMO Library v12 (2014)"
+        return
+    }
+    catch
+    {
+    }
+
+    # 2012
+    try 
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEvent, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.XEventEnum, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.Management.Sdk.Sfc, Version=11.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Write-Output "Using SMO Library v11 (2012)"
+        return
+    }
+    catch
+    {
+    }
+
+    try
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=10.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Write-Output "Using SMO Library 10 (2008)"
+    }
+    catch
+    {
+    }
+
+    try
+    {
+        Add-Type -AssemblyName "Microsoft.SqlServer.Smo, Version=9.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        Add-Type -AssemblyName "Microsoft.SqlServer.SMOExtended, Version=9.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91" -ErrorAction Stop
+        #Write-Output "Using SMO Library 9 (2005)"
+    }
+    catch
+    {
+    }
+
+    Write-output "No SMO Libraries found on your Machine. Please load the latest version of SMO and try again"
+    return
+
+}
+
+
+function LoadDacFX
+{
+
+    # NuGet
+    try
+    {
+        Add-Type -Path "C:\Program Files\PackageManagement\NuGet\Packages\Microsoft.SqlServer.DacFx.x86.150.4573.2\lib\net46\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac NuGet 150.4573.2')
+        return
+    }
+    catch
+    {
+    }
+
+    # 2019
+    try
+    {
+        Add-Type -Path "C:\Program Files\Microsoft SQL Server\150\DAC\bin\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac v2019')
+        return
+    }
+    catch
+    {
+    }
+
+    # 2017
+    try
+    {    
+        Add-Type -Path "C:\Program Files (x86)\Microsoft SQL Server\140\DAC\bin\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac v2017')
+        return
+    }
+    catch
+    {
+    }
+
+    # 2016
+    try
+    {
+        Add-Type -Path "C:\Program Files (x86)\Microsoft SQL Server\130\DAC\bin\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac v2016')
+        return
+    }
+    catch
+    {
+    }
+
+    # 2014 try
+    {    
+        Add-Type -Path "C:\Program Files (x86)\Microsoft SQL Server\120\DAC\bin\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac v2014')
+        return
+    }
+    catch
+    {
+    }
+
+    # 2012
+    try
+    {
+        add-type -path "C:\Program Files (x86)\Microsoft SQL Server\110\DAC\bin\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac v2012')
+        return
+    }
+    catch
+    {
+    }
+
+    # 2008
+    try
+    {
+        Add-Type -Path "C:\Program Files (x86)\Microsoft SQL Server\100\DAC\bin\Microsoft.SqlServer.Dac.dll" -ErrorAction Stop
+        Write-Output('Using Dac v2008')
+        return
+    }
+    catch
+    {
+    }
+
+    Write-Output "Microsoft.SqlServer.Dac.dll not found, exiting"
+    exit
+}
+
 
 export-modulemember -function ConnectWinAuth
 export-modulemember -function ConnectSQLAuth
 export-modulemember -function GetSQLNumericalVersion
+export-modulemember -function LoadDacFX
+export-modulemember -function LoadSQLSMO
