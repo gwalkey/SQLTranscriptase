@@ -4,10 +4,10 @@
 These Powershell scripts allow both the beginning and experienced Powershell student and DBA both<br>
 to learn Powershell and preserve SQL Server objects that comprise your On-Prem and Azure Servers.
 
-They capture and export all SQL-Server related object both inside and outdide the database. As well as <br>
+They capture and export all SQL-Server related objects both inside and outdide the database. As well as <br>
 anything you cant access in SSMS by doing a "Right-click" Script out action.<br>
 
-They are designed to be run separately or together. The default parameter runs the code against localhost.<br>
+They are designed to be run separately or together. The default parameter runs the scripts against localhost.<br>
 The Powershell script 00_RunAllScripts.ps1 runs most of the individual scripts in a pre-defined sequence to export<br>
 most objects. But because the scripts are individual scripts, you are free to run or assemble them to your liking.<br>
 
@@ -16,7 +16,7 @@ The scripts use 3 MS Technologies to export their data:
 2) SMO - SQL Server Management Objects
 3) WMI
 
-They assume Sysadmin or equivalent permissions on the SQL Boxes you plan to script-out.
+They assume SysAdmin or equivalent permissions on the SQL Boxes you plan to script-out.
 
 Please read the Wiki above for setup instructions as the scripts have MS dependencies that change frequently
 
