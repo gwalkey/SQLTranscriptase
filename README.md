@@ -1,7 +1,7 @@
 # SQLTranscriptase 
 <h2>Creating SQL Server Documentation using Powershell</h2>
 
-These Powershell scripts allow both the beginningand experienced Powershell student and DBA both<br>
+These Powershell scripts allow both the beginning and experienced Powershell student and DBA both<br>
 learn Powershell and acccess SQL Server objects that comprise your On-Prem and Azure Servers.
 
 They are designed to be run separately or together. The default parameter runs the code against localhost.<br>
