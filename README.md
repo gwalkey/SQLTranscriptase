@@ -34,7 +34,7 @@ https://github.com/gwalkey/SQLTranscriptase/wiki/Setup-Instructions
 https://github.com/gwalkey/SQLTranscriptase/wiki/Usage
   
 <h2>Feedback</h2>
-Shoot me an email at dev@insyncva.com with suggestions/bugs
+Open a GitHub Issue above
 
 <h2>Project Background</h2>
 <em>SQLTranscriptase</em> is a termed coined from Molecular Biology meaning the exporting of information from DNA
