@@ -1,6 +1,20 @@
 # SQLTranscriptase 
 <h2>Creating SQL Server Documentation using Powershell</h2>
 
+These Powershell scripts allow both the beginningand experienced Powershell student and DBA both<br>
+learn Powershell and acccess SQL Server objects that comprise your On-Prem and Azure Servers.
+
+They are designed to be run separately or together. The default parameter runs the code against localhost.<br>
+The Powershell script 00_RunAllScripts.ps1 runs most of the individual scripts in a pre-defined sequence to export<br>
+most objects. But because the scripts are individual scripts, you are free to run or assemble them to your liking.<br>
+
+The scrripts use 3 MS Technologies to export their data:
+1) TSQL
+2) SMO
+3) WMI
+
+They assume Sysadmin or equivalent permissions on the SQL Boxes you plan to script-out.
+
 <h3>Sample Execution</h3>
 
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
