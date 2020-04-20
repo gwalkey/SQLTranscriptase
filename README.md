@@ -30,13 +30,9 @@ https://github.com/gwalkey/SQLTranscriptase/releases
 <h2>Setup Instructions</h2>
 https://github.com/gwalkey/SQLTranscriptase/wiki/Setup-Instructions
 
-<h2>Technology</h2>
-These scripts use three main SQL Server technologies:<br>
-
-* TSQL<br>
-* WMI/CIM<br>
-* SMO<br>
-
+<h2>Usage</h2>
+https://github.com/gwalkey/SQLTranscriptase/wiki/Usage
+  
 <h2>Feedback</h2>
 Shoot me an email at dev@insyncva.com with suggestions/bugs
 
