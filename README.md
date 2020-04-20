@@ -2,7 +2,10 @@
 <h2>Creating SQL Server Documentation using Powershell</h2>
 
 These Powershell scripts allow both the beginning and experienced Powershell student and DBA both<br>
-learn Powershell and acccess SQL Server objects that comprise your On-Prem and Azure Servers.
+to learn Powershell and preserve SQL Server objects that comprise your On-Prem and Azure Servers.
+
+They capture and export all SQL-Server related object both inside and outdide the database. As well as <br>
+anything you cant access in SSMS by doing a "Right-click" Script out action.<br>
 
 They are designed to be run separately or together. The default parameter runs the code against localhost.<br>
 The Powershell script 00_RunAllScripts.ps1 runs most of the individual scripts in a pre-defined sequence to export<br>
