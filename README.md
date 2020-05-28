@@ -8,7 +8,7 @@ They capture and export all SQL-Server related objects both inside and outside t
 anything you cant access in SSMS by doing a "Right-click" Script-Out action.<br>
 
 The Scripts are designed to be run separately or together. The default parameters run the scripts against [localhost].<br>
-The Powershell script 00_RunAllScripts.ps1 runs most of the individual scripts in a pre-defined sequence to export<br>
+The Powershell script <b>00_RunAllScripts.ps1</b> runs most of the individual scripts in a pre-defined sequence to export<br>
 most objects. But because the scripts are individual scripts, you are free to run or assemble them to your liking.<br>
 
 The scripts use 3 MS Technologies to export their data:
