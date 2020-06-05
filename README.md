@@ -44,6 +44,5 @@ A need arose to both learn Powershell and document SQL Server that current SQL T
 <h2>Original Presentation</h2>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
-
-
+<h2>Think. Study. Do it yourself</h2>
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/DBATools.jpg)
