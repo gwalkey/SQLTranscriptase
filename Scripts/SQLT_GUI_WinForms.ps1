@@ -196,7 +196,7 @@ $checkbox1.AutoSize = $True
 $checkbox1.Location = New-Object System.Drawing.Point(20, 165)
 $checkbox1.Name = "checkbox1"
 $checkbox1.TabIndex = 5
-$checkbox1.Text = "01_Server_Applicance"
+$checkbox1.Text = "01_Server_Appliance"
 $checkbox1.Add_CheckStateChanged({
     if ($checkbox1.Checked) {
         $cb_AllScripts.Checked = $false
