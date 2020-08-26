@@ -160,7 +160,7 @@ Convertto-Html -head $head -Body "$myHtml1" -Title "Server Roles"  -PostContent 
 if ($myver -like "12.0*" -or $myver -like "13.0*" -or $myver -like "14.0*" -or $myver -like "15.0*")
 {
 
-    $SQLCMD3 = "USE Master; select State, path, current_size_in_kb as sizeKB from sys.dm_os_buffer_pool_extension_configuration"
+    $SQLCMD3 = "USE master; select State, path, current_size_in_kb as sizeKB from sys.dm_os_buffer_pool_extension_configuration"
 
 
     # Run Query
