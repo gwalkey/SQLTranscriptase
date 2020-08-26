@@ -122,6 +122,7 @@ LEFT JOIN sys.endpoints AS e
 WHERE l.name = 'public';
 "
 
+
 if ($serverauth -eq "win")
 {
     $ServerPerms = ConnectWinAuth -SQLExec $sqlCMD1 -SQLInstance $SQLInstance -Database "master"
