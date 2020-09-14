@@ -91,7 +91,7 @@ AlertText =
 CASE 
 	WHEN tsha.job_id='00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS NOT NULL THEN
 		'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
-		' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+		' @name=N'+CHAR(39)+tsha.name+CHAR(39)+char(13)+char(10)+
 		',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
 		',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
 		',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
@@ -101,7 +101,7 @@ CASE
 
 	WHEN tsha.job_id='00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS null THEN
 	'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
-	' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+	' @name=N'+CHAR(39)+tsha.name+CHAR(39)+char(13)+char(10)+
 	',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
 	',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
 	',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
@@ -110,7 +110,7 @@ CASE
 
 	WHEN tsha.job_id<>'00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS NOT NULL THEN
 		'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
-		' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+		' @name=N'+CHAR(39)+tsha.name+CHAR(39)+char(13)+char(10)+
 		',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
 		',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
 		',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
@@ -121,7 +121,7 @@ CASE
 
 	WHEN tsha.job_id<>'00000000-0000-0000-0000-000000000000' AND tsha.performance_condition IS NULL THEN
 		'EXEC msdb.dbo.sp_add_alert '+char(13)+char(10)+
-		' @name=N'+CHAR(39)+tsha.NAME+CHAR(39)+char(13)+char(10)+
+		' @name=N'+CHAR(39)+tsha.name+CHAR(39)+char(13)+char(10)+
 		',@message_id='+CONVERT(VARCHAR(6),tsha.message_id)+char(13)+char(10)+
 		',@severity='+CONVERT(VARCHAR(10),tsha.severity)+char(13)+char(10)+
 		',@enabled='+CONVERT(VARCHAR(10),tsha.[enabled])+char(13)+char(10)+
@@ -144,8 +144,8 @@ $sqlCMD3 =
 select 
     NotifyText =
 	'EXEC msdb.dbo.sp_add_notification '+char(13)+char(10)+
-	' @alert_name =N'+CHAR(39)+A.[name]+CHAR(39)+CHAR(13)+CHAR(10)+
-	' ,@operator_name = N'+CHAR(39)+O.[name]+CHAR(39)+CHAR(13)+CHAR(10)+	
+	' @alert_name =N'+CHAR(39)+a.[name]+CHAR(39)+CHAR(13)+CHAR(10)+
+	' ,@operator_name = N'+CHAR(39)+o.[name]+CHAR(39)+CHAR(13)+CHAR(10)+	
 	' ,@notification_method= 1'
 from 
 	[msdb].[dbo].[sysalerts] a
