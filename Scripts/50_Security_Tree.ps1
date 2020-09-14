@@ -270,7 +270,7 @@ foreach($myLogin in $logins)
     JOIN sys.server_principals AS sRole  
         ON sRo.role_principal_id = sRole.principal_id
     WHERE 
-    	sprinc.name='$login'
+    	sPrinc.name='$login'
     "
     
     if ($serverauth -eq "win")
