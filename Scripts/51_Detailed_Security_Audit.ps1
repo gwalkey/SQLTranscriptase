@@ -155,7 +155,7 @@ foreach($sqlDatabase in $sqlresults1)
     ON 
         dp.sid = sp.sid 
 	JOIN
-		[master].[dbo].[syslogins] SL
+		[master].[dbo].[syslogins] sl
 	ON	
 		sl.name = sp.name
     ORDER BY 
@@ -379,11 +379,11 @@ SELECT
 	l.[name] as 'Login', 
 	p.type AS 'LoginType'
 FROM 
-	[master].[dbo].[syslogins] L
+	[master].[dbo].[syslogins] l
 JOIN
-	master.sys.server_principals P
+	master.sys.server_principals p
 ON 
-	P.sid = L.sid
+	p.sid = l.sid
 WHERE
 	l.[name] NOT LIKE '##%'
 	AND

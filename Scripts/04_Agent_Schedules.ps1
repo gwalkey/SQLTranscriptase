@@ -327,7 +327,7 @@ INSERT into @AgentSked
 SELECT   
 k.[name],
 k.[enabled] as 'Sked_Enabled',
-k.[Schedule_uid],
+k.[schedule_uid],
 j.[name],
 j.[enabled] as 'Job Enabled',
 case [freq_type]
@@ -375,7 +375,7 @@ case [freq_subday_type]
 	when 4 then 'Every '+ convert(varchar,[freq_subday_interval]) + ' Minutes'
 	when 8 then 'Every '+ convert(varchar,[freq_subday_interval]) + ' Hours'
 end as 'Freq_Subday_Type',
-[Freq_SubDay_Interval],
+[freq_subday_interval],
 substring(convert(char,k.active_start_date),1,4) + '-'+substring(convert(char,k.active_start_date),5,2) +'-'+substring(convert(char,k.active_start_date),7,2) as 'StartDate',
 case LEN(convert(varchar,k.active_start_time))
 	when 1 then '00:00:00'
@@ -767,7 +767,7 @@ where t.Freq_SubDay_Type like 'Every %% Hours' and [Freq_SubDay_Type]<>'Every 1 
 
 --- Move Their starttime by their interval
 update t 
-set t.[starthour] = t.starthour+t.Freq_SubDay_Interval
+set t.[StartHour] = t.StartHour+t.Freq_SubDay_Interval
 from @AgentSked t
 where t.Freq_SubDay_Type like 'Every %% Hours' and [Freq_SubDay_Type]<>'Every 1 Hours'
 
@@ -781,8 +781,8 @@ set StartHour = OriginalStartHour
 from @AgentSked t
 
 select * from @AgentSked 
-where job_enabled = 1
-order by StartHour, Sked, job
+where Job_Enabled = 1
+order by StartHour, Sked, Job
 
 "
 

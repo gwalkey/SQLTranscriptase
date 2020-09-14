@@ -116,10 +116,10 @@ CASE WHEN  type = 'U' THEN 'TABLE '
                WHEN  type = 'FN'THEN 'FUNCTION '
                WHEN  type = 'V'THEN 'VIEW ' 
 END as 'ObjectType',
-[Name] 
-FROM Master.sys.objects
+[name] 
+FROM master.sys.objects
 WHERE is_ms_shipped <> 1
-AND TYPE IN ('U','P','FN','V')
+AND type IN ('U','P','FN','V')
 order by 1,2
 
 "

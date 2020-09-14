@@ -127,7 +127,7 @@ SELECT
     DB_NAME(m.[database_id]) AS [Database_Name],
 	d.create_date,
     CONVERT(float, m.size/128.0) AS [DBSizeMB],
-	D.compatibility_level,
+	d.compatibility_level,
 	case	
 		when d.is_query_store_on=1 then 'On'
 	else ''
@@ -176,11 +176,11 @@ SELECT
 		when d.user_access=2 then 'Restricted'
 	end as 'Mode'
 FROM 
-	sys.master_files M WITH (NOLOCK)
+	sys.master_files m WITH (NOLOCK)
 inner join 
-	sys.databases D
+	sys.databases d
 ON 
-	M.database_id = D.database_id
+	m.database_id = d.database_id
 where
 	m.type_desc in ('ROWS','FILESTREAM')
 ORDER BY 
