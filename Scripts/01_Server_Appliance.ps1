@@ -51,6 +51,15 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -386,8 +395,16 @@ a42635e8-c082-4fbf-9bc1-6b12576771ab  (Ultimate Performance)
 #>
 try
 {
-    $mystring41 = [string] (& powercfg '/getactivescheme' 2>&1)
-    
+    try
+    {
+        $PP = Get-WmiObject -Class win32_powerplan -Namespace root\cimv2\power -CN c0sql1 -Filter "isActive='true'"
+        $mystring41 = $pp.elementName
+    }
+    catch
+    {
+        Write-host('Error getting Power Profile using WMI')
+        $mystring41=''
+    }
     if (!($mystring41 -match "High" -or $mystring41 -match "Ulti")) 
     {
         Write-output ("PowerPlan is *not optimal for SQL Server *")| out-file $fullFileName -Encoding ascii -Append
