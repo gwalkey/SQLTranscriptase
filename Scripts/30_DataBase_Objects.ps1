@@ -63,6 +63,14 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
 
 LoadSQLSMO
 
@@ -97,7 +105,7 @@ try
         $serverauth = "win"
     }
 
-    if($myver -ne $null)
+    if($null -ne $myver)
     {
         Write-Output ("SQL Version: {0}" -f $myver)
     }
@@ -120,13 +128,13 @@ function CopyObjectsToFiles($objects, $outDir) {
 	
 	foreach ($o in $objects) { 
 	
-		if ($o -ne $null) {
+		if ($null -ne $o) {
 			
 			$schemaPrefix = ""
 			
             try
             {
-			    if ($o.Schema -ne $null -and $o.Schema -ne "") 
+			    if ($null -ne $o.Schema -and $o.Schema -ne "") 
                 {
     				$schemaPrefix = $o.Schema + "."
 			    }
@@ -155,7 +163,7 @@ function CopyObjectsToFiles($objects, $outDir) {
 # New UP SQL SMO Object
 if ($serverauth -eq "win")
 {
-    $srv        = New-Object "Microsoft.SqlServer.Management.SMO.Server" $SQLInstance
+    $srv        = New-Object ("Microsoft.SqlServer.Management.SMO.Server") ($SQLInstance)
     $scripter 	= New-Object ("Microsoft.SqlServer.Management.SMO.Scripter") ($SQLInstance)
 }
 else
@@ -244,7 +252,7 @@ if(!(test-path -path $FullFolderPath))
 }
 
 $myoutputfile4 = $FullFolderPath+"\Database_Summary.html"
-$myHtml1 = $sqlresults1 | select Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
+$myHtml1 = $sqlresults1 | Select-Object Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Database Summary"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Create Database Object Reconstruction Order Hints File
@@ -257,7 +265,7 @@ Convertto-Html -head $head -Body "$myHtml1" -Title "Database Summary"  -PostCont
 "05) Sequences" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "06) Synonyms" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "07) Schemas" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"08) UDFs (Table-Valued and Scalar Functions)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"08) Functions (Table-Valued and Scalar Functions)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "09) User-Defined Table Types" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "10) Tables (with DRI Dependencies)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "11) Views" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
@@ -357,11 +365,10 @@ foreach($sqlDatabase in $srv.databases)
 
     # paths
     $DB_Path                     = "$output_path\"
-    $table_path 		         = "$output_path\Tables\"
-    $TableTriggers_path	         = "$output_path\TableTriggers\"
+    $table_path 		         = "$output_path\Tables\"    
     $views_path 		         = "$output_path\Views\"
     $storedProcs_path 	         = "$output_path\StoredProcedures\"
-    $udfs_path 			         = "$output_path\UserDefinedFunctions\"
+    $udfs_path 			         = "$output_path\Functions\"
     $textCatalog_path 	         = "$output_path\FullTextCatalogs\"
     $udtts_path 		         = "$output_path\UserDefinedTableTypes\"
     $DBTriggers_path 	         = "$output_path\DBTriggers\"
@@ -427,7 +434,7 @@ foreach($sqlDatabase in $srv.databases)
 		Write-Output "$fixedDBName - Query Store Options"
 		$myoutputfile = $QueryStore_path + "Query_Store.sql"
 		$QueryStore = $db.QueryStoreOptions 
-		if ($QueryStore -ne $null)
+		if ($null -ne $QueryStore)
 		{
 			if(!(test-path -path $QueryStore_path))
 			{
@@ -482,7 +489,7 @@ foreach($sqlDatabase in $srv.databases)
     $mySettings = $db.Properties
     
     $myoutputfile4 = $DBSettingsPath+"\Database_Settings.html"
-    $myHtml1 = $mySettings | sort-object Name | select Name, Value | ConvertTo-Html -Fragment -as table -PreContent "<h3>Database Settings for: $SQLInstance </h3>"
+    $myHtml1 = $mySettings | sort-object Name | Select-Object Name, Value | ConvertTo-Html -Fragment -as table -PreContent "<h3>Database Settings for: $SQLInstance </h3>"
     Convertto-Html -head $head -Body "$myHtml1" -Title "Database Settings"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
     
     # DBRoles
@@ -555,7 +562,7 @@ foreach($sqlDatabase in $srv.databases)
     CopyObjectsToFiles $views $views_path
 
     # UDFs
-    Write-Output "$fixedDBName - UDFs"
+    Write-Output "$fixedDBName - Functions"
     $udfs = $db.UserDefinedFunctions | Where-object  { -not $_.IsSystemObject  }
     CopyObjectsToFiles $udfs $udfs_path
 
@@ -744,7 +751,7 @@ foreach($sqlDatabase in $srv.databases)
            
     
     "Create Your Tables in this order to maintain Declarative Referential Integrity`r`n" | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii
-    $sqlresults4 | select Ordinal, TableName | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii -Append
+    $sqlresults4 | Select-Object Ordinal, TableName | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii -Append
 
 
     # -------------------------------------------------------------------------
@@ -761,8 +768,7 @@ foreach($sqlDatabase in $srv.databases)
     $udfs = $null
     $udtts = $null
     $catalog = $null
-    $DBTriggers = $null
-    $TableTriggers = $null
+    $DBTriggers = $null    
     $Schemas = $null
     $Sequences = $null
     $Synonyms = $null
