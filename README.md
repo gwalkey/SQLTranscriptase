@@ -24,6 +24,9 @@ Please read the Wiki above for setup instructions as the scripts have MS depende
 
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
 
+<h2>Requirements</h2>
+Windows Powershell 5.1
+
 <h2>Releases</h2>
 https://github.com/gwalkey/SQLTranscriptase/releases
 
