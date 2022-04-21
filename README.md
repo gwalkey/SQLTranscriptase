@@ -25,7 +25,7 @@ Please read the Wiki above for setup instructions as the scripts have MS depende
 ![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/SQLT.gif)
 
 <h3>Agent Job Schedules Power BI Dashboard</h3>
-![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/AgentJobsPBIX.png)
+![alt text](https://raw.githubusercontent.com/gwalkey/SQLTranscriptase/master/AgentJobsPBIX.jpg)
 
 <h2>Requirements</h2>
 Windows Powershell 5.1
