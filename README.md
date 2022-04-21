@@ -51,3 +51,4 @@ A need arose to both learn Powershell and document SQL Server that current SQL T
 <h2>Original Presentation</h2>
 http://usergroup.tv/videos/scripting-out-sql-server-for-documentation-and-disaster-recovery
 
+<iframe title="vimeo-player" src="https://player.vimeo.com/video/138522818?h=624b679e24" width="640" height="360" frameborder="0" allowfullscreen></iframe>
