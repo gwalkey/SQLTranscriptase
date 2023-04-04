@@ -43,6 +43,15 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
@@ -304,7 +313,7 @@ foreach($sqlDatabase in $srv.databases)
     }
 
     # Skip Offline Databases (SMO still enumerates them, but we cant retrieve the objects)
-    if ($sqlDatabase.Status -ne 'Normal')     
+    if ($sqlDatabase.Status -notmatch 'Normal')     
     {
         Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
         continue
