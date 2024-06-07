@@ -179,6 +179,8 @@ if ($jobs -ne $null)
         $myjobname = $myjobname.Replace(':', '-')
         $myjobname = $myjobname.replace('[','(')
         $myjobname = $myjobname.replace(']',')')
+	$myjobname = $myjobname.replace('*','_')
+        $myjobname = $myjobname.replace('**','__')
         
         if ($job.Isenabled)
         {
