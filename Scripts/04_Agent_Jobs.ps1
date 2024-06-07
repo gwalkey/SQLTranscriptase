@@ -1,10 +1,11 @@
-﻿<#
+<#
 .SYNOPSIS
-    Gets the SQL Agent Jobs
+    Scripts out all SQL Agent Jobs
 	
 .DESCRIPTION
    Writes the SQL Agent Jobs out to the "04 - Agent Jobs" folder
    One file per job 
+   and a SingleFile with All Jobs
    
 .EXAMPLE
     04_Agent_Jobs.ps1 localhost
@@ -28,7 +29,7 @@
 
 [CmdletBinding()]
 Param(
-  [string]$SQLInstance='localhost',
+  [string]$SQLInstance='c0sqlmon',
   [string]$myuser,
   [string]$mypass
 )
@@ -43,10 +44,19 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
 
 # Init
-Set-StrictMode -Version latest
+Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "04 - Agent Jobs"
 Write-Output("Server: [{0}]" -f $SQLInstance)
@@ -162,6 +172,13 @@ if(!(test-path -path $fullfolderPathDis))
 	mkdir $fullfolderPathDis | Out-Null
 }
 
+$SingleFilename = "$BaseFolder\$sqlinstance\04 - Agent Jobs\Alljobs.sql"
+$SinglejobContents = ""
+
+# Clear out putput folders
+Get-ChildItem -Path $fullfolderPathEn -Include * -File -Recurse | remove-item -Confirm:$false
+Get-ChildItem -Path $fullfolderPathDis -Include * -File -Recurse | remove-item -Confirm:$false
+
 $jobcount = $server.JObserver.jobs.count
  
  # Export with filename fixups
@@ -179,7 +196,7 @@ if ($jobs -ne $null)
         $myjobname = $myjobname.Replace(':', '-')
         $myjobname = $myjobname.replace('[','(')
         $myjobname = $myjobname.replace(']',')')
-	$myjobname = $myjobname.replace('*','_')
+        $myjobname = $myjobname.replace('*','_')
         $myjobname = $myjobname.replace('**','__')
         
         if ($job.Isenabled)
@@ -190,10 +207,29 @@ if ($jobs -ne $null)
         {
             $FileName = "$fullfolderPathDis\$myjobname.sql"
         }
+        
+        Write-Output('{0}' -f $myjobname)
+        try
+        {
+            $jobContents = $job.Script()
 
-        $job.Script() | Out-File -filepath $FileName
-        $myjobname
+            # Append this job to the AllJobs string
+            $SinglejobContents = $SinglejobContents + $jobContents+ "`r`nGO`r`n`r`n"     
+
+            # Export individual job contents
+            $jobContents| Out-File -FilePath $FileName
+        }
+        catch
+        {
+            Write-Output('Error: [{0}]' -f $Error[0])
+            Write-Output('FileName: [{0}]' -f $FileName)
+        }
+        
+
     }
+
+    # Export Alljobs contents
+    $SinglejobContents | Out-File -FilePath $SingleFilename
 
     Write-Output ("{0} Jobs Exported" -f $jobCount)
 }
