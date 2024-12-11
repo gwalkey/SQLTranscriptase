@@ -58,7 +58,19 @@ catch
     Throw('SQLTranscriptase.psm1 not found')
 }
 
+try
+{
+    Import-Module ".\LoadSQLSmo.psm1"
+}
+catch
+{
+    Throw('LoadSQLSmo.psm1 not found')
+}
+
 LoadSQLSMO
+
+# Load Powershell Module for AD Group Member Name Resolution
+Import-Module ActiveDirectory
 
 function CopyObjectsToFiles($objects, $outDir) {
 	
@@ -163,9 +175,8 @@ if ($OnDomain -eq $true)
     try
     {
         $old_ErrorActionPreference = $ErrorActionPreference
-        $ErrorActionPreference = 'SilentlyContinue'
-    
-        Import-Module ActiveDirectory
+        $ErrorActionPreference = 'SilentlyContinue'    
+        
     
         # Test if Im on a windows Domain, If so and we find Windows Group SQL Logins, resolve all related Windows AD Users
         $MyDCs = Get-ADDomainController -Filter * | Select-Object name
@@ -281,7 +292,12 @@ foreach ($Login in $Logins)
             # Get all Users of this AD Group
             try
             {
-            $ADGroupUsers = Get-AdGroupMember -identity $ADName -recursive  -ErrorAction Stop |Where {$_.objectClass -eq "user"} | sort name
+                #$ADGroupUsers = Get-ADGroupMember -Identity $ADName -Recursive -ErrorAction Stop | Where-Object {$_.objectClass -eq "user"} | Sort-Object name
+
+                # Dec 11 2024 - switch to LDAP filter to overcome 5000 member AD limit 
+                # First, Get the DistinguishedName of the Group
+                $GroupDN = (Get-ADGroup -Identity $ADName).DistinguishedName
+                $ADGroupUsers = Get-ADUser -LDAPFilter "(&(objectCategory=user)(memberof=$GroupDN))" -ErrorAction Stop | Sort-Object name
             }
             catch
             {
@@ -292,7 +308,7 @@ foreach ($Login in $Logins)
             # Export Users for this AD Group
             $myoutputfile = $WinGroupSinglePath+"Users in "+$myFixedGroupName+".sql"
             $myoutputstring = "-- These Domain Users are members of the SQL Login and Windows Group ["+$ADName+ "]`n"
-            $myoutputstring | out-file -FilePath $myoutputfile -encoding ascii
+            $myoutputstring | Out-File -FilePath $myoutputfile -encoding ascii
        
             # Create the Group Itself
             CopyObjectsToFiles $login $WinGroupSinglePath
@@ -313,7 +329,7 @@ foreach ($Login in $Logins)
                 {
                     $CreateObjectName = "CREATE LOGIN ["+$ADDomain+"\"+$ADUser.SamAccountName+"] FROM WINDOWS WITH DEFAULT_DATABASE=[master], DEFAULT_LANGUAGE=[us_english] "
                 }
-                $CreateObjectName | out-file -FilePath $myoutputfile -append -Encoding ascii
+                $CreateObjectName | Out-File -FilePath $myoutputfile -append -Encoding ascii
             }
 
         }
@@ -401,7 +417,7 @@ foreach ($Login in $Logins)
             
         # output results        
         $MyScriptingFilePath = $WinUsersPath+"\"+$fixedFileName2+".sql"
-        $CreateObjectName | out-file -FilePath $MyScriptingFilePath -Encoding ascii -Force
+        $CreateObjectName | Out-File -FilePath $MyScriptingFilePath -Encoding ascii -Force
      }
      #else
      #{
@@ -633,4 +649,3 @@ else
 
 # Return To Base
 set-location $BaseFolder
-
