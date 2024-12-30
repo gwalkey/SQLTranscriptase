@@ -17,7 +17,9 @@
     Table Triggers
     User Defined Functions
     User Defined Table Types
-    Views	
+    Views
+    Users
+
 
 
 .EXAMPLE
@@ -45,7 +47,7 @@
 
 [CmdletBinding()]
 Param(
-    [string]$SQLInstance = "localhost",
+    [string]$SQLInstance,
     [string]$myuser,
     [string]$mypass,
     [string]$myDatabase,
@@ -60,21 +62,22 @@ try
 }
 catch
 {
-    Throw('SQLTranscriptase.psm1 not found')
+    Throw('SQLTranscriptase.psm1 module not found in the current Folder')
 }
 
+# Load the Module
 LoadSQLSMO
 
 # Init
 Set-StrictMode -Version latest;
 [string]$BaseFolder = (Get-Item -Path ".\" -Verbose).FullName
 Write-Host  -f Yellow -b Black "30 - DataBase Objects"
-Write-Output("Server: [{0}]" -f $SQLInstance)
+Write-Host("Server: [{0}]" -f $SQLInstance)
 
 # Parameter check: Table needs matching Database parameter
 if ($myTable.Length -gt 0 -and $myDatabase.Length -eq 0)
 {
-    Write-Output ("Please specify the -MyDatabase parameter when using -myTable with {0}" -f $mytable)
+    Write-Host ("Please specify the -MyDatabase parameter when using -myTable with {0}" -f $mytable)
     exit
 }
 
@@ -85,20 +88,32 @@ try
 {
     if ($mypass.Length -ge 1 -and $myuser.Length -ge 1) 
     {
-        Write-Output "Testing SQL Auth"        
-        $myver = ConnectSQLAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -User $myuser -Password $mypass -ErrorAction Stop| select -ExpandProperty Version
+        Write-Host "Testing SQL Auth"        
+        $myver = ConnectSQLAuth `
+            -SQLInstance $SQLInstance `
+            -Database "master" `
+            -SQLExec $SQLCMD1 `
+            -User $myuser `
+            -Password $mypass `
+            -ErrorAction Stop | Select-Object -ExpandProperty Version
+
         $serverauth="sql"
     }
     else
     {
-        Write-Output "Testing Windows Auth"
-		$myver = ConnectWinAuth -SQLInstance $SQLInstance -Database "master" -SQLExec $SQLCMD1 -ErrorAction Stop | select -ExpandProperty Version
+        Write-Host "Testing Windows Auth"
+		$myver = ConnectWinAuth `
+            -SQLInstance $SQLInstance `
+            -Database "master" `
+            -SQLExec $SQLCMD1 `
+            -ErrorAction Stop | Select-Object -ExpandProperty Version
+
         $serverauth = "win"
     }
 
     if($null -ne $myver)
     {
-        Write-Output ("SQL Version: {0}" -f $myver)
+        Write-Host ("SQL Version: {0}" -f $myver)
     }
 
 }
@@ -109,12 +124,11 @@ catch
 	exit
 }
 
-[int]$ver = GetSQLNumericalVersion $myver
 
 function CopyObjectsToFiles($objects, $outDir) {
 	
 	if (-not (Test-Path $outDir)) {
-		[System.IO.Directory]::CreateDirectory($outDir) | out-null
+		[System.IO.Directory]::CreateDirectory($outDir) | Out-Null
 	}
 	
 	foreach ($o in $objects) { 
@@ -138,7 +152,7 @@ function CopyObjectsToFiles($objects, $outDir) {
 			$scripter.Options.FileName = $outDir + $schemaPrefix + $fixedOName + ".sql"
             try
             {                
-                $urn = new-object Microsoft.SQlserver.Management.sdk.sfc.urn($o.Urn);
+                $urn = New-Object Microsoft.SQlserver.Management.sdk.sfc.urn($o.Urn);
                 $scripter.Script($urn)
             }
             catch
@@ -167,7 +181,7 @@ else
 }
 
 # Find/Inspect other Server-Level Objects here
-Write-Output "Looking for Objects..."
+Write-Host "Looking for Objects..."
 
 # HTML CSS
 $head = "<style type='text/css'>"
@@ -243,36 +257,34 @@ if(!(test-path -path $FullFolderPath))
 }
 
 $myoutputfile4 = $FullFolderPath+"\Database_Summary.html"
-$myHtml1 = $sqlresults1 | Select-Object Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
+$myHtml1 = $sqlresults1 | `Select-Object Database_Name,file_id, Name, FileName, Type, State, growth, growth_in_mb, DB_Size_in_MB | ConvertTo-Html -Fragment -as table -PreContent "<h1>Server: $SqlInstance</H1><H2>Database Summary</h2>"
 Convertto-Html -head $head -Body "$myHtml1" -Title "Database Summary"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
 
 # Create Database Object Reconstruction Order Hints File
-"Database Object Reconstruction Order" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"`n " | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"01) Database itself with Filegroups and Files" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"02) .NET Assemblies" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"03) Linked Servers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
-"04) Logins" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
-"05) Sequences" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"06) Synonyms" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"07) Schemas" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"08) Functions (Table-Valued and Scalar Functions)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"09) User-Defined Table Types" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"10) Tables (with DRI Dependencies)" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"11) Views" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"12) Stored Procedures" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"13) Full-Text Catalogs" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"14) Table Triggers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
-"15) Database Triggers" | out-file "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"Database Object Reconstruction Order" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"`n " | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"01) Database itself with Filegroups and Files" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"02) .NET Assemblies" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"03) Linked Servers" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
+"04) Logins" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append    
+"05) Sequences" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"06) Synonyms" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"07) Schemas" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"08) Functions (Table-Valued and Scalar Functions)" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"09) User-Defined Table Types" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"10) Tables (with DRI Dependencies)" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"11) Views" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"12) Stored Procedures" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"13) Full-Text Catalogs" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"14) Table Triggers" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"15) Database Triggers" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 
 # Add your favorite options from 
 # https://msdn.microsoft.com/en-us/library/microsoft.sqlserver.management.smo.scriptingoptions.aspx
 # https://www.simple-talk.com/sql/database-administration/automated-script-generation-with-powershell-and-smo/
 $scripter.Options.AllowSystemObjects 	= $false
 $scripter.Options.AnsiFile 				= $true
-
 $scripter.Options.ClusteredIndexes 		= $true
-
 $scripter.Options.DriAllKeys            = $true
 $scripter.Options.DriForeignKeys        = $true
 $scripter.Options.DriChecks             = $true
@@ -283,15 +295,12 @@ $scripter.Options.DriAllConstraints 	= $true
 $scripter.Options.DriIndexes 			= $true
 $scripter.Options.DriClustered 			= $true
 $scripter.Options.DriNonClustered 		= $true
-
 $scripter.Options.EnforceScriptingOptions 	= $true
 $scripter.Options.ExtendedProperties    = $true
-
 $scripter.Options.FullTextCatalogs      = $true
 $scripter.Options.FullTextIndexes 		= $true
 $scripter.Options.FullTextStopLists     = $true
 $scripter.Options.IncludeFullTextCatalogRootPath= $true
-
 $scripter.Options.IncludeHeaders        = $true
 $scripter.Options.IncludeDatabaseRoleMemberships= $true
 $scripter.Options.IncludeDatabaseContext = $true;
@@ -324,7 +333,7 @@ $scripter.Options.ScriptData 	= $false;
 
 if ($myDatabase.Length -gt 0)
 {
-    Write-Output ("Only scripting Database {0}"-f $myDatabase)
+    Write-Host ("Only scripting Database {0}"-f $myDatabase)
 }
 
 # -----------------------
@@ -344,7 +353,7 @@ foreach($sqlDatabase in $srv.databases)
     # Skip Offline Databases (SMO still enumerates them, but cant retrieve the objects)
     if ($sqlDatabase.Status -ne 'Normal')     
     {
-        Write-Output ("Skipping Offline: {0}" -f $sqlDatabase.Name)
+        Write-Host ("Skipping Offline: {0}" -f $sqlDatabase.Name)
         continue
     }
 
@@ -356,6 +365,7 @@ foreach($sqlDatabase in $srv.databases)
 
     # paths
     $DB_Path                     = "$output_path\"
+    $Users_path 		         = "$output_path\Users\"
     $table_path 		         = "$output_path\Tables\"    
     $views_path 		         = "$output_path\Views\"
     $storedProcs_path 	         = "$output_path\StoredProcedures\"
@@ -384,28 +394,28 @@ foreach($sqlDatabase in $srv.databases)
     # --------------------------------
 
     # Main DB Export Folder
-    if(!(test-path -path $DB_Path))
+    if(!(Test-Path -path $DB_Path))
     {
         mkdir $DB_Path | Out-Null	
     }
 
     # Export Main Database Itself with Files and FileGroups
-    Write-Output "$fixedDBName - Database"
-    $MainDB = $db  | Where-object  { -not $_.IsSystemObject  }
+    Write-Host "$fixedDBName - Database"
+    $MainDB = $db  | Where-Object  { -not $_.IsSystemObject  }
     $myoutputfile = $DB_Path + $fixedDBName + ".sql"
-    $MainDB.Script() | out-file -FilePath $myoutputfile -encoding ascii -Force
+    $MainDB.Script() | Out-File -FilePath $myoutputfile -encoding ascii -Force
 
 	# 2016+ Only Features
-	if ($myver -like "13.0*" -or $myver -like "14.0*")
+	if ([int]$($db.Version) -gt 852)
 	{
 		# Database Scoped Credentials
-		Write-Output "$fixedDBName - Database Scoped Credentials"
+		Write-Host "$fixedDBName - Database Scoped Credentials"
 		$DBScopedCreds = $db.DatabaseScopedCredentials 
 		CopyObjectsToFiles $DBScopedCreds $DBScoped_Creds_path
 
         # Database Scoped Configs
-        Write-Output "$fixedDBName - Database Scoped Configs"
-        if(!(test-path -path $DBScoped_Configs_path))
+        Write-Host "$fixedDBName - Database Scoped Configs"
+        if(!(Test-Path -path $DBScoped_Configs_path))
 		{
 			mkdir $DBScoped_Configs_path | Out-Null	
 		}
@@ -422,7 +432,7 @@ foreach($sqlDatabase in $srv.databases)
 
 
 		# QueryStore Options
-		Write-Output "$fixedDBName - Query Store Options"
+		Write-Host "$fixedDBName - Query Store Options"
 		$myoutputfile = $QueryStore_path + "Query_Store.sql"
 		$QueryStore = $db.QueryStoreOptions 
 		if ($null -ne $QueryStore)
@@ -431,36 +441,36 @@ foreach($sqlDatabase in $srv.databases)
 			{
 				mkdir $QueryStore_path | Out-Null	
 			}
-			$QueryStore.Script() | out-file -FilePath $myoutputfile -append -encoding ascii
+			$QueryStore.Script() | Out-File -FilePath $myoutputfile -append -encoding ascii
 		}
     
 		# External Data Sources
-		Write-Output "$fixedDBName - External Data Sources"
+		Write-Host "$fixedDBName - External Data Sources"
 		$DB_EDS = $db.ExternalDataSources
 		CopyObjectsToFiles $DB_EDS $DBEDS_path
 
 		# External File Formats
-		Write-Output "$fixedDBName - External File Formats"
+		Write-Host "$fixedDBName - External File Formats"
 		$DBExtFF = $db.ExternalFileFormats
 		CopyObjectsToFiles $DBExtFF $DBExtFF_path
 
 		# Security Policies
-		Write-Output "$fixedDBName - Database Security Policies"
+		Write-Host "$fixedDBName - Database Security Policies"
 		$DBSecPol = $db.SecurityPolicies
 		CopyObjectsToFiles $DBSecPol $DBSecPol_path
 
 		# XMLSchema Collections
-		Write-Output "$fixedDBName - XML Schema Collections"
+		Write-Host "$fixedDBName - XML Schema Collections"
 		$DBXML_SC = $db.XmlSchemaCollections
 		CopyObjectsToFiles $DBXML_SC $XMLSC_path
 
 		# Always Encrypted Column Encryption Keys
-		Write-Output "$fixedDBName - Column Encryption Keys"
+		Write-Host "$fixedDBName - Column Encryption Keys"
 		$DBAE_CEK = $db.ColumnEncryptionKeys
 		CopyObjectsToFiles $DBAE_CEK $DBColumnEncryptionKey_path
 
 		# Always Encrypted Column Master Keys
-		Write-Output "$fixedDBName - Column Master Keys"
+		Write-Host "$fixedDBName - Column Master Keys"
 		$DBAE_CMK = $db.ColumnMasterKeys
 		CopyObjectsToFiles $DBAE_CMK $DBColumnMasterKey_path
 
@@ -469,25 +479,25 @@ foreach($sqlDatabase in $srv.databases)
     # Create Settings Path
     $DBSettingsPath = $output_path+"\Settings"
 
-    if(!(test-path -path $DBSettingsPath))
+    if(!(Test-Path -path $DBSettingsPath))
     {
         mkdir $DBSettingsPath | Out-Null	
     }
    
        
     # Database Settings
-    Write-Output "$fixedDBName - Settings"
+    Write-Host "$fixedDBName - Settings"
     $mySettings = $db.Properties
     
     $myoutputfile4 = $DBSettingsPath+"\Database_Settings.html"
-    $myHtml1 = $mySettings | sort-object Name | Select-Object Name, Value | ConvertTo-Html -Fragment -as table -PreContent "<h3>Database Settings for: $SQLInstance </h3>"
-    Convertto-Html -head $head -Body "$myHtml1" -Title "Database Settings"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
+    $myHtml1 = $mySettings | Sort-Object Name | Select-Object Name, Value | ConvertTo-Html -Fragment -as table -PreContent "<h3>Database Settings for: $SQLInstance </h3>"
+    ConvertTo-Html -head $head -Body "$myHtml1" -Title "Database Settings"  -PostContent "<h3>Ran on : $RunTime</h3>" | Set-Content -Path $myoutputfile4
     
     # DBRoles
-    Write-Output "$fixedDBName - Roles"
+    Write-Host "$fixedDBName - Roles"
 
     # Create Output Sub Folder
-    if(!(test-path -path $DBRole_path))
+    if(!(Test-Path -path $DBRole_path))
     {
         mkdir $DBRole_path | Out-Null	
     }
@@ -498,39 +508,39 @@ foreach($sqlDatabase in $srv.databases)
         # Create Role File
         $RoleFile = $DBRole_path+$role.name+".sql"
         $RoleName = $role.Name
-        "Use "+$db.name | out-file $RoleFile -Encoding ascii -Append
-        "GO " | out-file $RoleFile -Encoding ascii -Append
-        " " | out-file $RoleFile -Encoding ascii -Append
-        "CREATE ROLE "+$RoleName | out-file $RoleFile -Encoding ascii -Append
-        " " | out-file $RoleFile -Encoding ascii -Append
+        "Use "+$db.name | Out-File $RoleFile -Encoding ascii -Append
+        "GO " | Out-File $RoleFile -Encoding ascii -Append
+        " " | Out-File $RoleFile -Encoding ascii -Append
+        "CREATE ROLE "+$RoleName | Out-File $RoleFile -Encoding ascii -Append
+        " " | Out-File $RoleFile -Encoding ascii -Append
 
         foreach ($Roleproperty in $role.Properties)
         {
-            "--- Role Property {0}={1}" -f $RoleProperty.name,$RoleProperty.value  | out-file $RoleFile -Encoding ascii -Append
+            "--- Role Property {0}={1}" -f $RoleProperty.name,$RoleProperty.value  | Out-File $RoleFile -Encoding ascii -Append
         }
-        " " | out-file $RoleFile -Encoding ascii -Append
+        " " | Out-File $RoleFile -Encoding ascii -Append
 
         $RolePermissions = $role.EnumObjectPermissions()
         foreach ($RolePermission in $RolePermissions)
         {
-            "Role Permission {0}={1}" -f $RoleProperty.name,$RoleProperty.value  | out-file $RoleFile -Encoding ascii -Append
+            "Role Permission {0}={1}" -f $RoleProperty.name,$RoleProperty.value  | Out-File $RoleFile -Encoding ascii -Append
         }
 
-        "---Members:" | out-file $RoleFile -Encoding ascii -Append
+        "---Members:" | Out-File $RoleFile -Encoding ascii -Append
         $members = $role.EnumMembers()
         
         foreach ($member in $members)
         {
-            "EXEC sp_addrolemember '$RoleName','$member'"  | out-file $RoleFile -Encoding ascii -Append
+            "EXEC sp_addrolemember '$RoleName','$member'"  | Out-File $RoleFile -Encoding ascii -Append
         }
     }
 
     # Tables
-    Write-Output "$fixedDBName - Tables"
+    Write-Host "$fixedDBName - Tables"
 
     if ($mytable.Length -gt 0 -and $myDatabase -eq $sqldatabase.name)
 	{
-        Write-Output ("Only for table {0}"-f $mytable)
+        Write-Host ("Only for table {0}"-f $mytable)
         $tblSchema = ($mytable -split {$_ -eq "."})[0]
         $tblTable = ($mytable -split {$_ -eq "."})[1]
         $tbl = $db.Tables | Where-Object {$_.schema -eq $tblSchema -and $_.name -eq $tblTable}
@@ -543,62 +553,68 @@ foreach($sqlDatabase in $srv.databases)
     CopyObjectsToFiles $tbl $table_path
 
     # Stored Procs
-    Write-Output "$fixedDBName - Stored Procs"
+    Write-Host "$fixedDBName - Stored Procs"
     $storedProcs = $db.StoredProcedures | Where-object  {-not $_.IsSystemObject  }
     CopyObjectsToFiles $storedProcs $storedProcs_path
 
+    # Users
+    Write-Host "$fixedDBName - Users"
+    $Users = $db.Users | Where-object { -not $_.IsSystemObject   } 
+    CopyObjectsToFiles $Users $Users_path
+
+
     # Views
-    Write-Output "$fixedDBName - Views"
+    Write-Host "$fixedDBName - Views"
     $views = $db.Views | Where-object { -not $_.IsSystemObject   } 
     CopyObjectsToFiles $views $views_path
 
     # UDFs
-    Write-Output "$fixedDBName - Functions"
+    Write-Host "$fixedDBName - Functions"
     $udfs = $db.UserDefinedFunctions | Where-object  { -not $_.IsSystemObject  }
     CopyObjectsToFiles $udfs $udfs_path
 
     # Table Types
-    Write-Output "$fixedDBName - Table Types"
+    Write-Host "$fixedDBName - Table Types"
     $udtts = $db.UserDefinedTableTypes  
     CopyObjectsToFiles $udtts $udtts_path
 
     # FullTextCats
-    Write-Output "$fixedDBName - FullTextCatalogs"
+    Write-Host "$fixedDBName - FullTextCatalogs"
     $catalog = $db.FullTextCatalogs
     CopyObjectsToFiles $catalog $textCatalog_path
 
     # DB Triggers
-    Write-Output "$fixedDBName - Database Triggers"
+    Write-Host "$fixedDBName - Database Triggers"
     $DBTriggers	= $db.Triggers
     CopyObjectsToFiles $DBTriggers $DBTriggers_path
 
     # Schemas
-    Write-Output "$fixedDBName - Schemas"
+    Write-Host "$fixedDBName - Schemas"
     $Schemas = $db.Schemas | Where-object  { -not $_.IsSystemObject  }
     CopyObjectsToFiles $Schemas $Schemas_path
 
     # Sequences
-    Write-Output "$fixedDBName - Sequences"
+    Write-Host "$fixedDBName - Sequences"
     $Sequences = $db.Sequences
     CopyObjectsToFiles $Sequences $Sequences_path
 
     # Synonyms
-    Write-Output "$fixedDBName - Synonyms"
+    Write-Host "$fixedDBName - Synonyms"
     $Synonyms = $db.Synonyms
     CopyObjectsToFiles $Synonyms $Synonyms_path
 
     # List Filegroups, Files and Path
-    Write-Output "$fixedDBName - FileGroups"
+    Write-Host "$fixedDBName - FileGroups"
 
     # Process FileGroups
     $myoutputfile = $Filegroups_path+"Filegroups.txt"
-    if(!(test-path -path $Filegroups_path))
+    if(!(Test-Path -path $Filegroups_path))
     {
         mkdir $Filegroups_path | Out-Null	
     }
 
     # Create Output File
-    out-file -filepath $myoutputfile -encoding ascii -Force
+    Out-File -filepath $myoutputfile -encoding ascii -Force
     Add-Content -path $myoutputfile -value "FileGroupName:          DatabaseFileName:           FilePath:"
 
     # Prep SQL for Filegroups
@@ -629,12 +645,12 @@ foreach($sqlDatabase in $srv.databases)
     foreach ($FG in $sqlresults3)
     {
         $myoutputstring = $FG.FileGroupName+$FG.DatabaseFileName+$FG.DatabaseFilePath
-        $myoutputstring | out-file -FilePath $myoutputfile -append -encoding ascii -width 500
+        $myoutputstring | Out-File -FilePath $myoutputfile -append -encoding ascii -width 500
     }
 
 
     # Table Creation in Dependency Order to maintain DRI
-    Write-Output "$fixedDBName - DRI Create Table Order"
+    Write-Host "$fixedDBName - DRI Create Table Order"
 
     # Create Database Summary Listing
     $sqlCMD4 = 
@@ -733,7 +749,7 @@ foreach($sqlDatabase in $srv.databases)
     }
 
 
-    $RunTime = Get-date
+    $RunTime = Get-Date
     $FullFolderPath = "$BaseFolder\$SQLInstance\30 - DataBase Objects\"
     if(!(test-path -path $FullFolderPath))
     {
@@ -741,8 +757,8 @@ foreach($sqlDatabase in $srv.databases)
     }
            
     
-    "Create Your Tables in this order to maintain Declarative Referential Integrity`r`n" | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii
-    $sqlresults4 | Select-Object Ordinal, TableName | out-file "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii -Append
+    "Create Your Tables in this order to maintain Declarative Referential Integrity`r`n" | Out-File "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii
+    $sqlresults4 | Select-Object Ordinal, TableName | Out-File "$output_path\DRI_Table_Creation_Order.txt" -Encoding ascii -Append
 
 
     # -------------------------------------------------------------------------
@@ -768,5 +784,5 @@ foreach($sqlDatabase in $srv.databases)
 }
 
 # Return To Base
-set-location $BaseFolder
+Set-Location $BaseFolder
 
