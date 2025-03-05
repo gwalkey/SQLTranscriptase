@@ -54,7 +54,7 @@ Param(
     [string]$myuser,
     [string]$mypass,
     [string]$myDatabase,
-	[string]$mytable
+    [string]$mytable
 
 )
 
