@@ -42,6 +42,9 @@
 
 .LINK
     https://github.com/gwalkey
+
+.Changelog
+    GBW - March 5, 2025 - Added Partition Functions and Schemes
 	
 #>
 
@@ -278,6 +281,8 @@ Convertto-Html -head $head -Body "$myHtml1" -Title "Database Summary"  -PostCont
 "13) Full-Text Catalogs" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "14) Table Triggers" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 "15) Database Triggers" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"16) Partition Functions" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
+"17) Partition Schemes" | Out-File "$FullFolderPath\Database_Reconstruction_Hints.txt" -Encoding ascii -Append
 
 # Add your favorite options from 
 # https://msdn.microsoft.com/en-us/library/microsoft.sqlserver.management.smo.scriptingoptions.aspx
@@ -387,6 +392,8 @@ foreach($sqlDatabase in $srv.databases)
     $DBColumnEncryptionKey_path  = "$output_path\ColumnEncryptionKeys\"
     $DBColumnMasterKey_path      = "$output_path\ColumnMasterKeys\"
     $DBRole_path                 = "$output_path\DBRoles\"
+    $PartitionFunction_path      = "$output_path\PartitionFunctions\"
+    $PartitionScheme_path        = "$output_path\PartitionSchemes\"
      
 
     # --------------------------------
@@ -562,7 +569,6 @@ foreach($sqlDatabase in $srv.databases)
     $Users = $db.Users | Where-object { -not $_.IsSystemObject   } 
     CopyObjectsToFiles $Users $Users_path
 
-
     # Views
     Write-Host "$fixedDBName - Views"
     $views = $db.Views | Where-object { -not $_.IsSystemObject   } 
@@ -602,6 +608,16 @@ foreach($sqlDatabase in $srv.databases)
     Write-Host "$fixedDBName - Synonyms"
     $Synonyms = $db.Synonyms
     CopyObjectsToFiles $Synonyms $Synonyms_path
+
+    # Partition Functions
+    Write-Host "$fixedDBName - Partition Functions"
+    $PartFunctions = $db.PartitionFunctions
+    CopyObjectsToFiles $PartFunctions $PartitionFunction_path
+
+    # Partition Schemes
+    Write-Host "$fixedDBName - Partition Schemes"
+    $PartSchemes = $db.PartitionSchemes
+    CopyObjectsToFiles $PartSchemes $PartitionScheme_path
 
     # List Filegroups, Files and Path
     Write-Host "$fixedDBName - FileGroups"
